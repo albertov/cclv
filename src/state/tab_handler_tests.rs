@@ -48,10 +48,11 @@ fn make_subagent_entry(agent_id: &str) -> ConversationEntry {
 
 #[test]
 fn next_tab_moves_to_next_tab() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
-    entries.push(make_subagent_entry("agent-3"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+        make_subagent_entry("agent-3"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -69,15 +70,15 @@ fn next_tab_moves_to_next_tab() {
 
 #[test]
 fn next_tab_wraps_from_last_to_first() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
     // Tab 0 = main, tab 1 = agent-1, tab 2 = agent-2
-    state.selected_conversation =
-        ConversationSelection::Subagent(AgentId::new("agent-2").unwrap()); // Last tab (agent-2)
+    state.selected_conversation = ConversationSelection::Subagent(AgentId::new("agent-2").unwrap()); // Last tab (agent-2)
 
     let new_state = handle_tab_action(state, KeyAction::NextTab);
 
@@ -90,9 +91,10 @@ fn next_tab_wraps_from_last_to_first() {
 
 #[test]
 fn next_tab_works_regardless_of_focus() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -126,16 +128,16 @@ fn next_tab_does_nothing_when_no_session() {
 
 #[test]
 fn prev_tab_moves_to_previous_tab() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
-    entries.push(make_subagent_entry("agent-3"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+        make_subagent_entry("agent-3"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
     // Tab 0 = main, tab 1 = agent-1, tab 2 = agent-2, tab 3 = agent-3
-    state.selected_conversation =
-        ConversationSelection::Subagent(AgentId::new("agent-3").unwrap()); // Last tab (agent-3)
+    state.selected_conversation = ConversationSelection::Subagent(AgentId::new("agent-3").unwrap()); // Last tab (agent-3)
 
     let new_state = handle_tab_action(state, KeyAction::PrevTab);
 
@@ -148,10 +150,11 @@ fn prev_tab_moves_to_previous_tab() {
 
 #[test]
 fn prev_tab_wraps_from_first_to_last() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
-    entries.push(make_subagent_entry("agent-3"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+        make_subagent_entry("agent-3"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -169,16 +172,16 @@ fn prev_tab_wraps_from_first_to_last() {
 
 #[test]
 fn prev_tab_works_regardless_of_focus() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
     state.focus = FocusPane::Stats; // Different focus
                                     // Tab 0 = main, tab 1 = agent-1, tab 2 = agent-2
-    state.selected_conversation =
-        ConversationSelection::Subagent(AgentId::new("agent-2").unwrap());
+    state.selected_conversation = ConversationSelection::Subagent(AgentId::new("agent-2").unwrap());
 
     let new_state = handle_tab_action(state, KeyAction::PrevTab);
 
@@ -207,10 +210,11 @@ fn prev_tab_does_nothing_when_no_session() {
 
 #[test]
 fn select_tab_sets_tab_by_one_indexed_number() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
-    entries.push(make_subagent_entry("agent-3"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+        make_subagent_entry("agent-3"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -228,8 +232,9 @@ fn select_tab_sets_tab_by_one_indexed_number() {
 
 #[test]
 fn select_tab_handles_tab_1_as_main() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -247,9 +252,10 @@ fn select_tab_handles_tab_1_as_main() {
 
 #[test]
 fn select_tab_clamps_to_last_when_too_high() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -267,14 +273,14 @@ fn select_tab_clamps_to_last_when_too_high() {
 
 #[test]
 fn select_tab_ignores_zero() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
-    state.selected_conversation =
-        ConversationSelection::Subagent(AgentId::new("agent-1").unwrap());
+    state.selected_conversation = ConversationSelection::Subagent(AgentId::new("agent-1").unwrap());
 
     let new_state = handle_tab_action(state, KeyAction::SelectTab(0));
 
@@ -287,9 +293,10 @@ fn select_tab_ignores_zero() {
 
 #[test]
 fn select_tab_works_regardless_of_focus() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -324,15 +331,15 @@ fn select_tab_does_nothing_when_no_session() {
 
 #[test]
 fn non_tab_actions_return_state_unchanged() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
-    entries.push(make_subagent_entry("agent-2"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+        make_subagent_entry("agent-2"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
     state.focus = FocusPane::Subagent;
-    state.selected_conversation =
-        ConversationSelection::Subagent(AgentId::new("agent-1").unwrap());
+    state.selected_conversation = ConversationSelection::Subagent(AgentId::new("agent-1").unwrap());
 
     let new_state = handle_tab_action(state, KeyAction::ScrollDown);
 
@@ -345,8 +352,9 @@ fn non_tab_actions_return_state_unchanged() {
 
 #[test]
 fn non_tab_actions_like_quit_return_state_unchanged() {
-    let mut entries = Vec::new();
-    entries.push(make_subagent_entry("agent-1"));
+    let entries = vec![
+        make_subagent_entry("agent-1"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -405,38 +413,17 @@ fn next_tab_uses_active_session_subagents_when_scrolled_to_first_session() {
     // Given: Two sessions with different subagent sets
     // Session 1: alpha, beta
     // Session 2: gamma, delta, epsilon
-    let mut entries = Vec::new();
-
-    // Session 1
-    entries.push(make_main_entry("session-1", "First session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "alpha",
-        "Alpha msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "beta",
-        "Beta msg",
-    ));
-
-    // Session 2
-    entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "gamma",
-        "Gamma msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "delta",
-        "Delta msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "epsilon",
-        "Epsilon msg",
-    ));
+    let entries = vec![
+        // Session 1
+        make_main_entry("session-1", "First session"),
+        make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"),
+        make_subagent_entry_for_session("session-1", "beta", "Beta msg"),
+        // Session 2
+        make_main_entry("session-2", "Second session"),
+        make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"),
+        make_subagent_entry_for_session("session-2", "delta", "Delta msg"),
+        make_subagent_entry_for_session("session-2", "epsilon", "Epsilon msg"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -445,8 +432,7 @@ fn next_tab_uses_active_session_subagents_when_scrolled_to_first_session() {
     // Currently: current_session() returns LAST session (session-2)
     // When alpha is selected (exists only in session-1), next_tab wraps to Main
     // because alpha doesn't exist in session-2's subagent list
-    state.selected_conversation =
-        ConversationSelection::Subagent(AgentId::new("alpha").unwrap());
+    state.selected_conversation = ConversationSelection::Subagent(AgentId::new("alpha").unwrap());
 
     let new_state = handle_tab_action(state, KeyAction::NextTab);
 
@@ -461,28 +447,19 @@ fn next_tab_uses_active_session_subagents_when_scrolled_to_first_session() {
 #[test]
 fn next_tab_wraps_within_active_session_tabs() {
     // Given: Session with multiple subagents
-    let mut entries = Vec::new();
-
     // Session: alpha, beta (2 subagents)
-    entries.push(make_main_entry("session-1", "Test session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "alpha",
-        "Alpha msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "beta",
-        "Beta msg",
-    ));
+    let entries = vec![
+        make_main_entry("session-1", "Test session"),
+        make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"),
+        make_subagent_entry_for_session("session-1", "beta", "Beta msg"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
 
     // Tabs: main (0), alpha (1), beta (2)
     // When at last tab (beta = index 2)
-    state.selected_conversation =
-        ConversationSelection::Subagent(AgentId::new("agent-2").unwrap());
+    state.selected_conversation = ConversationSelection::Subagent(AgentId::new("agent-2").unwrap());
 
     let new_state = handle_tab_action(state, KeyAction::NextTab);
 
@@ -497,33 +474,16 @@ fn next_tab_wraps_within_active_session_tabs() {
 #[test]
 fn prev_tab_uses_active_session_tabs() {
     // Given: Two sessions
-    let mut entries = Vec::new();
-
-    // Session 1: alpha, beta
-    entries.push(make_main_entry("session-1", "First session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "alpha",
-        "Alpha msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "beta",
-        "Beta msg",
-    ));
-
-    // Session 2: gamma, delta
-    entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "gamma",
-        "Gamma msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "delta",
-        "Delta msg",
-    ));
+    let entries = vec![
+        // Session 1: alpha, beta
+        make_main_entry("session-1", "First session"),
+        make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"),
+        make_subagent_entry_for_session("session-1", "beta", "Beta msg"),
+        // Session 2: gamma, delta
+        make_main_entry("session-2", "Second session"),
+        make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"),
+        make_subagent_entry_for_session("session-2", "delta", "Delta msg"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -545,19 +505,11 @@ fn prev_tab_uses_active_session_tabs() {
 #[test]
 fn select_tab_clamps_to_active_session_tab_count() {
     // Given: Session with 2 subagents
-    let mut entries = Vec::new();
-
-    entries.push(make_main_entry("session-1", "Test session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "alpha",
-        "Alpha msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "beta",
-        "Beta msg",
-    ));
+    let entries = vec![
+        make_main_entry("session-1", "Test session"),
+        make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"),
+        make_subagent_entry_for_session("session-1", "beta", "Beta msg"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -578,28 +530,15 @@ fn select_tab_clamps_to_active_session_tab_count() {
 fn tab_operations_respect_scroll_position_to_determine_active_session() {
     // This test verifies the CRITICAL requirement: scroll position determines active session
     // Given: Two sessions with DIFFERENT subagent sets
-    let mut entries = Vec::new();
-
-    // Session 1: alpha, beta (2 subagents)
-    entries.push(make_main_entry("session-1", "First session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "alpha",
-        "Alpha msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-1",
-        "beta",
-        "Beta msg",
-    ));
-
-    // Session 2: gamma (1 subagent)
-    entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "gamma",
-        "Gamma msg",
-    ));
+    let entries = vec![
+        // Session 1: alpha, beta (2 subagents)
+        make_main_entry("session-1", "First session"),
+        make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"),
+        make_subagent_entry_for_session("session-1", "beta", "Beta msg"),
+        // Session 2: gamma (1 subagent)
+        make_main_entry("session-2", "Second session"),
+        make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);

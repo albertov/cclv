@@ -216,10 +216,9 @@ fn make_blocks_entry(uuid: &str, agent_id: Option<AgentId>, blocks: Vec<ContentB
 
 #[test]
 fn execute_search_finds_match_in_main_agent_text() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "This is an error message"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -237,10 +236,9 @@ fn execute_search_finds_match_in_main_agent_text() {
 
 #[test]
 fn execute_search_is_case_insensitive() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "ERROR in uppercase"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -254,10 +252,9 @@ fn execute_search_is_case_insensitive() {
 
 #[test]
 fn execute_search_finds_multiple_matches_in_single_entry() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "error at start and error at end"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -272,13 +269,14 @@ fn execute_search_finds_multiple_matches_in_single_entry() {
 
 #[test]
 fn execute_search_finds_matches_across_multiple_entries() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
-        make_text_entry("entry-1", None, "first error"),
-    )));
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
-        make_text_entry("entry-2", None, "second error"),
-    )));
+    let entries = vec![
+        crate::model::ConversationEntry::Valid(Box::new(
+            make_text_entry("entry-1", None, "first error"),
+        )),
+        crate::model::ConversationEntry::Valid(Box::new(
+            make_text_entry("entry-2", None, "second error"),
+        )),
+    ];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -366,10 +364,9 @@ fn execute_search_searches_all_text_blocks_in_blocks_content() {
 
 #[test]
 fn execute_search_returns_empty_when_no_matches() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "no matching text"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -384,10 +381,9 @@ fn execute_search_returns_empty_when_no_matches() {
 fn execute_search_returns_empty_for_empty_session() {
     let mut state = AppState::new();
     // Add a single entry with no searchable content (empty text)
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, ""),
-    )));
+    ))];
     state.add_entries(entries);
 
     let query = SearchQuery::new("error").expect("valid query");
@@ -398,10 +394,9 @@ fn execute_search_returns_empty_for_empty_session() {
 
 #[test]
 fn execute_search_handles_overlapping_matches() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "aaa"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -417,10 +412,9 @@ fn execute_search_handles_overlapping_matches() {
 
 #[test]
 fn execute_search_stores_correct_match_length() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "find this pattern"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -654,10 +648,9 @@ fn agent_ids_with_matches_mixed_main_and_subagent_matches() {
 #[test]
 fn execute_search_handles_emoji_in_content_before_match() {
     // Content: "🦀 error" - emoji is 4 bytes, then space (1 byte), then "error" at byte 5
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "🦀 error"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -678,10 +671,9 @@ fn execute_search_handles_emoji_in_content_before_match() {
 #[test]
 fn execute_search_finds_emoji_in_content() {
     // Search for emoji within content
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "Rust 🦀 rocks"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -699,10 +691,9 @@ fn execute_search_finds_emoji_in_content() {
 #[test]
 fn execute_search_handles_multibyte_unicode_characters() {
     // Japanese characters (3 bytes each in UTF-8)
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "Hello 日本語 world"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -719,10 +710,9 @@ fn execute_search_handles_multibyte_unicode_characters() {
 
 #[test]
 fn execute_search_finds_japanese_text() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "Searching for 日本語 here"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -737,10 +727,9 @@ fn execute_search_finds_japanese_text() {
 
 #[test]
 fn execute_search_multiple_emojis_in_text() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "🔥🦀🚀 test 🎉"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -757,10 +746,9 @@ fn execute_search_multiple_emojis_in_text() {
 #[test]
 fn execute_search_emoji_case_insensitive_ascii_only() {
     // Case insensitivity should work for ASCII parts, emoji stays as-is
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "ERROR 🔥 here"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -776,10 +764,9 @@ fn execute_search_emoji_case_insensitive_ascii_only() {
 #[test]
 fn execute_search_overlapping_matches_with_unicode() {
     // "ää" where ä is 2 bytes each in UTF-8
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "ääää"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -798,10 +785,9 @@ fn execute_search_overlapping_matches_with_unicode() {
 #[test]
 fn execute_search_unicode_at_match_boundary() {
     // Emoji right at the end of a match
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "test🦀 more test🦀"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -818,10 +804,9 @@ fn execute_search_unicode_at_match_boundary() {
 
 #[test]
 fn execute_search_stores_correct_match_length_for_unicode_query() {
-    let mut entries = Vec::new();
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(
+    let entries = vec![crate::model::ConversationEntry::Valid(Box::new(
         make_text_entry("entry-1", None, "Find the 🚀 emoji"),
-    )));
+    ))];
 
     let mut state = AppState::new();
     state.add_entries(entries);

@@ -20,7 +20,7 @@ fn build_session_stats(
     // Process main agent entries
     for entry_view in session_view.main().entries() {
         if let ConversationEntry::Valid(log_entry) = entry_view.entry() {
-            stats.record_entry(&**log_entry);
+            stats.record_entry(log_entry);
         }
     }
 
@@ -28,7 +28,7 @@ fn build_session_stats(
     for conversation_view in session_view.subagents().values() {
         for entry_view in conversation_view.entries() {
             if let ConversationEntry::Valid(log_entry) = entry_view.entry() {
-                stats.record_entry(&**log_entry);
+                stats.record_entry(log_entry);
             }
         }
     }

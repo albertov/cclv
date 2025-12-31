@@ -1042,8 +1042,8 @@ fn test_entry_index_prefix_on_multiline_entry() {
     );
 
     // Continuation lines should have blank indent (5 chars to match entry prefix width)
-    for i in 1..5 {
-        let line_text: String = lines[i]
+    for (i, line) in lines.iter().enumerate().take(5).skip(1) {
+        let line_text: String = line
             .spans
             .iter()
             .map(|span| span.content.as_ref())
@@ -1288,8 +1288,8 @@ fn test_entry_index_prefix_on_collapsed_entry() {
     );
 
     // Continuation lines (2nd summary line, 3rd summary line, collapse indicator) should have "│    "
-    for i in 1..4 {
-        let line_text: String = lines[i]
+    for (i, line) in lines.iter().enumerate().take(4).skip(1) {
+        let line_text: String = line
             .spans
             .iter()
             .map(|span| span.content.as_ref())
@@ -1777,7 +1777,7 @@ fn test_focused_entry_has_cyan_index() {
     // ASSERTION 1: Focused entry should have Cyan-colored INDEX PREFIX
     // The index prefix is the FIRST span of each line and contains "│"
     let has_cyan_index_in_focused = focused_lines.iter().any(|line| {
-        line.spans.first().map_or(false, |span| {
+        line.spans.first().is_some_and(|span| {
             span.content.contains("│") && span.style.fg == Some(ratatui::style::Color::Cyan)
         })
     });
@@ -1790,7 +1790,7 @@ fn test_focused_entry_has_cyan_index() {
     // ASSERTION 2: Unfocused entry should NOT have Cyan in the INDEX PREFIX
     // Check the first span (index prefix) specifically
     let has_cyan_index_in_unfocused = unfocused_lines.iter().any(|line| {
-        line.spans.first().map_or(false, |span| {
+        line.spans.first().is_some_and(|span| {
             span.content.contains("│") && span.style.fg == Some(ratatui::style::Color::Cyan)
         })
     });
@@ -1803,7 +1803,7 @@ fn test_focused_entry_has_cyan_index() {
     // ASSERTION 3: Unfocused entry should have DarkGray in the INDEX PREFIX
     // Check the first span (index prefix) specifically
     let has_darkgray_index_in_unfocused = unfocused_lines.iter().any(|line| {
-        line.spans.first().map_or(false, |span| {
+        line.spans.first().is_some_and(|span| {
             span.content.contains("│") && span.style.fg == Some(ratatui::style::Color::DarkGray)
         })
     });
@@ -1861,8 +1861,8 @@ fn test_entry_index_appears_only_on_first_line() {
 
     // ASSERTION 2: Continuation lines (lines 1-4) should have blank indent matching width "│    "
     // They should NOT have the entry number or any │ separator after the leading │
-    for i in 1..5 {
-        let line_text: String = lines[i]
+    for (i, line) in lines.iter().enumerate().take(5).skip(1) {
+        let line_text: String = line
             .spans
             .iter()
             .map(|span| span.content.as_ref())
@@ -1969,8 +1969,8 @@ fn test_tool_use_multiline_entry_index_on_first_line_only() {
 
     // Subsequent lines should have continuation indent (│    + content indent from ToolUse)
     // ToolUse adds "  " indent, so continuation should be "│    " + "  " (5 + 2 = 7 total)
-    for i in 1..lines.len().min(5) {
-        let line_text: String = lines[i]
+    for (i, line) in lines.iter().enumerate().take(lines.len().min(5)).skip(1) {
+        let line_text: String = line
             .spans
             .iter()
             .map(|span| span.content.as_ref())
@@ -2082,7 +2082,6 @@ fn test_wrapped_lines_with_prefix_fit_within_viewport() {
 // Tests that entry indices format correctly within INDEX_PREFIX_WIDTH
 // ============================================================================
 
-
 #[test]
 fn test_multiline_entry_continuation_indent_matches_prefix_width() {
     // Continuation indent must match INDEX_PREFIX_WIDTH for alignment
@@ -2127,8 +2126,8 @@ fn test_multiline_entry_continuation_indent_matches_prefix_width() {
     let first_prefix_len = lines[0].spans[0].content.chars().count();
 
     // Continuation lines should have matching indent length
-    for i in 1..5 {
-        let continuation_prefix = &lines[i].spans[0].content;
+    for (i, line) in lines.iter().enumerate().take(5).skip(1) {
+        let continuation_prefix = &line.spans[0].content;
         let continuation_len = continuation_prefix.chars().count();
         assert_eq!(
             continuation_len,
