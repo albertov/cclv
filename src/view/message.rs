@@ -439,6 +439,37 @@ fn render_entry_lines(
     lines
 }
 
+/// Render a single conversation entry as a Paragraph widget with individual wrap setting.
+///
+/// This function builds on `render_entry_lines()` to create a ratatui Paragraph widget
+/// with per-entry wrap mode support (FR-048).
+///
+/// # Arguments
+/// * `entry` - The conversation entry to render (Valid or Malformed)
+/// * `entry_index` - Index of this entry in the conversation (0-based)
+/// * `is_subagent_view` - Whether this is a subagent conversation (affects first entry labeling)
+/// * `scroll` - Scroll state (for expansion tracking)
+/// * `styles` - Message styling configuration
+/// * `collapse_threshold` - Number of lines before a message is collapsed
+/// * `summary_lines` - Number of lines shown when collapsed
+/// * `wrap_mode` - Wrap mode for this specific entry
+///
+/// # Returns
+/// A ratatui Paragraph widget ready to render
+#[allow(dead_code)]
+fn render_entry_paragraph(
+    _entry: &ConversationEntry,
+    _entry_index: usize,
+    _is_subagent_view: bool,
+    _scroll: &ScrollState,
+    _styles: &MessageStyles,
+    _collapse_threshold: usize,
+    _summary_lines: usize,
+    _wrap_mode: WrapMode,
+) -> Paragraph<'static> {
+    todo!("render_entry_paragraph")
+}
+
 /// Render a conversation view for either main agent or subagent.
 ///
 /// This is the shared widget used by both panes. It takes an AgentConversation
@@ -4020,6 +4051,182 @@ mod tests {
             !reversed.is_empty(),
             "BUG: Current match on line 2 should have REVERSED modifier. \
              Current implementation fails due to line-by-line iteration with text-wide offsets."
+        );
+    }
+
+    // ===== render_entry_paragraph Tests =====
+
+    #[test]
+    fn render_entry_paragraph_returns_paragraph_with_wrap_mode() {
+        // ARRANGE: Create a simple valid entry
+        let entry = ConversationEntry::Valid(Box::new(create_test_log_entry(
+            "entry-para-1",
+            "Simple text",
+        )));
+        let scroll_state = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // ACT: Render with Wrap mode
+        let paragraph = render_entry_paragraph(
+            &entry,
+            0,
+            false,
+            &scroll_state,
+            &styles,
+            10,
+            3,
+            WrapMode::Wrap,
+        );
+
+        // ASSERT: Returns a Paragraph widget (compilation verifies the type)
+        // We can verify it's a valid Paragraph by attempting to render it
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 80, 10));
+        paragraph.render(Rect::new(0, 0, 80, 10), &mut buffer);
+        // If we got here without panic, the Paragraph was valid
+    }
+
+    #[test]
+    fn render_entry_paragraph_applies_wrap_when_wrap_mode_is_wrap() {
+        // ARRANGE: Entry with long text that would wrap
+        let long_text = "This is a very long line that would definitely wrap in a narrow terminal viewport if wrapping is enabled for this entry";
+        let entry = ConversationEntry::Valid(Box::new(create_test_log_entry(
+            "entry-para-2",
+            long_text,
+        )));
+        let scroll_state = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // ACT: Render with Wrap mode
+        let paragraph = render_entry_paragraph(
+            &entry,
+            0,
+            false,
+            &scroll_state,
+            &styles,
+            10,
+            3,
+            WrapMode::Wrap,
+        );
+
+        // ASSERT: Render to a narrow buffer and verify text wraps
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 20, 10));
+        paragraph.render(Rect::new(0, 0, 20, 10), &mut buffer);
+
+        // Extract lines from buffer
+        let mut lines_with_content = Vec::new();
+        for y in 0..10 {
+            let line: String = (0..20)
+                .map(|x| {
+                    let idx = y * 20 + x;
+                    buffer.content()[idx].symbol()
+                })
+                .collect();
+            if line.trim().len() > 0 {
+                lines_with_content.push(line);
+            }
+        }
+
+        assert!(
+            lines_with_content.len() > 1,
+            "Text should wrap to multiple lines in narrow viewport. Found {} non-empty lines",
+            lines_with_content.len()
+        );
+    }
+
+    #[test]
+    fn render_entry_paragraph_no_wrap_when_wrap_mode_is_nowrap() {
+        // ARRANGE: Entry with long text
+        let long_text = "This is a very long line that would wrap if wrapping was enabled but should stay on one line";
+        let entry = ConversationEntry::Valid(Box::new(create_test_log_entry(
+            "entry-para-3",
+            long_text,
+        )));
+        let scroll_state = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // ACT: Render with NoWrap mode
+        let paragraph = render_entry_paragraph(
+            &entry,
+            0,
+            false,
+            &scroll_state,
+            &styles,
+            10,
+            3,
+            WrapMode::NoWrap,
+        );
+
+        // ASSERT: Render to a narrow buffer - text should not wrap
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 20, 10));
+        paragraph.render(Rect::new(0, 0, 20, 10), &mut buffer);
+
+        // In NoWrap mode, content should be on line 0 (single line), rest empty
+        // Line 1 might have the spacing line from render_entry_lines, but the main
+        // content text should not have wrapped to multiple lines
+        let line0: String = (0..20)
+            .map(|x| buffer.content()[x].symbol())
+            .collect();
+        let line1: String = (0..20)
+            .map(|x| buffer.content()[20 + x].symbol())
+            .collect();
+
+        // Line 0 should have text content (truncated, not wrapped)
+        assert!(
+            line0.trim().len() > 0,
+            "Line 0 should have content"
+        );
+
+        // The long text should appear on one line only (may be truncated)
+        // We verify this by checking that line 1 is either empty or just spacing
+        let line1_is_content = line1.trim().len() > 0
+            && line1.contains(char::is_alphanumeric);
+
+        assert!(
+            !line1_is_content,
+            "NoWrap mode should not wrap text content to line 1. Line 1 content: '{}'",
+            line1.trim()
+        );
+    }
+
+    #[test]
+    fn render_entry_paragraph_uses_render_entry_lines_for_content() {
+        // ARRANGE: Entry with multiple lines
+        let entry = ConversationEntry::Valid(Box::new(create_test_log_entry(
+            "entry-para-4",
+            "Line 1\nLine 2\nLine 3",
+        )));
+        let scroll_state = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // ACT: Render paragraph
+        let paragraph = render_entry_paragraph(
+            &entry,
+            0,
+            false,
+            &scroll_state,
+            &styles,
+            10,
+            3,
+            WrapMode::Wrap,
+        );
+
+        // ASSERT: All lines from render_entry_lines should be in the paragraph
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 80, 10));
+        paragraph.render(Rect::new(0, 0, 80, 10), &mut buffer);
+
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+
+        assert!(
+            content.contains("Line 1"),
+            "Should contain Line 1 from render_entry_lines"
+        );
+        assert!(
+            content.contains("Line 2"),
+            "Should contain Line 2 from render_entry_lines"
+        );
+        assert!(
+            content.contains("Line 3"),
+            "Should contain Line 3 from render_entry_lines"
         );
     }
 }
