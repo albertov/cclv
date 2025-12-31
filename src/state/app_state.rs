@@ -211,6 +211,16 @@ impl AppState {
         &self.session
     }
 
+    /// Get immutable reference to log_view (view-state layer).
+    pub fn log_view(&self) -> &LogViewState {
+        &self.log_view
+    }
+
+    /// Get mutable reference to log_view (view-state layer).
+    pub fn log_view_mut(&mut self) -> &mut LogViewState {
+        &mut self.log_view
+    }
+
     /// Populate log_view from existing session entries (test helper).
     ///
     /// This is needed for tests that build Session first, then create AppState.

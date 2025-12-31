@@ -94,3 +94,7 @@ pub fn handle_scroll_action(
 #[cfg(test)]
 #[path = "scroll_handler_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "scroll_handler_migration_tests.rs"]
+mod migration_tests;
