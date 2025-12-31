@@ -393,7 +393,7 @@ Static binaries:
 
 ## Implementation Status
 
-*Updated: 2025-12-26*
+*Updated: 2025-12-26 (late session)*
 
 | Phase | Bead ID | Status | Notes |
 |-------|---------|--------|-------|
@@ -404,9 +404,9 @@ Static binaries:
 | US3 - Usage Statistics | cclv-07v.5 | ✅ Complete | Token counts, cost estimation, filtering |
 | US4 - Keyboard Navigation | cclv-07v.6 | ✅ Complete | Key bindings, focus cycling, shortcuts |
 | US5 - Search | cclv-07v.7 | ✅ Complete | Search state machine, highlighting, navigation |
-| Polish | cclv-07v.8 | 🔄 In Progress | Edge cases, config file loading |
-| **Line Wrapping** | cclv-07v.9 | 🔄 In Progress | Core done; view architecture refactor (cclv-07v.9.14) needed for per-item wrap |
-| **Logging Pane** | cclv-07v.9.17 | 📋 Planned | Toggleable bottom panel for tracing output (FR-054–FR-060) |
+| Polish | cclv-07v.8 | 🔄 In Progress | 2 tasks remain: theme selection, snapshot tests |
+| **Line Wrapping** | cclv-07v.9 | 🔄 In Progress | Core + per-entry done; **section-level rendering (cclv-07v.9.20) pending** |
+| **Logging Pane** | cclv-07v.9.17 | ✅ Complete | Toggleable bottom panel, ring buffer, severity badges |
 
 ---
 
@@ -510,12 +510,14 @@ pub enum KeyAction {
 | cclv-07v.9.6 | LW-006 | Add `line_wrap` config option to `AppConfig` with default `true` | ✅ Complete |
 | cclv-07v.9.7 | LW-007 | Implement wrap state handlers in key event processing | ✅ Complete |
 | cclv-07v.9.8 | LW-008 | Update message rendering to respect wrap mode | ✅ Complete |
-| cclv-07v.9.9 | LW-009 | Add continuation indicator (`↩`) rendering at wrap points | 🔲 Open |
-| cclv-07v.9.10 | LW-010 | Exempt code blocks from wrapping (always horizontal scroll) | 🔲 Open |
-| cclv-07v.9.11 | LW-011 | Display global wrap state in status bar | 🔲 Open |
+| cclv-07v.9.9 | LW-009 | Add continuation indicator (`↩`) rendering at wrap points | ✅ Complete |
+| cclv-07v.9.10 | LW-010 | Exempt code blocks from wrapping (entry-level) | ✅ Complete |
+| cclv-07v.9.11 | LW-011 | Display global wrap state in status bar | ✅ Complete |
 | cclv-07v.9.12 | LW-012 | Add tests for wrap state transitions | ✅ Complete |
-| cclv-07v.9.13 | LW-013 | Add tests for wrap rendering behavior | 🔲 Open |
-| cclv-07v.9.14 | LW-014 | Per-item wrap rendering requires view architecture refactor | 🔲 Open (tech debt) |
+| cclv-07v.9.13 | LW-013 | Add tests for wrap rendering behavior | ✅ Complete |
+| cclv-07v.9.14 | LW-014 | Per-entry Paragraph architecture refactor | ✅ Complete |
+| cclv-07v.9.17 | LW-015 | Logging pane feature (FR-054–FR-060) | ✅ Complete |
+| cclv-07v.9.20 | LW-016 | **Section-level rendering** (see below) | 🔲 Open |
 
 **Checkpoint**: All wrap-related tests pass; visual verification of wrap indicator and code block exemption.
 
@@ -526,21 +528,11 @@ pub enum KeyAction {
 | cclv-07v.9.15 | P0 | Tests hang waiting for user input | ✅ Fixed |
 | cclv-07v.9.16 | P1 | Errors parsing cc-session-log.jsonl (missing sessionId) | ✅ Fixed |
 
-### View Architecture Refactor for Per-Item Wrap (cclv-07v.9.14)
+### View Architecture Refactor for Per-Item Wrap (cclv-07v.9.14) ✅ COMPLETE
 
-**Problem**: FR-048 requires per-conversation-item wrap toggle, but current architecture uses a single `Paragraph` widget for the entire conversation. Ratatui's `Paragraph::wrap()` is widget-level, not per-line.
+**Status**: All 9 subtasks complete. Per-entry Paragraph architecture implemented.
 
-**Current Architecture**:
-```
-render_conversation_view()
-  ├── for each entry → append lines to Vec<Line>
-  ├── build single Paragraph from all lines
-  └── apply global .wrap() to entire Paragraph
-```
-
-**Solution**: Option 1 - Multiple Paragraph Widgets (one per entry)
-
-**Target Architecture**:
+**Implemented Architecture**:
 ```
 render_conversation_view()
   ├── render outer Block (title, border)
@@ -553,87 +545,76 @@ render_conversation_view()
   └── handle horizontal scroll per-entry when wrap disabled
 ```
 
-**Rationale**:
-- `ConversationView` already calculates per-entry heights via `calculate_entry_height()`
-- Virtualized rendering already operates on entries (not lines)
-- `scroll_state.effective_wrap(entry_index)` already exists in state layer
-- Each entry naturally becomes a "mini-widget" with its own wrap setting
+**Key Files**: `src/view/message.rs` - `render_entry_lines()`, `calculate_entry_layouts()`, `EntryLayout` struct
+
+---
+
+### Section-Level Rendering for Code Block Exemption (cclv-07v.9.20)
+
+**Problem**: FR-053 spec clarified (2025-12-26) that code blocks should NOT wrap while prose SHOULD wrap **within the same entry**. Current implementation uses entry-level logic: if any code block exists in entry, the entire entry doesn't wrap.
+
+**Spec Clarification**:
+> "At what granularity should code block wrap exemption apply?" → **Section-level**: each prose block and code block rendered as separate Paragraph widget, allowing code to never wrap while prose follows wrap setting within the same entry.
+
+**Current Architecture (entry-level)**:
+```
+for each entry:
+  if has_code_blocks(entry) → entire entry NoWrap
+  else → entry follows wrap setting
+  render entry as single Paragraph
+```
+
+**Target Architecture (section-level)**:
+```
+for each entry:
+  parse markdown into sections: Vec<ContentSection>
+  for each section:
+    if CodeBlock → render Paragraph with NoWrap + horizontal offset
+    if Prose → render Paragraph with effective_wrap() + wrap indicators
+```
+
+#### Approach
+
+1. Create `ContentSection` enum:
+```rust
+enum ContentSection {
+    Prose(Vec<Line<'static>>),
+    CodeBlock(Vec<Line<'static>>),
+}
+```
+
+2. Add `parse_entry_sections()` to split entry markdown into content sections
+
+3. Modify render loop to iterate sections, rendering each as separate Paragraph
+
+4. Update height calculation to sum section heights
+
+5. Apply horizontal offset only to code sections
+
+6. Apply wrap indicators only to prose sections
 
 #### Subtasks
 
-| Bead | Task | Description | Dependencies |
-|------|------|-------------|--------------|
-| cclv-07v.9.14.1 | Extract entry rendering helper | Create `render_entry_lines()` function extracting per-entry line building from main loop | None |
-| cclv-07v.9.14.2 | Create per-entry Paragraph renderer | New `render_entry_paragraph()` that renders single entry with individual wrap setting | cclv-07v.9.14.1 |
-| cclv-07v.9.14.3 | Update height calculation for wrap | Modify `calculate_entry_height()` to account for viewport width and wrap mode | None |
-| cclv-07v.9.14.4 | Build entry layout map | Create `calculate_entry_layouts()` returning Y offsets and heights for visible entries | cclv-07v.9.14.3 |
-| cclv-07v.9.14.5 | Refactor main render function | Replace single-Paragraph approach with per-entry Paragraph rendering loop | cclv-07v.9.14.2, cclv-07v.9.14.4 |
-| cclv-07v.9.14.6 | Handle viewport boundary clipping | Skip invisible lines when entry is partially above viewport | cclv-07v.9.14.5 |
-| cclv-07v.9.14.7 | Update search highlighting version | Apply same refactor to `render_conversation_view_with_search()` | cclv-07v.9.14.5 |
-| cclv-07v.9.14.8 | Add wrap indicator integration | Ensure continuation indicator (↩) works with per-entry rendering | cclv-07v.9.14.5, cclv-07v.9.9 |
-| cclv-07v.9.14.9 | Add per-item wrap tests | Property tests for height consistency, mixed wrap modes, scroll position stability | cclv-07v.9.14.5 |
+| Task | Description | Dependencies |
+|------|-------------|--------------|
+| LW-016.1 | Create `ContentSection` enum type | None |
+| LW-016.2 | Implement `parse_entry_sections()` markdown splitter | LW-016.1 |
+| LW-016.3 | Update render loop for per-section Paragraphs | LW-016.2 |
+| LW-016.4 | Update height calculation for section sums | LW-016.2 |
+| LW-016.5 | Apply horizontal offset to code sections only | LW-016.3 |
+| LW-016.6 | Apply wrap indicators to prose sections only | LW-016.3 |
+| LW-016.7 | Update search highlighting for section-level rendering | LW-016.3 |
+| LW-016.8 | Add tests for mixed prose/code entries | LW-016.3 |
 
 #### Risk Mitigation
 
 | Risk | Mitigation |
 |------|------------|
-| Height calculation mismatch causes visual glitches | Property tests: sum of entry heights == total content height |
-| Performance regression from multiple renders | Profile before/after; virtualization still limits entry count |
-| Scroll position drift after toggle | Anchor scroll to focused entry UUID, not absolute offset |
-| Code duplication with search variant | Extract shared logic into common helpers (Step 1) |
+| Markdown parsing edge cases | Reuse existing `has_code_blocks()` logic, extend to extract boundaries |
+| Height calculation complexity | Property tests: entry height == sum of section heights |
+| Visual continuity between sections | Zero padding between sections within entry |
 
-#### Key Code Changes
-
-**File**: `src/view/message.rs`
-
-1. **New struct for entry layout**:
-```rust
-struct EntryLayout {
-    y_offset: u16,
-    height: u16,
-}
-```
-
-2. **New helper signature**:
-```rust
-fn render_entry_lines(
-    entry: &ConversationEntry,
-    entry_index: usize,
-    is_subagent_view: bool,
-    scroll: &ScrollState,
-    styles: &MessageStyles,
-    collapse_threshold: usize,
-    summary_lines: usize,
-) -> Vec<Line<'static>>
-```
-
-3. **Per-entry renderer signature**:
-```rust
-fn render_entry_paragraph(
-    buf: &mut Buffer,
-    entry_area: Rect,
-    entry: &ConversationEntry,
-    entry_index: usize,
-    is_subagent_view: bool,
-    scroll: &ScrollState,
-    styles: &MessageStyles,
-    global_wrap: WrapMode,
-    collapse_threshold: usize,
-    summary_lines: usize,
-)
-```
-
-4. **Updated height calculation**:
-```rust
-fn calculate_entry_height(
-    &self,
-    entry: &ConversationEntry,
-    viewport_width: usize,      // NEW
-    global_wrap: WrapMode,      // NEW
-) -> usize
-```
-
-**Checkpoint**: Per-item wrap toggle (`w` key) visually affects individual message wrap behavior while other messages retain their wrap state.
+**Checkpoint**: Entry with both code and prose: code doesn't wrap, prose wraps (if enabled). Wrap toggle affects prose sections only. Horizontal scroll affects code sections only.
 
 ---
 
@@ -787,26 +768,25 @@ pub struct AppConfig {
 
 ## Next Steps
 
-1. **Complete Line Wrapping phase** - Remaining tasks:
-   - cclv-07v.9.9: Add continuation indicator (`↩`) at wrap points
-   - cclv-07v.9.10: Exempt code blocks from wrapping
-   - cclv-07v.9.11: Display global wrap state in status bar
-   - cclv-07v.9.13: Add tests for wrap rendering behavior
-   - **cclv-07v.9.14: View architecture refactor for per-item wrap** (9 subtasks):
-     - .14.1: Extract entry rendering helper
-     - .14.2: Create per-entry Paragraph renderer
-     - .14.3: Update height calculation for wrap
-     - .14.4: Build entry layout map
-     - .14.5: Refactor main render function
-     - .14.6: Handle viewport boundary clipping
-     - .14.7: Update search highlighting version
-     - .14.8: Add wrap indicator integration
-     - .14.9: Add per-item wrap tests
-2. **Implement Logging Pane feature (cclv-07v.9.17)** - New feature per spec clarifications
-3. **Complete Polish phase (cclv-07v.8)** - Remaining tasks:
-   - cclv-07v.8.6: Add --no-color flag support
+1. **Complete Section-Level Rendering (cclv-07v.9.20)** - NEW priority from spec clarification:
+   - LW-016.1: Create `ContentSection` enum type
+   - LW-016.2: Implement `parse_entry_sections()` markdown splitter
+   - LW-016.3: Update render loop for per-section Paragraphs
+   - LW-016.4: Update height calculation for section sums
+   - LW-016.5: Apply horizontal offset to code sections only
+   - LW-016.6: Apply wrap indicators to prose sections only
+   - LW-016.7: Update search highlighting for section-level rendering
+   - LW-016.8: Add tests for mixed prose/code entries
+
+2. **Complete Polish phase (cclv-07v.8)** - Remaining tasks:
    - cclv-07v.8.7: Add theme selection support
-   - cclv-07v.8.8: Implement configuration file loading
    - cclv-07v.8.9: Add snapshot tests for key views
-   - cclv-07v.8.10: Address TOCTOU race in poll_changes()
+
+### Recently Completed
+
+- ✅ **Line Wrapping core** (cclv-07v.9.1–9.13): WrapMode, per-item toggle, wrap indicators, status bar
+- ✅ **Per-entry Paragraph refactor** (cclv-07v.9.14): Architecture supports per-item wrap settings
+- ✅ **Logging Pane** (cclv-07v.9.17): Toggleable bottom panel, ring buffer, severity badges
+- ✅ **Config file loading** (cclv-07v.8.8): TOML config with precedence chain
+- ✅ **Code block exemption** (cclv-07v.9.10): Entry-level (to be refined by cclv-07v.9.20)
 

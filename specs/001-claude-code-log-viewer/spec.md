@@ -31,6 +31,7 @@
 - Q: What severity levels should appear in the logging pane? → A: Pipe tracing output to pane; log level controlled via tracing infrastructure (RUST_LOG / config)
 - Q: How should new errors be indicated when logging pane is hidden? → A: Status bar badge with count, color-coded by severity (red for errors)
 - Q: How many log entries should be retained in the logging pane? → A: Ring buffer with configurable capacity (config file); default 1000 entries
+- Q: At what granularity should code block wrap exemption apply? → A: Section-level (multiple Paragraph widgets per entry); each prose block and code block rendered as separate widget, allowing code to never wrap while prose follows wrap setting within the same entry
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -163,7 +164,7 @@ A developer is looking for a specific piece of information in a long session. Th
 - **FR-050**: Default keybinding for ToggleWrap MUST be `w`; default for ToggleGlobalWrap MUST be `W`
 - **FR-051**: System MUST display global wrap state in the status bar
 - **FR-052**: When lines are wrapped, system MUST display a subtle continuation indicator (e.g., `↩`) at each wrap point to distinguish from intentional line breaks
-- **FR-053**: Code blocks within markdown MUST never wrap regardless of global or per-item wrap settings; they always use horizontal scrolling
+- **FR-053**: Code blocks within markdown MUST never wrap regardless of global or per-item wrap settings; they always use horizontal scrolling. Implementation: Each content section (prose block, code block) within an entry MUST be rendered as a separate Paragraph widget to enable independent wrap behavior
 
 **Auto-Scroll Behavior**
 - **FR-035**: When following a live log, system MUST auto-scroll to show new content by default
