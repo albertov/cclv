@@ -51,6 +51,7 @@ impl Session {
     /// Routes based on session_id() in the entry:
     /// - If session_id matches and has agent_id -> route to subagent
     /// - Otherwise -> route to main agent
+    ///
     /// If a subagent doesn't exist, creates an incomplete placeholder conversation.
     pub fn add_conversation_entry(&mut self, conv_entry: ConversationEntry) {
         // Extract agent_id from the entry (if it's valid)
@@ -119,13 +120,18 @@ impl AgentConversation {
     /// Create an incomplete conversation for a subagent with missing spawn event.
     /// Used when entries reference an unknown agent_id.
     pub fn new_incomplete(agent_id: AgentId) -> Self {
-        todo!("AgentConversation::new_incomplete")
+        Self {
+            agent_id: Some(agent_id),
+            entries: Vec::new(),
+            model: None,
+            is_incomplete: true,
+        }
     }
 
     /// Check if this conversation is missing its spawn event.
     /// Returns true for placeholder conversations created on-the-fly.
     pub fn is_incomplete(&self) -> bool {
-        todo!("AgentConversation::is_incomplete")
+        self.is_incomplete
     }
 
     /// Add a valid log entry to this conversation.
