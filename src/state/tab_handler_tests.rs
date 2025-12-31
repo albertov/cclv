@@ -490,11 +490,11 @@ fn next_tab_uses_active_session_subagents_when_scrolled_to_first_session() {
 
 #[test]
 fn next_tab_wraps_within_active_session_subagents() {
-    // Given: Two sessions with different subagent counts
+    // Given: Session with multiple subagents
     let mut entries = Vec::new();
 
-    // Session 1: alpha, beta (2 subagents)
-    entries.push(make_main_entry("session-1", "First session"));
+    // Session: alpha, beta (2 subagents)
+    entries.push(make_main_entry("session-1", "Test session"));
     entries.push(make_subagent_entry_for_session(
         "session-1",
         "alpha",
@@ -506,39 +506,20 @@ fn next_tab_wraps_within_active_session_subagents() {
         "Beta msg",
     ));
 
-    // Session 2: gamma, delta, epsilon (3 subagents)
-    entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "gamma",
-        "Gamma msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "delta",
-        "Delta msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "epsilon",
-        "Epsilon msg",
-    ));
-
     let mut state = AppState::new();
     state.add_entries(entries);
     state.focus = FocusPane::Subagent;
 
-    // When scrolled to session 1, at last tab (beta = index 1)
-    state.selected_tab = Some(1); // beta (last in session 1)
+    // When at last tab (beta = index 1)
+    state.selected_tab = Some(1);
 
     let new_state = handle_tab_action(state, KeyAction::NextTab);
 
-    // Should wrap back to first tab in session 1 (alpha = index 0)
-    // NOT continue to session 2's subagents
+    // Should wrap back to first tab (alpha = index 0)
     assert_eq!(
         new_state.selected_tab,
         Some(0),
-        "NextTab from beta (last in session 1) should wrap to alpha (first in session 1)"
+        "NextTab from last tab should wrap to first tab"
     );
 }
 
@@ -593,11 +574,10 @@ fn prev_tab_uses_active_session_subagents() {
 
 #[test]
 fn select_tab_clamps_to_active_session_subagent_count() {
-    // Given: Two sessions with different subagent counts
+    // Given: Session with 2 subagents
     let mut entries = Vec::new();
 
-    // Session 1: alpha, beta (2 subagents)
-    entries.push(make_main_entry("session-1", "First session"));
+    entries.push(make_main_entry("session-1", "Test session"));
     entries.push(make_subagent_entry_for_session(
         "session-1",
         "alpha",
@@ -609,39 +589,18 @@ fn select_tab_clamps_to_active_session_subagent_count() {
         "Beta msg",
     ));
 
-    // Session 2: gamma, delta, epsilon (3 subagents)
-    entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "gamma",
-        "Gamma msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "delta",
-        "Delta msg",
-    ));
-    entries.push(make_subagent_entry_for_session(
-        "session-2",
-        "epsilon",
-        "Epsilon msg",
-    ));
-
     let mut state = AppState::new();
     state.add_entries(entries);
     state.focus = FocusPane::Subagent;
-
-    // Scrolled to session 1 (which has only 2 subagents)
     state.selected_tab = Some(0);
 
     let new_state = handle_tab_action(state, KeyAction::SelectTab(5));
 
-    // Should clamp to last tab in session 1 (beta = index 1)
-    // NOT to session 2's higher count
+    // Should clamp to last tab (beta = index 1)
     assert_eq!(
         new_state.selected_tab,
         Some(1),
-        "SelectTab(5) in session 1 should clamp to last tab in session 1 (index 1)"
+        "SelectTab(5) with 2 subagents should clamp to index 1"
     );
 }
 

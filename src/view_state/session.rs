@@ -146,16 +146,9 @@ impl SessionViewState {
     }
 
     /// Add entry to subagent conversation.
-    /// If view-state exists, appends directly. Otherwise, stores as pending.
+    /// Creates the subagent view-state eagerly via subagent_mut().
     pub fn add_subagent_entry(&mut self, agent_id: AgentId, entry: ConversationEntry) {
-        if let Some(view_state) = self.subagents.get_mut(&agent_id) {
-            view_state.append(vec![entry]);
-        } else {
-            self.pending_subagent_entries
-                .entry(agent_id)
-                .or_default()
-                .push(entry);
-        }
+        self.subagent_mut(&agent_id).append(vec![entry]);
     }
 
     /// Start line offset (for multi-session positioning).
@@ -309,31 +302,6 @@ mod tests {
     }
 
     #[test]
-    fn subagent_creates_from_pending_entries() {
-        let session_id = make_session_id("session-1");
-        let mut state = SessionViewState::new(session_id);
-        let agent_id = make_agent_id("agent-1");
-
-        // Add entries before first access (should go to pending)
-        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-1", "session-1"));
-        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-2", "session-1"));
-
-        // Subagent not yet initialized
-        assert!(!state.has_subagent(&agent_id));
-
-        // First access should consume pending entries
-        let subagent = state.subagent(&agent_id);
-        assert_eq!(
-            subagent.len(),
-            2,
-            "Subagent should have consumed pending entries"
-        );
-
-        // Pending entries should be cleared
-        assert!(state.has_subagent(&agent_id));
-    }
-
-    #[test]
     fn add_subagent_entry_after_access_goes_directly_to_subagent() {
         let session_id = make_session_id("session-1");
         let mut state = SessionViewState::new(session_id);
@@ -415,15 +383,15 @@ mod tests {
     }
 
     #[test]
-    fn has_subagent_returns_false_for_pending_only() {
+    fn has_subagent_returns_true_after_add_entry() {
         let session_id = make_session_id("session-1");
         let mut state = SessionViewState::new(session_id);
         let agent_id = make_agent_id("agent-1");
 
+        // Eager initialization: adding entry immediately creates subagent
         state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-1", "session-1"));
 
-        // Has pending entries but view-state not created yet
-        assert!(!state.has_subagent(&agent_id));
+        assert!(state.has_subagent(&agent_id));
     }
 
     #[test]
@@ -507,19 +475,21 @@ mod tests {
     }
 
     #[test]
-    fn total_height_includes_pending_estimate() {
+    fn total_height_includes_initialized_subagents() {
         let session_id = make_session_id("session-1");
         let mut state = SessionViewState::new(session_id);
         let agent_id = make_agent_id("agent-1");
 
-        // Add 3 pending entries (not yet initialized)
+        // With eager initialization, adding entries immediately creates subagent
         state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-1", "session-1"));
         state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-2", "session-1"));
         state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-3", "session-1"));
 
-        // Total height should include pending estimate (1 line per entry)
+        // Total height should include subagent height
+        // Note: Without layout computation, heights are 0
         let total = state.total_height();
-        assert_eq!(total, 3, "Should estimate 1 line per pending entry");
+        let expected = state.main().total_height() + state.subagent(&agent_id).total_height();
+        assert_eq!(total, expected);
     }
 
     #[test]
@@ -528,5 +498,45 @@ mod tests {
         let state = SessionViewState::new(session_id);
 
         assert_eq!(state.total_height(), 0);
+    }
+
+    // ===== Bug Regression Tests (cclv-5ur.30) =====
+
+    #[test]
+    fn get_subagent_returns_entries_added_before_initialization() {
+        // REGRESSION TEST for cclv-5ur.30: Subagent conversations mixing with main
+        //
+        // BUG: Entries with agentId field were appearing in main conversation
+        // instead of routing to separate subagent tabs.
+        //
+        // ROOT CAUSE: Rendering uses get_subagent() which returns None for
+        // pending (non-initialized) subagents, so entries were invisible.
+        //
+        // This test reproduces the rendering scenario:
+        // 1. Entries arrive and route to pending_subagent_entries
+        // 2. View layer tries to render using get_subagent() (read-only)
+        // 3. View layer expects to see the entries
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        // Simulate entries arriving from log parsing
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-1", "session-1"));
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-2", "session-1"));
+
+        // Simulate view layer rendering (read-only access, like layout.rs:302-313)
+        // EXPECTATION: Should see the 2 entries that were added
+        let subagent_view = state.get_subagent(&agent_id);
+
+        // ASSERTION: Entries should be visible for rendering
+        assert!(
+            subagent_view.is_some(),
+            "get_subagent() should return Some for subagent with pending entries"
+        );
+        assert_eq!(
+            subagent_view.unwrap().len(),
+            2,
+            "Subagent conversation should contain 2 entries added before initialization"
+        );
     }
 }
