@@ -1737,3 +1737,151 @@ fn bug_scroll_stuck_with_thinking_blocks() {
         total_height
     );
 }
+
+// ===== Wrap Mode Bug Reproduction (cclv-5ur.18) =====
+
+/// Snapshot test: Global wrap mode wraps long lines at viewport width.
+///
+/// EXPECTED: Long line wraps to multiple lines when global WrapMode is Wrap.
+/// ACTUAL: Line wraps correctly after cclv-5ur.18 fix.
+///
+/// This test verifies that the default Wrap mode causes lines exceeding viewport
+/// width to wrap to continuation lines, preserving all content visibility.
+#[test]
+fn snapshot_wrap_mode_global_wrap() {
+    // Create entry with a long line that exceeds viewport width
+    let long_line = "This is a very long line that definitely exceeds the viewport width and should wrap to multiple lines when wrap mode is enabled. The content should continue on the next line without truncation.";
+    let entry = create_test_log_entry(
+        "wrap-test-1",
+        Role::User,
+        MessageContent::Text(long_line.to_string()),
+        EntryType::User,
+    );
+
+    let conversation = create_test_conversation(vec![entry]);
+    let mut view_state = ConversationViewState::new(None, None, conversation.clone());
+
+    // Use narrow viewport (60 chars) to force wrapping
+    view_state.relayout(60, WrapMode::Wrap);
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(60, 15);
+    terminal
+        .draw(|frame| {
+            let widget =
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+
+    // Snapshot captures wrapped output
+    insta::assert_snapshot!("wrap_mode_global_wrap", output);
+
+    // Verify the line wrapped (should see content on multiple lines)
+    assert!(
+        output.lines().count() > 3,
+        "Long line should wrap to multiple lines. Output:\n{output}"
+    );
+}
+
+/// Snapshot test: Global NoWrap mode truncates long lines.
+///
+/// EXPECTED: Long line does NOT wrap when global WrapMode is NoWrap.
+/// ACTUAL: Line is truncated to single line after cclv-5ur.18 fix.
+///
+/// This test verifies that NoWrap mode prevents line wrapping, truncating
+/// content that exceeds viewport width on a single line.
+#[test]
+fn snapshot_wrap_mode_global_nowrap() {
+    // Use the same long line as wrap test
+    let long_line = "This is a very long line that definitely exceeds the viewport width and should wrap to multiple lines when wrap mode is enabled. The content should continue on the next line without truncation.";
+    let entry = create_test_log_entry(
+        "nowrap-test-1",
+        Role::User,
+        MessageContent::Text(long_line.to_string()),
+        EntryType::User,
+    );
+
+    let conversation = create_test_conversation(vec![entry]);
+    let mut view_state = ConversationViewState::new(None, None, conversation.clone());
+
+    // Use narrow viewport (60 chars) but disable wrapping
+    view_state.relayout(60, WrapMode::NoWrap);
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(60, 15);
+    terminal
+        .draw(|frame| {
+            let widget =
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::NoWrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+
+    // Snapshot captures truncated output
+    insta::assert_snapshot!("wrap_mode_global_nowrap", output);
+
+    // The word "truncation" appears near the end of the long line
+    // With NoWrap + 60 char viewport, it should be truncated (not visible)
+    assert!(
+        !output.contains("truncation"),
+        "Long line should be truncated in NoWrap mode. Output:\n{output}"
+    );
+}
+
+/// Snapshot test: Per-entry wrap override takes precedence over global.
+///
+/// EXPECTED: Entry with wrap_override=Some(NoWrap) does NOT wrap despite global Wrap.
+/// ACTUAL: Per-entry override correctly overrides global after cclv-5ur.18 fix.
+///
+/// This test verifies FR-048: per-entry wrap override takes precedence over global.
+#[test]
+fn snapshot_wrap_mode_per_entry_override() {
+    use cclv::view_state::layout_params::LayoutParams;
+    use cclv::view_state::types::EntryIndex;
+
+    // Create entry with long line
+    let long_line = "This is a very long line that definitely exceeds the viewport width and should wrap to multiple lines when wrap mode is enabled. The content should continue on the next line without truncation.";
+    let entry = create_test_log_entry(
+        "override-test-1",
+        Role::User,
+        MessageContent::Text(long_line.to_string()),
+        EntryType::User,
+    );
+
+    let conversation = create_test_conversation(vec![entry]);
+    let mut view_state = ConversationViewState::new(None, None, conversation.clone());
+
+    // Set global wrap to Wrap
+    let params = LayoutParams::new(60, WrapMode::Wrap);
+    view_state.relayout(60, WrapMode::Wrap);
+
+    // Override THIS entry to NoWrap
+    view_state.set_wrap_override(EntryIndex::new(0), Some(WrapMode::NoWrap), params);
+
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(60, 15);
+    terminal
+        .draw(|frame| {
+            let widget =
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+
+    // Snapshot captures override behavior
+    insta::assert_snapshot!("wrap_mode_per_entry_override", output);
+
+    // Even though global is Wrap, this entry should be truncated (NoWrap override)
+    assert!(
+        !output.contains("truncation"),
+        "Per-entry NoWrap override should truncate despite global Wrap. Output:\n{output}"
+    );
+}

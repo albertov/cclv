@@ -1,0 +1,19 @@
+---
+source: tests/view_snapshots.rs
+expression: output
+---
+┌Main Agent (1 entries)────────────────────────────────────┐
+│This is a very long line that definitely exceeds the viewp│
+│ort width and should wrap to multiple lines when wrap mode│
+│ is enabled. The content should continue on the next line │
+│without truncation.                                       │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
