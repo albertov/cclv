@@ -13,6 +13,27 @@ fn create_test_terminal() -> Terminal<TestBackend> {
     Terminal::new(backend).unwrap()
 }
 
+/// Initialize layout for all conversations in state using actual rendering.
+/// Required for tests that check rendered conversation content.
+fn init_layout_for_state(state: &mut AppState) {
+    use crate::view_state::layout_params::LayoutParams;
+
+    let params = LayoutParams::new(80, WrapMode::Wrap);
+
+    // Initialize main conversation layout
+    if let Some(session_view) = state.log_view_mut().current_session_mut() {
+        session_view.main_mut().recompute_layout(params);
+
+        // Initialize subagent layouts
+        let agent_ids: Vec<_> = session_view.subagent_ids().cloned().collect();
+        for agent_id in agent_ids {
+            session_view
+                .subagent_mut(&agent_id)
+                .recompute_layout(params);
+        }
+    }
+}
+
 fn create_entries_no_subagents() -> Vec<ConversationEntry> {
     use crate::model::{
         EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role, SessionId,
@@ -119,39 +140,8 @@ fn create_entries_with_multiple_subagents() -> Vec<ConversationEntry> {
     entries
 }
 
-// ===== calculate_horizontal_constraints Tests =====
-
-#[test]
-fn calculate_constraints_with_subagents_returns_60_40_split() {
-    let (main, subagent) = calculate_horizontal_constraints(true);
-
-    // Should be 60% and 40%
-    assert!(
-        matches!(main, Constraint::Percentage(60)),
-        "Main pane should be 60% when subagents exist"
-    );
-    assert!(
-        matches!(subagent, Constraint::Percentage(40)),
-        "Subagent pane should be 40% when subagents exist"
-    );
-}
-
-#[test]
-fn calculate_constraints_without_subagents_returns_100_0_split() {
-    let (main, subagent) = calculate_horizontal_constraints(false);
-
-    // Should be 100% and 0% (or Min(0))
-    assert!(
-        matches!(main, Constraint::Percentage(100)),
-        "Main pane should be 100% when no subagents"
-    );
-    assert!(
-        matches!(subagent, Constraint::Min(0)),
-        "Subagent pane should be Min(0) when no subagents"
-    );
-}
-
-// ===== render_layout Integration Tests =====
+// ===== render_layout Integration Tests (FR-083-088: Unified Tab Model) =====
+// REMOVED: calculate_horizontal_constraints tests - function deleted in unified tab model
 
 #[test]
 fn render_layout_creates_three_areas_with_subagents() {
@@ -1532,6 +1522,9 @@ fn unified_layout_selected_tab_controls_conversation_display() {
     let entries = create_entries_with_multiple_subagents();
     let mut state = AppState::new();
     state.add_entries(entries);
+
+    // Initialize layout for all conversations (required for rendering)
+    init_layout_for_state(&mut state);
 
     // Test 1: selected_tab = 0 should show main agent
     state.selected_tab = Some(0);

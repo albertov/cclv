@@ -17,14 +17,10 @@ use std::collections::HashSet;
 
 /// Calculate the tab area for mouse click detection.
 ///
-/// Returns None if there are no subagents or if the layout doesn't show tabs.
+/// FR-083-088: Tab bar always visible at top of conversation area (3 lines).
+/// Returns tab area (top 3 lines of conversation pane).
 /// This calculation must match the layout logic in render_layout().
 pub fn calculate_tab_area(frame_area: Rect, state: &AppState) -> Option<Rect> {
-    let has_subagents = state.session_view().has_subagents();
-    if !has_subagents {
-        return None;
-    }
-
     // Determine if search input is visible (same logic as render_layout)
     let search_visible = matches!(
         state.search,
@@ -66,30 +62,22 @@ pub fn calculate_tab_area(frame_area: Rect, state: &AppState) -> Option<Rect> {
         content_area
     };
 
-    // Calculate horizontal split (main + subagent)
-    let horizontal_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-        .split(conversation_area);
-
-    let subagent_area = horizontal_chunks[1];
-
-    // Tab area is the top 3 lines of subagent pane
-    let subagent_chunks = Layout::default()
+    // FR-083-088: Tab bar is at top of conversation area (no horizontal split)
+    // Split conversation area vertically: tab bar (3 lines) + content
+    let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
-        .split(subagent_area);
+        .split(conversation_area);
 
-    Some(subagent_chunks[0])
+    Some(chunks[0])
 }
 
-/// Calculate the main and subagent pane areas for mouse click detection.
+/// Calculate the conversation pane area for mouse click detection.
 ///
-/// Returns (main_area, subagent_area) where subagent_area is None if no subagents exist.
+/// FR-083-088: Unified tab model - returns single full-width conversation area.
+/// Returns (conversation_area, None) - second value always None (no horizontal split).
 /// This calculation must match the layout logic in render_layout().
 pub fn calculate_pane_areas(frame_area: Rect, state: &AppState) -> (Rect, Option<Rect>) {
-    let has_subagents = state.session_view().has_subagents();
-
     // Determine if search input is visible
     let search_visible = matches!(
         state.search,
@@ -131,26 +119,16 @@ pub fn calculate_pane_areas(frame_area: Rect, state: &AppState) -> (Rect, Option
         content_area
     };
 
-    // Calculate horizontal split (main + subagent)
-    if has_subagents {
-        let horizontal_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-            .split(conversation_area);
-
-        (horizontal_chunks[0], Some(horizontal_chunks[1]))
-    } else {
-        (conversation_area, None)
-    }
+    // FR-083: No horizontal split - single full-width conversation area
+    (conversation_area, None)
 }
 
-/// Render the split pane layout with main agent (left), subagent tabs (right),
-/// and status bar (bottom).
+/// Render the unified tab layout with tab bar, conversation area, and status bar.
 ///
-/// When session has no subagents, right pane is hidden and left pane takes full width.
+/// FR-083-088: Unified tab model - no horizontal split.
+/// Tab bar shows all conversations: Main Agent (tab 0) + Subagents (tabs 1..N).
+/// selected_tab determines which conversation is displayed below tab bar.
 pub fn render_layout(frame: &mut Frame, state: &AppState) {
-    let has_subagents = state.session_view().has_subagents();
-
     // Create message styles for consistent coloring across panes
     let styles = MessageStyles::new();
 
@@ -206,19 +184,9 @@ pub fn render_layout(frame: &mut Frame, state: &AppState) {
         (content_area, None)
     };
 
-    // Split conversation area horizontally based on subagent presence
-    let (main_constraint, subagent_constraint) = calculate_horizontal_constraints(has_subagents);
-    let horizontal_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([main_constraint, subagent_constraint])
-        .split(conversation_area);
-
-    // Render panes
-    render_main_pane(frame, horizontal_chunks[0], state, &styles);
-
-    if has_subagents {
-        render_subagent_pane(frame, horizontal_chunks[1], state, &styles);
-    }
+    // Render unified conversation pane (tab bar + selected conversation)
+    // FR-083-088: Single pane with tab bar at top, no horizontal split
+    render_conversation_pane(frame, conversation_area, state, &styles);
 
     // Render stats panel if visible
     if let Some(stats_area_rect) = stats_area {
@@ -234,42 +202,19 @@ pub fn render_layout(frame: &mut Frame, state: &AppState) {
     render_status_bar(frame, status_area, state);
 }
 
-/// Calculate the horizontal split constraints based on subagent presence.
+/// Render unified conversation pane with tab bar and selected conversation.
 ///
-/// Returns (main_pane_width, subagent_pane_width):
-/// - With subagents: (60%, 40%)
-/// - Without subagents: (100%, 0%)
-fn calculate_horizontal_constraints(has_subagents: bool) -> (Constraint, Constraint) {
-    if has_subagents {
-        (Constraint::Percentage(60), Constraint::Percentage(40))
-    } else {
-        (Constraint::Percentage(100), Constraint::Min(0))
-    }
-}
-
-/// Render the main agent pane using shared ConversationView widget.
-fn render_main_pane(frame: &mut Frame, area: Rect, state: &AppState, styles: &MessageStyles) {
-    // Get view-state for main conversation (fallback to empty if no session yet)
-    let empty_view_state = crate::view_state::conversation::ConversationViewState::empty();
-    let view_state = state
-        .log_view()
-        .current_session()
-        .map(|s| s.main())
-        .unwrap_or(&empty_view_state);
-
-    // Render using Widget pattern
-    let conversation_widget =
-        message::ConversationView::new(view_state, styles, state.focus == FocusPane::Main)
-            .global_wrap(state.global_wrap);
-
-    frame.render_widget(conversation_widget, area);
-}
-
-/// Render the subagent tabs pane with tab bar and selected conversation.
+/// FR-083-088: Unified tab model - single pane, no horizontal split.
+/// Layout: Tab bar (top 3 lines) + selected conversation content (remainder).
 ///
-/// Layout: Tab bar (top 3 lines) + conversation content (remainder).
-/// Uses state.selected_tab to determine which subagent conversation to display.
-fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles: &MessageStyles) {
+/// Tab 0 = Main Agent, Tabs 1..N = Subagents (in spawn order).
+/// Tab bar always visible, even when only main agent exists.
+fn render_conversation_pane(
+    frame: &mut Frame,
+    area: Rect,
+    state: &AppState,
+    styles: &MessageStyles,
+) {
     // Split area vertically: tab bar + conversation content
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -282,8 +227,8 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
     let tab_area = chunks[0];
     let content_area = chunks[1];
 
-    // Get ordered subagent IDs and render tab bar
-    let agent_ids: Vec<_> = state.session_view().subagent_ids().collect();
+    // Build tab list: Main Agent (tab 0) + Subagents (tabs 1..N)
+    let subagent_ids: Vec<_> = state.session_view().subagent_ids().collect();
 
     // Extract agent IDs with matches from search state
     let tabs_with_matches: HashSet<AgentId> = match &state.search {
@@ -291,37 +236,44 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
         _ => HashSet::new(), // No search active, no matches
     };
 
+    // Render tab bar (will be updated to include main agent at position 0)
     tabs::render_tab_bar(
         frame,
         tab_area,
-        &agent_ids,
+        &subagent_ids, // TODO: Include main agent at position 0
         state.selected_tab,
         &tabs_with_matches,
     );
 
     // Determine which conversation to display based on selected_tab
-    let selected_conversation_view = if let Some(idx) = state.selected_tab {
-        // Get the conversation at the selected index (read-only access)
-        agent_ids
-            .get(idx)
-            .and_then(|&agent_id| state.session_view().get_subagent(agent_id))
+    // Tab 0 = Main Agent, Tabs 1+ = Subagents
+    let selected_tab_index = state.selected_tab.unwrap_or(0);
+
+    if selected_tab_index == 0 {
+        // Tab 0: Show main agent conversation
+        if let Some(session) = state.log_view().current_session() {
+            let view_state = session.main();
+            let conversation_widget =
+                message::ConversationView::new(view_state, styles, state.focus == FocusPane::Main)
+                    .global_wrap(state.global_wrap);
+            frame.render_widget(conversation_widget, content_area);
+        }
+        // If no session exists yet, render nothing (empty content area)
     } else {
-        // No selection - show first subagent as default (read-only access)
-        agent_ids
-            .first()
-            .and_then(|&agent_id| state.session_view().get_subagent(agent_id))
-    };
-
-    // Render the selected conversation using its view-state
-    if let Some(conversation_view) = selected_conversation_view {
-        let conversation_widget = message::ConversationView::new(
-            conversation_view,
-            styles,
-            state.focus == FocusPane::Subagent,
-        )
-        .global_wrap(state.global_wrap);
-
-        frame.render_widget(conversation_widget, content_area);
+        // Tabs 1+: Show subagent conversation (index - 1 in subagent list)
+        let subagent_index = selected_tab_index - 1;
+        if let Some(&agent_id) = subagent_ids.get(subagent_index) {
+            if let Some(view_state) = state.session_view().get_subagent(agent_id) {
+                let conversation_widget = message::ConversationView::new(
+                    view_state,
+                    styles,
+                    state.focus == FocusPane::Subagent,
+                )
+                .global_wrap(state.global_wrap);
+                frame.render_widget(conversation_widget, content_area);
+            }
+        }
+        // If subagent not found, render nothing (empty content area)
     }
 }
 
