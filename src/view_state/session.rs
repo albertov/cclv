@@ -1,7 +1,5 @@
 //! View-state for a single session
 
-#![allow(dead_code)] // Will be used once stubs are implemented
-
 use super::conversation::ConversationViewState;
 use crate::model::{AgentId, ConversationEntry, SessionId};
 use std::collections::HashMap;
@@ -32,70 +30,94 @@ pub struct SessionViewState {
 
 impl SessionViewState {
     /// Create new session view-state.
-    pub fn new(_session_id: SessionId) -> Self {
-        todo!("SessionViewState::new")
+    pub fn new(session_id: SessionId) -> Self {
+        Self {
+            session_id,
+            main: ConversationViewState::empty(),
+            subagents: HashMap::new(),
+            pending_subagent_entries: HashMap::new(),
+            start_line: 0,
+        }
     }
 
     /// Session identifier.
     pub fn session_id(&self) -> &SessionId {
-        todo!("SessionViewState::session_id")
+        &self.session_id
     }
 
     /// Reference to main conversation view-state.
     pub fn main(&self) -> &ConversationViewState {
-        todo!("SessionViewState::main")
+        &self.main
     }
 
     /// Mutable reference to main conversation.
     pub fn main_mut(&mut self) -> &mut ConversationViewState {
-        todo!("SessionViewState::main_mut")
+        &mut self.main
     }
 
     /// Get subagent view-state, creating lazily if needed.
-    pub fn subagent(&mut self, _id: &AgentId) -> &ConversationViewState {
-        todo!("SessionViewState::subagent")
+    pub fn subagent(&mut self, id: &AgentId) -> &ConversationViewState {
+        if !self.subagents.contains_key(id) {
+            // Create from pending entries
+            let entries = self.pending_subagent_entries.remove(id).unwrap_or_default();
+            let view_state = ConversationViewState::new(entries);
+            self.subagents.insert(id.clone(), view_state);
+        }
+        self.subagents.get(id).unwrap()
     }
 
     /// Mutable reference to subagent view-state.
-    pub fn subagent_mut(&mut self, _id: &AgentId) -> &mut ConversationViewState {
-        todo!("SessionViewState::subagent_mut")
+    pub fn subagent_mut(&mut self, id: &AgentId) -> &mut ConversationViewState {
+        if !self.subagents.contains_key(id) {
+            let entries = self.pending_subagent_entries.remove(id).unwrap_or_default();
+            let view_state = ConversationViewState::new(entries);
+            self.subagents.insert(id.clone(), view_state);
+        }
+        self.subagents.get_mut(id).unwrap()
     }
 
     /// Check if subagent view-state exists (has been accessed).
-    pub fn has_subagent(&self, _id: &AgentId) -> bool {
-        todo!("SessionViewState::has_subagent")
+    pub fn has_subagent(&self, id: &AgentId) -> bool {
+        self.subagents.contains_key(id)
     }
 
     /// List all known subagent IDs (initialized or pending).
     pub fn subagent_ids(&self) -> impl Iterator<Item = &AgentId> {
-        // Return empty iterator that has the right type
-        std::iter::empty()
+        self.subagents.keys().chain(self.pending_subagent_entries.keys())
     }
 
     /// Add entry to main conversation.
-    pub fn add_main_entry(&mut self, _entry: ConversationEntry) {
-        todo!("SessionViewState::add_main_entry")
+    pub fn add_main_entry(&mut self, entry: ConversationEntry) {
+        self.main.append(vec![entry]);
     }
 
     /// Add entry to subagent conversation.
     /// If view-state exists, appends directly. Otherwise, stores as pending.
-    pub fn add_subagent_entry(&mut self, _agent_id: AgentId, _entry: ConversationEntry) {
-        todo!("SessionViewState::add_subagent_entry")
+    pub fn add_subagent_entry(&mut self, agent_id: AgentId, entry: ConversationEntry) {
+        if let Some(view_state) = self.subagents.get_mut(&agent_id) {
+            view_state.append(vec![entry]);
+        } else {
+            self.pending_subagent_entries
+                .entry(agent_id)
+                .or_default()
+                .push(entry);
+        }
     }
 
     /// Start line offset (for multi-session positioning).
     pub fn start_line(&self) -> usize {
-        todo!("SessionViewState::start_line")
+        self.start_line
     }
 
     /// Set start line offset.
-    pub(crate) fn set_start_line(&mut self, _offset: usize) {
-        todo!("SessionViewState::set_start_line")
+    #[allow(dead_code)] // Used by LogViewState in same module
+    pub(crate) fn set_start_line(&mut self, offset: usize) {
+        self.start_line = offset;
     }
 
     /// Height of main conversation only.
     pub fn main_height(&self) -> usize {
-        todo!("SessionViewState::main_height")
+        self.main.total_height()
     }
 
     /// Total height of all conversations in this session.
@@ -107,7 +129,10 @@ impl SessionViewState {
     /// - All initialized subagent conversation heights
     /// - Pending subagent entries (estimated at 1 line each until initialized)
     pub fn total_height(&self) -> usize {
-        todo!("SessionViewState::total_height")
+        let main_h = self.main.total_height();
+        let subagent_h: usize = self.subagents.values().map(|s| s.total_height()).sum();
+        let pending_h: usize = self.pending_subagent_entries.values().map(|v| v.len()).sum();
+        main_h + subagent_h + pending_h
     }
 }
 
