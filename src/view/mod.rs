@@ -354,6 +354,12 @@ where
             return true;
         }
 
+        // Special case: Escape closes help overlay if visible (before key binding dispatch)
+        if key.code == KeyCode::Esc && self.app_state.help_visible {
+            self.app_state.help_visible = false;
+            return false;
+        }
+
         // Handle character input when in Search Typing mode (before key binding dispatch)
         if self.app_state.focus == FocusPane::Search {
             if let crate::state::SearchState::Typing { .. } = &self.app_state.search {
@@ -602,6 +608,11 @@ where
                         sub_view.relayout(width, wrap);
                     }
                 }
+            }
+
+            // Help overlay toggle
+            KeyAction::Help => {
+                self.app_state.help_visible = !self.app_state.help_visible;
             }
 
             // Not yet implemented

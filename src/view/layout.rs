@@ -5,7 +5,7 @@
 
 use crate::model::{AgentId, PricingConfig};
 use crate::state::{agent_ids_with_matches, AppState, FocusPane, SearchState, WrapMode};
-use crate::view::{message, stats::StatsPanel, tabs, MessageStyles, SearchInput};
+use crate::view::{help::render_help_overlay, message, stats::StatsPanel, tabs, MessageStyles, SearchInput};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
@@ -200,6 +200,11 @@ pub fn render_layout(frame: &mut Frame, state: &AppState) {
     }
 
     render_status_bar(frame, status_area, state);
+
+    // Render help overlay on top of everything else if visible
+    if state.help_visible {
+        render_help_overlay(frame);
+    }
 }
 
 /// Render unified conversation pane with tab bar and selected conversation.
