@@ -87,6 +87,7 @@ pub fn compute_entry_lines(
     summary_lines: usize,
     styles: &MessageStyles,
     entry_index: Option<usize>,
+    _is_subagent_view: bool,
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 

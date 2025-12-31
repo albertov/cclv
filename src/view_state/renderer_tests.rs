@@ -31,6 +31,7 @@ fn test_user_entry_has_cyan_color() {
         3,
         &styles,
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // FR-021: User messages should have Cyan color
@@ -64,6 +65,7 @@ fn test_assistant_entry_has_green_color() {
         3,
         &styles,
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // FR-022: Assistant messages should have Green color
@@ -126,6 +128,7 @@ fn test_collapsed_thinking_block_respects_collapse_threshold() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: Collapsed Thinking block should show:
@@ -175,6 +178,7 @@ fn test_expanded_thinking_block_shows_all_lines() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: Expanded Thinking block should show all 100 lines + 1 separator
@@ -215,6 +219,7 @@ fn test_small_thinking_block_never_collapses() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: Below-threshold entry shows all lines even when "collapsed"
@@ -277,6 +282,7 @@ fn test_collapsed_text_content_respects_collapse_threshold() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: Collapsed Text content should show:
@@ -331,6 +337,7 @@ fn test_expanded_text_content_shows_all_lines() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: Expanded Text content should show all 100 lines + 1 separator
@@ -371,6 +378,7 @@ fn test_small_text_content_never_collapses() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: Below-threshold text entry shows all lines even when "collapsed"
@@ -418,6 +426,7 @@ fn test_text_block_wraps_long_lines() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
@@ -453,6 +462,7 @@ fn test_text_block_nowrap_does_not_wrap() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: NoWrap mode keeps the 100-char line as a single line
@@ -513,6 +523,7 @@ fn test_tool_result_wraps_long_lines() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
@@ -548,6 +559,7 @@ fn test_tool_result_nowrap_does_not_wrap() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: NoWrap mode keeps the 100-char line as a single line
@@ -613,6 +625,7 @@ fn test_tool_use_wraps_long_input_lines() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: ToolUse renders as:
@@ -653,6 +666,7 @@ fn test_tool_use_nowrap_does_not_wrap() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     let nowrap_lines = compute_entry_lines(
@@ -664,6 +678,7 @@ fn test_tool_use_nowrap_does_not_wrap() {
         summary_lines,
         &default_styles(),
         None, // No index prefix for existing tests
+        false, // Not a subagent view
     );
 
     // ASSERTION: NoWrap mode should produce FEWER lines than Wrap mode
@@ -694,6 +709,7 @@ fn test_tool_use_header_has_emoji_indicator() {
         3,
         &styles,
         None, // No index prefix
+        false, // Not a subagent view
     );
 
     // ASSERTION: First line should be the header with emoji: "🔧 Tool: TestTool"
@@ -734,6 +750,7 @@ fn test_entry_index_0_shows_as_1_prefix() {
         3,
         &styles,
         Some(0), // Entry index 0 should display as "   1│"
+        false, // Not a subagent view
     );
 
     // ASSERTION: Every content line should have "   1│" prefix
@@ -781,6 +798,7 @@ fn test_entry_index_41_shows_as_42_prefix() {
         3,
         &styles,
         Some(41), // Entry index 41 should display as "  42│"
+        false, // Not a subagent view
     );
 
     // ASSERTION: Every content line should have "  42│" prefix (right-aligned in 4 chars)
@@ -815,6 +833,7 @@ fn test_entry_index_999_shows_as_1000_prefix() {
         3,
         &styles,
         Some(999), // Entry index 999 should display as "1000│" (4 digits)
+        false, // Not a subagent view
     );
 
     // ASSERTION: Every content line should have "1000│" prefix (right-aligned in 4 chars)
@@ -849,6 +868,7 @@ fn test_entry_index_none_shows_no_prefix() {
         3,
         &styles,
         None, // No index = no prefix
+        false, // Not a subagent view
     );
 
     // ASSERTION: Lines should NOT have index prefix
@@ -883,6 +903,7 @@ fn test_entry_index_prefix_on_multiline_entry() {
         3,
         &styles,
         Some(0), // Entry index 0 should display as "   1│"
+        false, // Not a subagent view
     );
 
     // ASSERTION: All 5 content lines should have "   1│" prefix
@@ -905,6 +926,179 @@ fn test_entry_index_prefix_on_multiline_entry() {
     }
 }
 
+// ============================================================================
+// INITIAL PROMPT LABEL TESTS - Test "🔷 Initial Prompt" in subagent views
+// ============================================================================
+
+#[test]
+fn test_initial_prompt_label_appears_for_first_entry_in_subagent_view() {
+    // Create entry with simple text
+    let text = "Initial prompt text";
+    let entry = create_entry_with_text(text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        Some(0), // First entry (index 0)
+        true,    // IS a subagent view
+    );
+
+    // ASSERTION: First line should be "🔷 Initial Prompt" with Magenta + Bold
+    // Second line should be the actual content with index prefix
+    assert!(
+        lines.len() >= 2,
+        "Should have at least 2 lines (label + content), got {}",
+        lines.len()
+    );
+
+    // Check first line is the Initial Prompt label
+    let first_line_text: String = lines[0]
+        .spans
+        .iter()
+        .map(|span| span.content.as_ref())
+        .collect();
+
+    assert!(
+        first_line_text.contains("🔷 Initial Prompt"),
+        "First line should contain '🔷 Initial Prompt', got: '{}'",
+        first_line_text
+    );
+
+    // Verify the label has Magenta color and Bold modifier
+    let label_span = &lines[0].spans[0];
+    assert_eq!(
+        label_span.style.fg,
+        Some(ratatui::style::Color::Magenta),
+        "Initial Prompt label should be Magenta"
+    );
+    assert!(
+        label_span
+            .style
+            .add_modifier
+            .contains(ratatui::style::Modifier::BOLD),
+        "Initial Prompt label should be BOLD"
+    );
+}
+
+#[test]
+fn test_initial_prompt_label_does_not_appear_in_main_view() {
+    // Create entry with simple text
+    let text = "First entry in main view";
+    let entry = create_entry_with_text(text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        Some(0), // First entry (index 0)
+        false,   // NOT a subagent view (main view)
+    );
+
+    // ASSERTION: Should NOT have Initial Prompt label
+    // First line should be the content with index prefix "   1│First entry in main view"
+    let first_line_text: String = lines[0]
+        .spans
+        .iter()
+        .map(|span| span.content.as_ref())
+        .collect();
+
+    assert!(
+        !first_line_text.contains("🔷 Initial Prompt"),
+        "Main view should NOT show Initial Prompt label, got: '{}'",
+        first_line_text
+    );
+
+    assert!(
+        first_line_text.starts_with("   1│"),
+        "First line should start with entry index prefix, got: '{}'",
+        first_line_text
+    );
+}
+
+#[test]
+fn test_initial_prompt_label_only_for_first_entry_in_subagent() {
+    // Create entry with simple text
+    let text = "Second entry in subagent";
+    let entry = create_entry_with_text(text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        Some(1), // Second entry (index 1, not 0)
+        true,    // IS a subagent view
+    );
+
+    // ASSERTION: Should NOT have Initial Prompt label (only for index 0)
+    let first_line_text: String = lines[0]
+        .spans
+        .iter()
+        .map(|span| span.content.as_ref())
+        .collect();
+
+    assert!(
+        !first_line_text.contains("🔷 Initial Prompt"),
+        "Only first entry (index 0) should show Initial Prompt, got: '{}'",
+        first_line_text
+    );
+
+    assert!(
+        first_line_text.starts_with("   2│"),
+        "Second entry should have index prefix '   2│', got: '{}'",
+        first_line_text
+    );
+}
+
+#[test]
+fn test_initial_prompt_label_without_entry_index() {
+    // Test that Initial Prompt label appears even without entry index prefix
+    let text = "Initial prompt without index";
+    let entry = create_entry_with_text(text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No entry index (but we need entry_index == Some(0) for label!)
+        true, // IS a subagent view
+    );
+
+    // ASSERTION: Should NOT have Initial Prompt label because entry_index is None
+    // The label only appears when entry_index == Some(0)
+    let first_line_text: String = lines[0]
+        .spans
+        .iter()
+        .map(|span| span.content.as_ref())
+        .collect();
+
+    assert!(
+        !first_line_text.contains("🔷 Initial Prompt"),
+        "Initial Prompt should only appear when entry_index == Some(0), got: '{}'",
+        first_line_text
+    );
+}
+
 #[test]
 fn test_entry_index_prefix_on_collapsed_entry() {
     // Create entry with 100 lines (will collapse)
@@ -924,6 +1118,7 @@ fn test_entry_index_prefix_on_collapsed_entry() {
         summary_lines,
         &styles,
         Some(9), // Entry index 9 should display as "  10│"
+        false, // Not a subagent view
     );
 
     // ASSERTION: Should have 3 summary lines + 1 collapse indicator + 1 separator = 5 total

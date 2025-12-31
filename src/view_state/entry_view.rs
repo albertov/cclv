@@ -109,6 +109,7 @@ impl EntryView {
             Self::SUMMARY_LINES,
             &styles,
             Some(index.get()), // Pass entry index for prefixing
+            false, // TODO: Pass is_subagent_view from caller
         );
         Self {
             entry,
@@ -185,6 +186,7 @@ impl EntryView {
             Self::SUMMARY_LINES,
             &styles,
             Some(self.index.get()), // Pass entry index for prefixing
+            false, // TODO: Pass is_subagent_view from caller
         );
     }
 
