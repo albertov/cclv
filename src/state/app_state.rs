@@ -402,6 +402,22 @@ impl AppState {
         self.live_mode && !self.auto_scroll
     }
 
+    /// Synchronize stats_filter with selected_conversation.
+    ///
+    /// Ensures that the statistics panel displays stats for the currently
+    /// focused conversation. Called after any operation that changes
+    /// selected_conversation (tab switching, session changes).
+    ///
+    /// Maps ConversationSelection to StatsFilter:
+    /// - Main -> MainAgent
+    /// - Subagent(id) -> Subagent(id)
+    fn sync_stats_filter(&mut self) {
+        self.stats_filter = match &self.selected_conversation {
+            ConversationSelection::Main => StatsFilter::MainAgent,
+            ConversationSelection::Subagent(id) => StatsFilter::Subagent(id.clone()),
+        };
+    }
+
     /// Move to next tab (unified tab model, FR-086, cclv-5ur.53).
     /// Works for all conversations (main agent + subagents).
     /// Wraps from last to first (main).
@@ -444,6 +460,9 @@ impl AppState {
                 }
             }
         }
+
+        // Sync stats filter to match new conversation selection
+        self.sync_stats_filter();
     }
 
     /// Move to previous tab (unified tab model, FR-086, cclv-5ur.53).
@@ -488,6 +507,9 @@ impl AppState {
                 }
             }
         }
+
+        // Sync stats filter to match new conversation selection
+        self.sync_stats_filter();
     }
 
     /// Select a specific tab by 1-indexed number (unified tab model, FR-086, cclv-5ur.53).
@@ -527,6 +549,9 @@ impl AppState {
                 }
             }
         }
+
+        // Sync stats filter to match new conversation selection
+        self.sync_stats_filter();
     }
 
     /// Toggle global wrap mode (FR-050: W key)

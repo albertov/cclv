@@ -44,7 +44,6 @@ const MULTI_SESSION_FIXTURE: &str = "tests/fixtures/stats_multi_session_repro.js
 /// When user switches from Main tab to subagent tab, the stats panel should
 /// update to show stats for the currently focused session, not global totals.
 #[test]
-#[ignore = "cclv-5ur.68: Stats pane shows global stats instead of session-specific"]
 fn bug_stats_should_update_when_switching_tabs() {
     // GIVEN: Viewer loaded with Main (3000 input) and subagent (125 input)
     let mut harness = AcceptanceTestHarness::from_fixture_with_size(STATS_FIXTURE, 100, 30)
@@ -75,8 +74,7 @@ fn bug_stats_should_update_when_switching_tabs() {
     // This assertion FAILS because the bug exists - stats show global (3,125)
     // instead of subagent-specific (125). When fixed, this will PASS.
     assert!(
-        subagent_tab_output.contains("Input:  125")
-            || subagent_tab_output.contains("Input: 125"),
+        subagent_tab_output.contains("Input:  125") || subagent_tab_output.contains("Input: 125"),
         "BUG: Stats pane shows global stats instead of session-specific stats.\n\
          Expected: Subagent tab should show Input: 125 (subagent tokens only)\n\
          Actual: Stats show Input: 3,125 (global total)\n\
@@ -96,7 +94,6 @@ fn bug_stats_should_update_when_switching_tabs() {
 /// Expected: Stats should show Beta session tokens (11,800 input)
 /// Actual: Stats show Alpha session tokens (2,700 input)
 #[test]
-#[ignore = "cclv-5ur.68: Multi-session stats show wrong session"]
 fn bug_multi_session_stats_should_match_displayed_session() {
     // GIVEN: Log file with two sessions:
     //   - Alpha: Main (2500) + Subagent (200) = 2700 input

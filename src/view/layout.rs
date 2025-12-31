@@ -288,10 +288,7 @@ fn render_stats_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     // Build session statistics by iterating through entries
     // Uses SessionViewState which contains all entries including pending subagents
     // TODO: This should be cached in SessionViewState once stats are integrated
-    let session_view = state
-        .log_view()
-        .get_session(0)
-        .expect("Session 0 must exist");
+    let session_view = state.session_view();
     let stats = build_session_stats(session_view);
 
     // Get model ID for pricing calculation
