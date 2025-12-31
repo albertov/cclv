@@ -173,9 +173,8 @@ fn us4_scenario3_jk_scroll_messages() {
 
     // DOING: Load session with small terminal to ensure content needs scrolling
     // EXPECT: Scroll offset changes with j (down) and k (up)
-    let mut harness =
-        AcceptanceTestHarness::from_fixture_with_size(LARGE_MESSAGE_FIXTURE, 80, 10)
-            .expect("Should load session for scrolling test");
+    let mut harness = AcceptanceTestHarness::from_fixture_with_size(LARGE_MESSAGE_FIXTURE, 80, 10)
+        .expect("Should load session for scrolling test");
 
     // IF YES: Session loaded with scrollable content
     let initial_state = harness.state();
@@ -418,7 +417,10 @@ fn us4_scenario6_expand_collapsed_message() {
 
     // VERIFY: Message starts collapsed (not in expanded set)
     assert!(
-        !initial_state.main_scroll.expanded_messages.contains(&first_uuid),
+        !initial_state
+            .main_scroll
+            .expanded_messages
+            .contains(&first_uuid),
         "Long message should be collapsed by default"
     );
 
@@ -563,10 +565,7 @@ fn us4_scenario8_horizontal_scroll() {
     let initial_h_offset = initial_state.main_scroll.horizontal_offset;
 
     // Verify initial offset is 0
-    assert_eq!(
-        initial_h_offset, 0,
-        "Horizontal offset should start at 0"
-    );
+    assert_eq!(initial_h_offset, 0, "Horizontal offset should start at 0");
 
     // WHEN: User presses Right arrow multiple times
     harness.send_key(KeyCode::Right);
@@ -608,10 +607,7 @@ fn us4_scenario8_horizontal_scroll() {
     let state_after_many_left = harness.state();
     let final_h_offset = state_after_many_left.main_scroll.horizontal_offset;
 
-    assert_eq!(
-        final_h_offset, 0,
-        "Horizontal offset should not go below 0"
-    );
+    assert_eq!(final_h_offset, 0, "Horizontal offset should not go below 0");
 
     // RESULT: Left/Right arrows scroll horizontally
     // MATCHES: Yes - horizontal_offset changes appropriately

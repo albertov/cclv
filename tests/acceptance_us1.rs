@@ -121,10 +121,7 @@ fn us1_scenario3_subagent_tab_appears() {
     let state = harness.state();
     let entry_count = state.session().main_agent().entries().len();
 
-    assert!(
-        entry_count > 0,
-        "Should have loaded entries from fixture"
-    );
+    assert!(entry_count > 0, "Should have loaded entries from fixture");
 
     // VERIFY: Can cycle through focus panes (infrastructure for tabs exists)
     harness.send_key(KeyCode::Tab); // Cycle focus
@@ -163,10 +160,7 @@ fn us1_scenario4_tool_calls_display() {
     let entries = state.session().main_agent().entries();
 
     // Verify we have some entries (fixture has tool calls)
-    assert!(
-        !entries.is_empty(),
-        "Should have entries with tool calls"
-    );
+    assert!(!entries.is_empty(), "Should have entries with tool calls");
 
     // VERIFY: Rendering includes tool call information
     let output = harness.render_to_string();
@@ -304,8 +298,8 @@ fn us1_scenario7_auto_scroll_pause() {
 
     // DOING: Load fixture and scroll up
     // EXPECT: Scrolling up should pause auto-scroll and show indicator
-    let mut harness = AcceptanceTestHarness::from_fixture(MINIMAL_FIXTURE)
-        .expect("Should load session");
+    let mut harness =
+        AcceptanceTestHarness::from_fixture(MINIMAL_FIXTURE).expect("Should load session");
 
     // Set live mode to enable new messages indicator logic
     // (In actual usage, live mode is set when tailing a file)
@@ -372,8 +366,8 @@ fn us1_scenario8_auto_scroll_resume() {
 
     // DOING: Load fixture, scroll up, then scroll back down
     // EXPECT: Can scroll down to resume auto-scroll
-    let mut harness = AcceptanceTestHarness::from_fixture(MINIMAL_FIXTURE)
-        .expect("Should load session");
+    let mut harness =
+        AcceptanceTestHarness::from_fixture(MINIMAL_FIXTURE).expect("Should load session");
 
     // IF YES: Loaded
     // Pause auto-scroll by scrolling up

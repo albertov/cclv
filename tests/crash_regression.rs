@@ -317,9 +317,8 @@ fn crash_buffer_bounds_regression() {
 
         // Explicitly render to catch buffer bounds panics
         // The panic occurs during rendering, not during key handling
-        let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            harness.render_to_string()
-        }));
+        let render_result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| harness.render_to_string()));
 
         assert!(
             render_result.is_ok(),
@@ -338,9 +337,8 @@ fn crash_buffer_bounds_regression() {
     for i in 0..20 {
         harness.send_key(KeyCode::Char('j'));
 
-        let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            harness.render_to_string()
-        }));
+        let render_result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| harness.render_to_string()));
 
         assert!(
             render_result.is_ok(),
@@ -353,9 +351,8 @@ fn crash_buffer_bounds_regression() {
     for i in 0..5 {
         harness.send_key(KeyCode::PageDown);
 
-        let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            harness.render_to_string()
-        }));
+        let render_result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| harness.render_to_string()));
 
         assert!(
             render_result.is_ok(),
@@ -365,9 +362,8 @@ fn crash_buffer_bounds_regression() {
     }
 
     // Final render check
-    let final_render = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        harness.render_to_string()
-    }));
+    let final_render =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| harness.render_to_string()));
 
     assert!(
         final_render.is_ok(),

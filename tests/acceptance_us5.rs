@@ -60,11 +60,7 @@ fn us5_scenario1_search_highlights() {
     let state_after_search = harness.state();
     match &state_after_search.search {
         cclv::state::SearchState::Active { query, matches, .. } => {
-            assert_eq!(
-                query.as_str(),
-                "help",
-                "Query should be stored as 'help'"
-            );
+            assert_eq!(query.as_str(), "help", "Query should be stored as 'help'");
             assert!(
                 !matches.is_empty(),
                 "Search for 'help' should find matches in minimal_session.jsonl (appears in 'Can you help?' and 'happy to help')"
@@ -212,10 +208,7 @@ fn us5_scenario3_navigate_to_match() {
             current_match,
             ..
         } => {
-            assert!(
-                !matches.is_empty(),
-                "Should have matches for 'Implemented'"
-            );
+            assert!(!matches.is_empty(), "Should have matches for 'Implemented'");
 
             let initial_match_index = *current_match;
             let _initial_selected_tab = state_after_search.selected_tab;
@@ -343,10 +336,7 @@ fn us5_scenario4_clear_search() {
     // VERIFY: Search returns to inactive
     let state_after_clear = harness.state();
     assert!(
-        matches!(
-            state_after_clear.search,
-            cclv::state::SearchState::Inactive
-        ),
+        matches!(state_after_clear.search, cclv::state::SearchState::Inactive),
         "Pressing Esc should clear search and return to Inactive state"
     );
 
@@ -356,10 +346,7 @@ fn us5_scenario4_clear_search() {
 
     let state_typing = harness.state();
     assert!(
-        matches!(
-            state_typing.search,
-            cclv::state::SearchState::Typing { .. }
-        ),
+        matches!(state_typing.search, cclv::state::SearchState::Typing { .. }),
         "Search should be in Typing mode"
     );
 

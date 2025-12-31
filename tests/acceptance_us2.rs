@@ -181,7 +181,10 @@ fn us2_scenario3_search_highlight() {
                 "Should find matches for 'Read' in tool_calls.jsonl"
             );
         }
-        _ => panic!("Search should be active after Enter, got: {:?}", active_state.search),
+        _ => panic!(
+            "Search should be active after Enter, got: {:?}",
+            active_state.search
+        ),
     }
 
     // VERIFY: Can navigate to next match with 'n'
@@ -231,18 +234,13 @@ fn us2_scenario4_markdown_rendering() {
 
     // Tool calls contain structured parameters that should be formatted
     // Check that output includes well-formatted code/data
-    assert!(
-        !output.is_empty(),
-        "Should render markdown content"
-    );
+    assert!(!output.is_empty(), "Should render markdown content");
 
     // VERIFY: Code blocks or structured data visible
     // The tool_calls.jsonl has tool parameters that should be displayed
     // as formatted/structured text
     let has_structured_content =
-        output.contains("file_path") ||
-        output.contains("command") ||
-        output.contains("/workspace");
+        output.contains("file_path") || output.contains("command") || output.contains("/workspace");
 
     assert!(
         has_structured_content,
@@ -354,7 +352,10 @@ fn us2_scenario6_expand_message() {
     // VERIFY: Message is now in expanded set
     let expanded_state = harness.state();
     assert!(
-        expanded_state.main_scroll.expanded_messages.contains(&first_entry_uuid),
+        expanded_state
+            .main_scroll
+            .expanded_messages
+            .contains(&first_entry_uuid),
         "Message should be expanded after Enter key"
     );
 
@@ -385,13 +386,16 @@ fn us2_scenario7_collapse_message() {
 
     // DOING: Load fixture, expand message, then collapse it again
     // EXPECT: Enter key toggles message back to collapsed state
-    let mut harness = AcceptanceTestHarness::from_fixture(LARGE_MESSAGE_FIXTURE)
-        .expect("Should load session");
+    let mut harness =
+        AcceptanceTestHarness::from_fixture(LARGE_MESSAGE_FIXTURE).expect("Should load session");
 
     // IF YES: Session loaded
     let first_entry_uuid = {
         let entries = harness.state().session().main_agent().entries();
-        entries[0].uuid().expect("Valid entry should have UUID").clone()
+        entries[0]
+            .uuid()
+            .expect("Valid entry should have UUID")
+            .clone()
     };
 
     // WHEN: Expand the message first
@@ -400,7 +404,10 @@ fn us2_scenario7_collapse_message() {
     // VERIFY: Message is expanded
     let expanded_state = harness.state();
     assert!(
-        expanded_state.main_scroll.expanded_messages.contains(&first_entry_uuid),
+        expanded_state
+            .main_scroll
+            .expanded_messages
+            .contains(&first_entry_uuid),
         "Message should be expanded before collapse test"
     );
 
@@ -410,7 +417,10 @@ fn us2_scenario7_collapse_message() {
     // VERIFY: Message is removed from expanded set (collapsed)
     let collapsed_state = harness.state();
     assert!(
-        !collapsed_state.main_scroll.expanded_messages.contains(&first_entry_uuid),
+        !collapsed_state
+            .main_scroll
+            .expanded_messages
+            .contains(&first_entry_uuid),
         "Message should be collapsed after second Enter key"
     );
 

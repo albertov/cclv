@@ -224,12 +224,10 @@ fn us3_scenario3_tool_breakdown() {
 
     // Should show at least some tool names with counts
     // The tool_calls.jsonl has Read, Write, Bash, Edit tools
-    let has_tool_with_count = output
-        .lines()
-        .any(|line| {
-            (line.contains("Read") || line.contains("Write") || line.contains("Bash"))
-                && line.chars().any(|c| c.is_ascii_digit())
-        });
+    let has_tool_with_count = output.lines().any(|line| {
+        (line.contains("Read") || line.contains("Write") || line.contains("Bash"))
+            && line.chars().any(|c| c.is_ascii_digit())
+    });
 
     assert!(
         has_tool_with_count,
@@ -290,7 +288,9 @@ fn us3_scenario4_filter_subagent() {
         cclv::model::StatsFilter::Subagent(agent_id) => {
             // Verify the agent_id corresponds to the selected tab
             let subagent_ids = state_after_filter.session().subagent_ids_ordered();
-            let tab_index = state_after_filter.selected_tab.expect("Tab should be selected");
+            let tab_index = state_after_filter
+                .selected_tab
+                .expect("Tab should be selected");
             let expected_agent_id = subagent_ids
                 .get(tab_index)
                 .expect("Tab index should be valid");
@@ -300,10 +300,7 @@ fn us3_scenario4_filter_subagent() {
                 "Filter should target the currently selected subagent tab"
             );
         }
-        other => panic!(
-            "Stats filter should be Subagent variant, got: {:?}",
-            other
-        ),
+        other => panic!("Stats filter should be Subagent variant, got: {:?}", other),
     }
 
     // VERIFY: Filtered stats show only this subagent's data

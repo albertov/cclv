@@ -106,9 +106,7 @@ fn smoke_loads_valid_file() {
     assert!(is_alive, "Process should be running");
 
     // Send quit command (q)
-    session
-        .send("q")
-        .expect("Failed to send quit command");
+    session.send("q").expect("Failed to send quit command");
 
     // Should exit cleanly
     let _ = session.expect(Eof).expect("Process should exit");
@@ -136,9 +134,7 @@ fn smoke_app_starts_and_quits() {
     assert!(is_alive, "Process should be running after startup");
 
     // Send quit command (q)
-    session
-        .send("q")
-        .expect("Failed to send quit command");
+    session.send("q").expect("Failed to send quit command");
 
     // Should exit cleanly
     let _ = session.expect(Eof).expect("Process should exit");
@@ -171,9 +167,7 @@ fn smoke_scroll_does_not_crash() {
 
     // Send scroll down key ('j') multiple times
     for _ in 0..10 {
-        session
-            .send("j")
-            .expect("Failed to send scroll down");
+        session.send("j").expect("Failed to send scroll down");
         std::thread::sleep(Duration::from_millis(50));
     }
 
@@ -183,9 +177,7 @@ fn smoke_scroll_does_not_crash() {
 
     // Send scroll up key ('k') multiple times
     for _ in 0..10 {
-        session
-            .send("k")
-            .expect("Failed to send scroll up");
+        session.send("k").expect("Failed to send scroll up");
         std::thread::sleep(Duration::from_millis(50));
     }
 
@@ -194,9 +186,7 @@ fn smoke_scroll_does_not_crash() {
     assert!(is_alive, "Process should be running after scrolling");
 
     // Send quit command (q)
-    session
-        .send("q")
-        .expect("Failed to send quit command");
+    session.send("q").expect("Failed to send quit command");
 
     // Should exit cleanly
     let _ = session.expect(Eof).expect("Process should exit");
@@ -225,16 +215,12 @@ fn smoke_search_works() {
     assert!(is_alive, "Process should be running after startup");
 
     // Send '/' to open search
-    session
-        .send("/")
-        .expect("Failed to send search command");
+    session.send("/").expect("Failed to send search command");
 
     std::thread::sleep(Duration::from_millis(100));
 
     // Type a search term
-    session
-        .send("test")
-        .expect("Failed to send search term");
+    session.send("test").expect("Failed to send search term");
 
     std::thread::sleep(Duration::from_millis(100));
 
@@ -261,9 +247,7 @@ fn smoke_search_works() {
     assert!(is_alive, "Process should be running after closing search");
 
     // Send quit command (q)
-    session
-        .send("q")
-        .expect("Failed to send quit command");
+    session.send("q").expect("Failed to send quit command");
 
     // Should exit cleanly
     let _ = session.expect(Eof).expect("Process should exit");
