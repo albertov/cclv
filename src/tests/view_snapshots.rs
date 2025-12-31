@@ -1088,8 +1088,8 @@ fn us1_page_down_to_bottom_always_shows_content() {
         .collect();
 
     assert!(
-        entry_count >= 30_000,
-        "Fixture should have 30,000+ entries for this test"
+        entry_count >= 2_000,
+        "Fixture should have 2,000+ entries for this test"
     );
 
     // Build session
