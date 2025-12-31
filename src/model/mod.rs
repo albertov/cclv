@@ -3,6 +3,7 @@
 //! All types in this module are pure data with smart constructors.
 
 pub mod identifiers;
+pub mod log_entry;
 pub mod message;
 pub mod usage;
 
@@ -11,5 +12,6 @@ pub use identifiers::{
     AgentId, EntryUuid, InvalidAgentId, InvalidSessionId, InvalidToolUseId, InvalidUuid,
     SessionId, ToolUseId,
 };
+pub use log_entry::{EntryMetadata, EntryType, LogEntry};
 pub use message::{ContentBlock, Message, MessageContent, Role, ToolCall, ToolName};
 pub use usage::{ModelInfo, TokenUsage};
