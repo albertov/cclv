@@ -1,11 +1,13 @@
 //! TUI rendering and terminal management (impure shell)
 
+mod help;
 mod layout;
 mod message;
 mod stats;
 mod styles;
 pub mod tabs;
 
+pub use help::render_help_overlay;
 pub use message::ConversationView;
 pub use stats::StatsPanel;
 pub use styles::MessageStyles;

@@ -21,6 +21,7 @@ pub struct AppState {
     pub search: SearchState,
     pub stats_filter: StatsFilter,
     pub stats_visible: bool,
+    pub help_visible: bool,
     pub live_mode: bool,
     pub auto_scroll: bool,
 }
@@ -37,6 +38,7 @@ impl AppState {
             search: SearchState::Inactive,
             stats_filter: StatsFilter::Global,
             stats_visible: false,
+            help_visible: false,
             live_mode: false,
             auto_scroll: true,
         }
