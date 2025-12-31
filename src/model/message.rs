@@ -53,20 +53,20 @@ pub struct ToolCall {
 
 impl ToolCall {
     /// Create a new tool call
-    pub fn new(_id: ToolUseId, _name: ToolName, _input: serde_json::Value) -> Self {
-        todo!("ToolCall::new")
+    pub fn new(id: ToolUseId, name: ToolName, input: serde_json::Value) -> Self {
+        Self { id, name, input }
     }
 
     pub fn id(&self) -> &ToolUseId {
-        todo!("ToolCall::id")
+        &self.id
     }
 
     pub fn name(&self) -> &ToolName {
-        todo!("ToolCall::name")
+        &self.name
     }
 
     pub fn input(&self) -> &serde_json::Value {
-        todo!("ToolCall::input")
+        &self.input
     }
 }
 
@@ -90,13 +90,37 @@ pub enum ToolName {
 
 impl ToolName {
     /// Parse a tool name from a string
-    pub fn parse(_name: &str) -> Self {
-        todo!("ToolName::parse")
+    pub fn parse(name: &str) -> Self {
+        match name {
+            "Read" => Self::Read,
+            "Write" => Self::Write,
+            "Edit" => Self::Edit,
+            "MultiEdit" => Self::MultiEdit,
+            "Bash" => Self::Bash,
+            "Grep" => Self::Grep,
+            "Glob" => Self::Glob,
+            "Task" => Self::Task,
+            "WebSearch" => Self::WebSearch,
+            "WebFetch" => Self::WebFetch,
+            other => Self::Other(other.to_string()),
+        }
     }
 
     /// Get the string representation
     pub fn as_str(&self) -> &str {
-        todo!("ToolName::as_str")
+        match self {
+            Self::Read => "Read",
+            Self::Write => "Write",
+            Self::Edit => "Edit",
+            Self::MultiEdit => "MultiEdit",
+            Self::Bash => "Bash",
+            Self::Grep => "Grep",
+            Self::Glob => "Glob",
+            Self::Task => "Task",
+            Self::WebSearch => "WebSearch",
+            Self::WebFetch => "WebFetch",
+            Self::Other(s) => s,
+        }
     }
 }
 
@@ -117,26 +141,49 @@ pub struct Message {
 
 impl Message {
     /// Create a new message
-    pub fn new(_role: Role, _content: MessageContent) -> Self {
-        todo!("Message::new")
+    pub fn new(role: Role, content: MessageContent) -> Self {
+        Self {
+            role,
+            content,
+            model_id: None,
+        }
     }
 
     pub fn role(&self) -> Role {
-        todo!("Message::role")
+        self.role
     }
 
     pub fn content(&self) -> &MessageContent {
-        todo!("Message::content")
+        &self.content
     }
 
     /// Extract all tool calls from this message
     pub fn tool_calls(&self) -> Vec<&ToolCall> {
-        todo!("Message::tool_calls")
+        match &self.content {
+            MessageContent::Text(_) => vec![],
+            MessageContent::Blocks(blocks) => blocks
+                .iter()
+                .filter_map(|block| match block {
+                    ContentBlock::ToolUse(call) => Some(call),
+                    _ => None,
+                })
+                .collect(),
+        }
     }
 
     /// Get text content, joining all text blocks
     pub fn text(&self) -> String {
-        todo!("Message::text")
+        match &self.content {
+            MessageContent::Text(text) => text.clone(),
+            MessageContent::Blocks(blocks) => blocks
+                .iter()
+                .filter_map(|block| match block {
+                    ContentBlock::Text { text } => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join(""),
+        }
     }
 }
 
