@@ -53,9 +53,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load configuration with full precedence chain:
     // Defaults → Config File → Env Vars → CLI Args
-    let config = {
+    let (config, pricing) = {
         // 1. Load config file (or None if missing)
         let config_file = cclv::config::load_config_with_precedence(args.config.clone())?;
+
+        // Extract pricing from config file before it's consumed
+        let pricing = config_file
+            .as_ref()
+            .and_then(|cf| cf.pricing.clone())
+            .map(|ps| ps.into())
+            .unwrap_or_default();
 
         // 2. Merge with defaults
         let merged = cclv::config::merge_config(config_file);
@@ -70,7 +77,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let follow_override = if args.follow { Some(true) } else { None };
         let stats_override = if args.stats { Some(true) } else { None };
 
-        cclv::config::apply_cli_overrides(with_env, theme_override, follow_override, stats_override)
+        let config = cclv::config::apply_cli_overrides(with_env, theme_override, follow_override, stats_override);
+
+        (config, pricing)
     };
 
     // Initialize tracing with configured log file path (FR-054/055)
@@ -85,7 +94,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input_source = cclv::source::detect_input_source(args.file.clone())?;
 
     // Create CliArgs for TUI using resolved config
-    let cli_args = cclv::view::CliArgs::new(config.theme, config.show_stats, config.follow);
+    let cli_args = cclv::view::CliArgs::new(
+        config.theme,
+        config.show_stats,
+        config.follow,
+        config.max_context_tokens,
+        pricing,
+    );
 
     // Run the TUI with the input source
     cclv::view::run_with_source(input_source, cli_args)?;

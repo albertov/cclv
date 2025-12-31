@@ -5,7 +5,9 @@
 
 use crate::model::{AgentId, PricingConfig};
 use crate::state::{agent_ids_with_matches, AppState, FocusPane, SearchState, WrapMode};
-use crate::view::{help::render_help_overlay, message, stats::StatsPanel, tabs, MessageStyles, SearchInput};
+use crate::view::{
+    help::render_help_overlay, message, stats::StatsPanel, tabs, MessageStyles, SearchInput,
+};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
@@ -268,7 +270,9 @@ fn render_conversation_pane(
             let view_state = session.main();
             let conversation_widget =
                 message::ConversationView::new(view_state, styles, state.focus == FocusPane::Main)
-                    .global_wrap(state.global_wrap);
+                    .global_wrap(state.global_wrap)
+                    .max_context_tokens(state.max_context_tokens)
+                    .pricing(state.pricing.clone());
             frame.render_widget(conversation_widget, content_area);
         }
         // If no session exists yet, render nothing (empty content area)
@@ -282,7 +286,9 @@ fn render_conversation_pane(
                     styles,
                     state.focus == FocusPane::Subagent,
                 )
-                .global_wrap(state.global_wrap);
+                .global_wrap(state.global_wrap)
+                .max_context_tokens(state.max_context_tokens)
+                .pricing(state.pricing.clone());
                 frame.render_widget(conversation_widget, content_area);
             }
         }

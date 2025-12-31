@@ -960,15 +960,34 @@ pub struct CliArgs {
     ///
     /// When false, the log is treated as static/completed.
     pub follow: bool,
+
+    /// Maximum context window size in tokens.
+    ///
+    /// Used for token divider percentage calculation (cclv-5ur.32).
+    /// Default: 200,000 tokens (Claude Opus 4.5 context window).
+    pub max_context_tokens: u64,
+
+    /// Pricing configuration for cost estimation.
+    ///
+    /// Used by token divider to show estimated costs (cclv-5ur.32).
+    pub pricing: crate::model::PricingConfig,
 }
 
 impl CliArgs {
     /// Create new CliArgs with theme configuration
-    pub fn new(theme: String, stats: bool, follow: bool) -> Self {
+    pub fn new(
+        theme: String,
+        stats: bool,
+        follow: bool,
+        max_context_tokens: u64,
+        pricing: crate::model::PricingConfig,
+    ) -> Self {
         Self {
             theme,
             stats,
             follow,
+            max_context_tokens,
+            pricing,
         }
     }
 }
@@ -986,6 +1005,8 @@ pub fn run_with_source(input_source: InputSource, args: CliArgs) -> Result<(), T
     // Apply initial args (stats visible, search query, etc.)
     app.app_state.stats_visible = args.stats;
     app.app_state.live_mode = args.follow;
+    app.app_state.max_context_tokens = args.max_context_tokens;
+    app.app_state.pricing = args.pricing;
 
     // Run the app and ensure cleanup happens even on error
     let result = app.run();

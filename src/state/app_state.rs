@@ -126,6 +126,15 @@ pub struct AppState {
     /// Toggles on 500ms timer events when `input_mode` is Streaming.
     /// `true` means indicator is visible (green), `false` means hidden.
     pub blink_on: bool,
+
+    /// Maximum context window size in tokens (cclv-5ur.32).
+    /// Used for token divider percentage calculation.
+    /// Default: 200,000 tokens (Claude Opus 4.5 context window).
+    pub max_context_tokens: u64,
+
+    /// Pricing configuration for cost estimation (cclv-5ur.32).
+    /// Used by token divider to show estimated costs.
+    pub pricing: crate::model::PricingConfig,
 }
 
 impl Default for AppState {
@@ -150,6 +159,8 @@ impl AppState {
             global_wrap: WrapMode::default(),
             input_mode: InputMode::default(),
             blink_on: true, // Start with indicator visible
+            max_context_tokens: 200_000,
+            pricing: crate::model::PricingConfig::default(),
         }
     }
 

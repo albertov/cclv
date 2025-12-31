@@ -65,6 +65,8 @@ pub struct ConversationView<'a> {
     summary_lines: usize,
     buffer_size: usize,
     global_wrap: WrapMode,
+    max_context_tokens: u64,
+    pricing: crate::model::PricingConfig,
 }
 
 impl<'a> ConversationView<'a> {
@@ -88,6 +90,8 @@ impl<'a> ConversationView<'a> {
             summary_lines: 3,
             buffer_size: 20,
             global_wrap: WrapMode::default(), // Default to Wrap
+            max_context_tokens: 200_000, // Default: Opus 4.5 context window
+            pricing: crate::model::PricingConfig::default(),
         }
     }
 
@@ -124,6 +128,18 @@ impl<'a> ConversationView<'a> {
     /// Set the global wrap mode.
     pub fn global_wrap(mut self, wrap: WrapMode) -> Self {
         self.global_wrap = wrap;
+        self
+    }
+
+    /// Set the maximum context window size in tokens (cclv-5ur.32).
+    pub fn max_context_tokens(mut self, tokens: u64) -> Self {
+        self.max_context_tokens = tokens;
+        self
+    }
+
+    /// Set the pricing configuration (cclv-5ur.32).
+    pub fn pricing(mut self, pricing: crate::model::PricingConfig) -> Self {
+        self.pricing = pricing;
         self
     }
 }

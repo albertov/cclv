@@ -378,6 +378,40 @@ impl ModelPricing {
     }
 }
 
+// ===== Config Conversions =====
+
+/// Convert PricingEntry from config file to ModelPricing.
+impl From<crate::config::PricingEntry> for ModelPricing {
+    fn from(entry: crate::config::PricingEntry) -> Self {
+        let mut pricing = ModelPricing::new(entry.input, entry.output);
+        pricing.cached_input_cost_per_million = entry.cached_input;
+        pricing
+    }
+}
+
+/// Convert PricingConfigSection from config file to PricingConfig.
+impl From<crate::config::PricingConfigSection> for PricingConfig {
+    fn from(section: crate::config::PricingConfigSection) -> Self {
+        let mut models = HashMap::new();
+
+        // Convert each model entry
+        for (key, entry) in section.models {
+            models.insert(key, entry.into());
+        }
+
+        // Use default from config if provided, otherwise use hardcoded default
+        let default_pricing = section
+            .default
+            .map(|entry| entry.into())
+            .unwrap_or_else(|| ModelPricing::new(15.0, 75.0));
+
+        Self {
+            models,
+            default_pricing,
+        }
+    }
+}
+
 // ===== Tests =====
 
 #[cfg(test)]
