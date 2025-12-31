@@ -6,6 +6,7 @@ pub mod app_state;
 pub mod expand_handler;
 pub mod scroll_handler;
 pub mod search;
+pub mod search_input_handler;
 pub mod tab_handler;
 
 // Re-export for convenience
@@ -13,4 +14,8 @@ pub use app_state::{AppState, FocusPane, ScrollState};
 pub use expand_handler::handle_expand_action;
 pub use scroll_handler::handle_scroll_action;
 pub use search::{SearchMatch, SearchQuery, SearchState};
+pub use search_input_handler::{
+    activate_search_input, cancel_search, handle_backspace, handle_char_input, handle_cursor_left,
+    handle_cursor_right, submit_search,
+};
 pub use tab_handler::handle_tab_action;
