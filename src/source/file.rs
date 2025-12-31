@@ -34,7 +34,37 @@ impl FileTailer {
     /// Returns `InputError::FileNotFound` if the file does not exist.
     /// Returns `InputError::Io` for other I/O errors.
     pub fn new(path: impl AsRef<Path>) -> Result<Self, InputError> {
-        todo!("FileTailer::new")
+        let path = path.as_ref();
+
+        // Check if file exists before trying to open
+        if !path.exists() {
+            return Err(InputError::FileNotFound {
+                path: path.to_path_buf(),
+            });
+        }
+
+        // Open file for reading
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+
+        // Set up file watcher with 100ms debouncing
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut debouncer = new_debouncer(Duration::from_millis(100), tx)
+            .map_err(std::io::Error::other)?;
+
+        // Watch the file's parent directory (watching individual files may not work on all platforms)
+        debouncer
+            .watcher()
+            .watch(path, notify::RecursiveMode::NonRecursive)
+            .map_err(std::io::Error::other)?;
+
+        Ok(Self {
+            path: path.to_path_buf(),
+            position: 0,
+            file: reader,
+            _debouncer: debouncer,
+            event_rx: rx,
+        })
     }
 
     /// Read new lines that have been appended since last read.
@@ -47,7 +77,35 @@ impl FileTailer {
     /// Returns `InputError::FileDeleted` if the file has been deleted.
     /// Returns `InputError::Io` for other I/O errors.
     pub fn read_new_lines(&mut self) -> Result<Vec<String>, InputError> {
-        todo!("FileTailer::read_new_lines")
+        // Seek to last known position
+        self.file.seek(SeekFrom::Start(self.position))?;
+
+        let mut lines = Vec::new();
+        let mut buffer = String::new();
+
+        // Read all complete lines
+        loop {
+            buffer.clear();
+            let bytes_read = self.file.read_line(&mut buffer)?;
+
+            if bytes_read == 0 {
+                // EOF reached
+                break;
+            }
+
+            // Only include complete lines (ending with newline)
+            if buffer.ends_with('\n') {
+                // Remove the trailing newline before storing
+                let line = buffer.trim_end_matches('\n').to_string();
+                lines.push(line);
+                self.position += bytes_read as u64;
+            } else {
+                // Partial line - don't include it, don't update position
+                break;
+            }
+        }
+
+        Ok(lines)
     }
 
     /// Poll for file change events.
@@ -59,7 +117,39 @@ impl FileTailer {
     ///
     /// Returns `InputError::FileDeleted` if file deletion is detected.
     pub fn poll_changes(&mut self) -> Result<bool, InputError> {
-        todo!("FileTailer::poll_changes")
+        let mut has_changes = false;
+
+        // Drain all pending events
+        while let Ok(result) = self.event_rx.try_recv() {
+            match result {
+                Ok(events) => {
+                    for event in events {
+                        match event.kind {
+                            DebouncedEventKind::Any => {
+                                // Check if file still exists
+                                if !self.path.exists() {
+                                    return Err(InputError::FileDeleted);
+                                }
+                                has_changes = true;
+                            }
+                            _ => {
+                                // Other event types - treat as changes
+                                has_changes = true;
+                            }
+                        }
+                    }
+                }
+                Err(error) => {
+                    // Check for file deletion in error path
+                    if let notify::ErrorKind::PathNotFound = error.kind {
+                        return Err(InputError::FileDeleted);
+                    }
+                    // Other errors are logged but don't stop polling
+                }
+            }
+        }
+
+        Ok(has_changes)
     }
 }
 
