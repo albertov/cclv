@@ -243,13 +243,15 @@ fn us5_scenario3_navigate_to_match() {
                         );
 
                         // Verify the correct tab is selected
+                        // Unified tab model (FR-086): tab 0 = main, tab 1+ = subagents
                         let mut subagent_ids_list: Vec<_> =
                             state_after_n.session_view().subagent_ids().collect();
                         subagent_ids_list.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-                        let expected_tab_index = subagent_ids_list
+                        let subagent_position = subagent_ids_list
                             .iter()
                             .position(|id| *id == agent_id)
                             .expect("Match agent_id should be a valid subagent");
+                        let expected_tab_index = subagent_position + 1; // Convert to global tab index
 
                         assert_eq!(
                             state_after_n.selected_tab,

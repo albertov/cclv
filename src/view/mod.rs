@@ -462,19 +462,10 @@ where
             }
             KeyAction::FilterSubagent => {
                 // Filter to current subagent tab if selected
-                // Note: This uses 0-based subagent tab indexing (tab 0 = first subagent)
-                if let Some(tab_index) = self.app_state.selected_tab {
-                    let mut subagent_ids: Vec<_> = self
-                        .app_state
-                        .session_view()
-                        .subagent_ids()
-                        .cloned()
-                        .collect();
-                    subagent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-                    if let Some(agent_id) = subagent_ids.get(tab_index) {
-                        self.app_state.stats_filter =
-                            crate::model::StatsFilter::Subagent(agent_id.clone());
-                    }
+                // Uses unified tab model (FR-086): tab 0 = main, tab 1+ = subagents
+                if let Some(agent_id) = self.app_state.selected_agent_id() {
+                    self.app_state.stats_filter =
+                        crate::model::StatsFilter::Subagent(agent_id);
                 }
             }
 
@@ -1318,8 +1309,8 @@ mod tests {
         app.app_state
             .add_entries(vec![ConversationEntry::Valid(Box::new(entry))]);
 
-        // Select the subagent tab (index 0)
-        app.app_state.selected_tab = Some(0);
+        // Select the subagent tab (tab 1 in unified tab model: tab 0 = main, tab 1+ = subagents)
+        app.app_state.selected_tab = Some(1);
 
         // Set to Global initially
         app.app_state.stats_filter = crate::model::StatsFilter::Global;

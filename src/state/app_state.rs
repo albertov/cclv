@@ -364,16 +364,14 @@ impl AppState {
     ///
     /// # Routing Logic
     ///
-    /// Maps AgentId to its tab index using 0-based indexing into sorted subagent list:
-    /// - First subagent (alphabetically) -> tab 0
-    /// - Second subagent -> tab 1
+    /// Maps AgentId to its tab index using unified tab model (FR-086):
+    /// - First subagent (alphabetically) -> tab 1
+    /// - Second subagent -> tab 2
     /// - etc.
     ///
-    /// Returns None if the agent_id is not found in the current session's subagents.
+    /// Tab 0 is reserved for the main agent and is not included in this mapping.
     ///
-    /// Note: This uses 0-based subagent indexing, which differs from `selected_agent_id()`
-    /// where tab 0 represents the main agent. The two methods serve different purposes
-    /// in different parts of the routing system.
+    /// Returns None if the agent_id is not found in the current session's subagents.
     pub fn tab_index_for_agent(&self, agent_id: &AgentId) -> Option<usize> {
         let session = self.log_view.current_session()?;
         let mut agent_ids: Vec<_> = session.subagent_ids().cloned().collect();
@@ -382,7 +380,7 @@ impl AppState {
             .iter()
             .enumerate()
             .find(|(_, aid)| **aid == *agent_id)
-            .map(|(idx, _)| idx)
+            .map(|(idx, _)| idx.saturating_add(1))
     }
 
     /// Check if new messages indicator should be shown.
@@ -396,8 +394,9 @@ impl AppState {
     /// Skip Search in the cycle.
     /// Order: Main -> Subagent -> Stats -> Main
     ///
-    /// Auto-selects first subagent tab when switching to Subagent pane
-    /// if no tab is currently selected and subagents exist.
+    /// Auto-selects appropriate tab when switching panes:
+    /// - Switching to Subagent pane: selects tab 1 (first subagent) if subagents exist
+    /// - Switching to Main pane: selects tab 0 (main agent)
     pub fn cycle_focus(&mut self) {
         self.focus = match self.focus {
             FocusPane::Main => FocusPane::Subagent,
@@ -406,12 +405,22 @@ impl AppState {
             FocusPane::Search => FocusPane::Main,
         };
 
-        // Auto-select first subagent tab when switching to Subagent pane
-        if self.focus == FocusPane::Subagent && self.selected_tab.is_none() {
-            if let Some(session) = self.log_view.current_session() {
-                if session.subagent_ids().next().is_some() {
-                    self.selected_tab = Some(0);
+        // Auto-select appropriate tab for new pane (unified tab model FR-086)
+        match self.focus {
+            FocusPane::Subagent => {
+                // Switching to Subagent pane: select first subagent tab (tab 1)
+                if let Some(session) = self.log_view.current_session() {
+                    if session.subagent_ids().next().is_some() {
+                        self.selected_tab = Some(1); // First subagent is at tab 1
+                    }
                 }
+            }
+            FocusPane::Main => {
+                // Switching to Main pane: select main agent tab (tab 0)
+                self.selected_tab = Some(0);
+            }
+            _ => {
+                // Stats and Search panes don't change tab selection
             }
         }
     }

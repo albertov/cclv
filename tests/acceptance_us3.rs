@@ -287,12 +287,18 @@ fn us3_scenario4_filter_subagent() {
     match &state_after_filter.stats_filter {
         cclv::model::StatsFilter::Subagent(agent_id) => {
             // Verify the agent_id corresponds to the selected tab
+            // Unified tab model (FR-086): tab 0 = main, tab 1+ = subagents
             let subagent_ids: Vec<_> = state_after_filter.session_view().subagent_ids().collect();
             let tab_index = state_after_filter
                 .selected_tab
                 .expect("Tab should be selected");
+
+            // Convert from global tab index to subagent position
+            // tab 1 -> subagent[0], tab 2 -> subagent[1], etc.
+            let subagent_position = tab_index.checked_sub(1)
+                .expect("Tab index should be >= 1 for subagents");
             let expected_agent_id = subagent_ids
-                .get(tab_index)
+                .get(subagent_position)
                 .expect("Tab index should be valid");
 
             assert_eq!(

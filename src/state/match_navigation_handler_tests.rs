@@ -253,21 +253,22 @@ fn next_match_selects_correct_subagent_tab() {
     let result = next_match(state);
 
     // Agent order in tabs is sorted alphabetically
-    // We need to find which tab index agent2 is at
-    // Use subagent_ids() which includes both initialized and pending subagents
+    // Unified tab model (FR-086): tab 0 = main, tab 1+ = subagents
+    // So first subagent is at tab 1, second at tab 2, etc.
     let mut agent_ids: Vec<_> = result.session_view().subagent_ids().collect();
     agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-    let expected_tab = agent_ids
+    let subagent_position = agent_ids
         .iter()
         .enumerate()
         .find(|(_, aid)| **aid == &agent2)
         .map(|(idx, _)| idx)
         .expect("agent2 should exist in subagent_ids");
+    let expected_tab = subagent_position + 1; // Convert to global tab index
 
     assert_eq!(
         result.selected_tab,
         Some(expected_tab),
-        "Should select tab for agent2"
+        "Should select tab for agent2 (unified tab model: tab 0 = main)"
     );
 }
 
