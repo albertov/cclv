@@ -2573,3 +2573,160 @@ fn bug_subagent_scroll_does_not_work() {
          The visible content should have changed if scroll worked."
     );
 }
+
+/// Bug reproduction: Entries cannot be expanded/collapsed in subagent panes
+///
+/// EXPECTED: When a subagent tab is selected and user presses Enter on an entry,
+///           that entry in the subagent's ConversationViewState should toggle expanded.
+/// ACTUAL: The main agent's entry at the same index gets toggled instead.
+///
+/// Steps to reproduce manually:
+/// 1. cargo run --release -- tests/fixtures/cc-session-log.jsonl
+/// 2. Press ']' to switch to first subagent tab
+/// 3. Press Enter on a collapsed entry (e.g., entry showing "+N more lines")
+/// 4. Observe: Entry does not expand
+///
+/// Root cause: expand_handler.rs has a TODO comment at line 69:
+///   "// TODO: Implement subagent expand/collapse using ConversationViewState"
+/// The FocusPane::Subagent case just returns state unchanged.
+///
+/// Additionally, layout.rs calculate_pane_areas() always returns None for
+/// subagent_pane_area due to unified tab model (FR-083-088). The
+/// detect_entry_click function in mouse_handler.rs checks subagent_pane_area
+/// first, but since it's always None, mouse clicks fall through to main pane
+/// detection logic.
+///
+/// Fixture: tests/fixtures/cc-session-log.jsonl
+#[test]
+#[ignore = "cclv-5ur.47: subagent entry expand/collapse does not work (mouse or keyboard)"]
+fn bug_subagent_entry_expand_collapse_not_working() {
+    use cclv::config::keybindings::KeyBindings;
+    use cclv::source::{FileSource, InputSource, StdinSource};
+    use cclv::state::AppState;
+    use cclv::view::TuiApp;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use std::path::PathBuf;
+
+    // Load fixture with subagent entries
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/cc-session-log.jsonl"))
+        .expect("Should load fixture");
+    let log_entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = log_entries.len();
+
+    let entries: Vec<ConversationEntry> = log_entries
+        .into_iter()
+        .map(|e| ConversationEntry::Valid(Box::new(e)))
+        .collect();
+
+    // Create terminal
+    let backend = TestBackend::new(200, 40);
+    let terminal = Terminal::new(backend).unwrap();
+    let mut app_state = AppState::new();
+    app_state.add_entries(entries);
+    let key_bindings = KeyBindings::default();
+    let input_source = InputSource::Stdin(StdinSource::from_reader(&b""[..]));
+
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Initial render
+    app.render_test().expect("Initial render should succeed");
+
+    // Switch to first subagent tab with ']'
+    let key_event = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
+    app.handle_key_test(key_event);
+
+    // Verify we're on a subagent tab
+    let selected_tab = app.app_state().selected_tab.unwrap_or(0);
+    assert!(
+        selected_tab > 0,
+        "Should be on a subagent tab after pressing ']'"
+    );
+
+    // Render after tab switch
+    app.render_test()
+        .expect("Render after tab switch should succeed");
+
+    // Get the subagent's conversation view state
+    let mut sorted_agent_ids: Vec<_> = app.app_state().session_view().subagent_ids().collect();
+    sorted_agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    let agent_id = sorted_agent_ids[selected_tab - 1].clone();
+
+    // Get expanded state of entry 0 in subagent BEFORE toggle attempt
+    let subagent_entry_0_expanded_before = app
+        .app_state()
+        .session_view()
+        .subagents()
+        .get(&agent_id)
+        .and_then(|cv| cv.get(cclv::view_state::types::EntryIndex::new(0)))
+        .map(|e| e.is_expanded())
+        .unwrap_or(false);
+
+    // Get expanded state of entry 0 in MAIN agent BEFORE toggle attempt
+    let main_entry_0_expanded_before = app
+        .app_state()
+        .session_view()
+        .main()
+        .get(cclv::view_state::types::EntryIndex::new(0))
+        .map(|e| e.is_expanded())
+        .unwrap_or(false);
+
+    // Try to expand entry 0 using Enter key (keyboard expand)
+    // First go to top to ensure we're at entry 0
+    let key_event = KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE);
+    app.handle_key_test(key_event);
+
+    // Press Enter to toggle expand
+    let key_event = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+    app.handle_key_test(key_event);
+
+    // Render after toggle attempt
+    app.render_test()
+        .expect("Render after toggle should succeed");
+
+    // Get expanded state of entry 0 in subagent AFTER toggle attempt
+    let subagent_entry_0_expanded_after = app
+        .app_state()
+        .session_view()
+        .subagents()
+        .get(&agent_id)
+        .and_then(|cv| cv.get(cclv::view_state::types::EntryIndex::new(0)))
+        .map(|e| e.is_expanded())
+        .unwrap_or(false);
+
+    // Get expanded state of entry 0 in MAIN agent AFTER toggle attempt
+    let main_entry_0_expanded_after = app
+        .app_state()
+        .session_view()
+        .main()
+        .get(cclv::view_state::types::EntryIndex::new(0))
+        .map(|e| e.is_expanded())
+        .unwrap_or(false);
+
+    // BUG: Subagent entry should have toggled, but main entry toggled instead
+    assert_ne!(
+        subagent_entry_0_expanded_before, subagent_entry_0_expanded_after,
+        "BUG: Subagent entry expand/collapse does not work.\n\
+         Pressed Enter while on subagent tab {} (agent: {}).\n\
+         Subagent entry 0 expanded before: {}\n\
+         Subagent entry 0 expanded after: {}\n\
+         Main entry 0 expanded before: {}\n\
+         Main entry 0 expanded after: {}\n\n\
+         Expected: Subagent entry should toggle\n\
+         Actual: Subagent entry unchanged, main entry toggled instead\n\n\
+         Root cause: expand_handler.rs FocusPane::Subagent case returns unchanged state.\n\
+         See TODO at src/state/expand_handler.rs:69",
+        selected_tab,
+        agent_id.as_str(),
+        subagent_entry_0_expanded_before,
+        subagent_entry_0_expanded_after,
+        main_entry_0_expanded_before,
+        main_entry_0_expanded_after
+    );
+
+    // Also verify main entry didn't accidentally get toggled
+    assert_eq!(
+        main_entry_0_expanded_before, main_entry_0_expanded_after,
+        "Main entry should NOT have toggled when we're on a subagent tab"
+    );
+}
