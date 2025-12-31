@@ -302,8 +302,9 @@ fn scroll_position_not_bounded_by_entry_count() {
     let mut state = create_test_state_with_log_view(5, 0); // Only 5 entries
     state.focus = FocusPane::Main;
 
-    // Set initial scroll position to line 100 (way beyond entry count)
-    // This would have been clamped by old max_entries logic (the BUG)
+    // Set initial scroll position to line 100 (way beyond entry count AND max_offset)
+    // Old bug: would have been clamped by max_entries logic
+    // New behavior: clamps to max_offset (total_height - viewport_height) to prevent overshoot
     state
         .log_view_mut()
         .current_session_mut()
@@ -312,9 +313,20 @@ fn scroll_position_not_bounded_by_entry_count() {
         .set_scroll(ScrollPosition::AtLine(LineOffset::new(100)));
 
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+
+    // Get total_height to calculate expected max_offset
+    let total_height = state
+        .log_view()
+        .current_session()
+        .unwrap()
+        .main()
+        .total_height();
+    let max_offset = total_height.saturating_sub(viewport.height as usize);
+
     handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
-    // Should still use line-based offset, NOT clamped to entry count
+    // Should clamp to max_offset (line-based), NOT to entry count (5)
+    // This proves we're using LINE offsets, not entry counts
     let scroll = state
         .log_view()
         .current_session()
@@ -326,8 +338,13 @@ fn scroll_position_not_bounded_by_entry_count() {
         ScrollPosition::AtLine(offset) => {
             assert_eq!(
                 offset.get(),
-                101,
-                "Scroll should use LINE offset, not entry count"
+                max_offset,
+                "Scroll should clamp to max_offset (line-based), not entry count"
+            );
+            // Verify max_offset is NOT equal to entry count (5)
+            assert_ne!(
+                max_offset, 5,
+                "max_offset should be based on lines, not entry count"
             );
         }
         _ => panic!("Expected ScrollPosition::AtLine"),

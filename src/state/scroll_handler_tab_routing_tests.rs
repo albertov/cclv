@@ -306,15 +306,23 @@ fn scrolling_tab_1_does_not_affect_tab_0() {
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
     handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
-    // Verify: Subagent scrolled
-    let sub1_scroll = state
+    // Verify: Subagent scrolled (clamped to max_offset)
+    let subagent_view = state
         .session_view()
         .get_subagent(&first_subagent_id)
-        .unwrap()
-        .scroll();
+        .unwrap();
+    let total_height = subagent_view.total_height();
+    let max_offset = total_height.saturating_sub(viewport.height as usize);
+
+    let sub1_scroll = subagent_view.scroll();
     match sub1_scroll {
         ScrollPosition::AtLine(offset) => {
-            assert_eq!(offset.get(), 26, "Subagent should have scrolled");
+            // Should be clamped to max_offset, not allowed to overshoot
+            assert_eq!(
+                offset.get(),
+                max_offset,
+                "Subagent should scroll to max_offset (clamped, no overshoot)"
+            );
         }
         _ => panic!("Expected AtLine for subagent"),
     }

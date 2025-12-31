@@ -321,9 +321,8 @@ fn page_up_multiple_times_continues_scrolling() {
 /// 3. j×5 (overshoot at bottom) - still shows Entry 80+
 /// 4. k (works! scrolls up) - shows Entry 79+
 /// 5. j×5 (back to bottom + overshoot) - shows Entry 80+
-/// 6. k (BUG: absorbed!) - STILL shows Entry 80+, k had no effect
+/// 6. k (FIXED: now works!) - Shows Entry 79+, k scrolls up correctly
 #[test]
-#[ignore = "cclv-5ur.77: scroll k absorbed after G→j→k→j overshoot sequence"]
 fn bug_scroll_overshoot_k_absorbed() {
     const FIXTURE: &str = "tests/fixtures/scroll_overshoot_repro.jsonl";
 

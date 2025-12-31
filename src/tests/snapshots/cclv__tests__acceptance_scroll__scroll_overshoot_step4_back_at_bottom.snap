@@ -6,6 +6,7 @@ expression: after_j5_second
 │ Main                                                                         │
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌Main [Opus] (100 entries)─────────────────────────────────────────────────────┐
+│                                                                              │
 ││ 95 Entry 94: entry content line 94 - This is a line of content that takes up│
 ││    space in the scroll viewport for testing.                                │
 │                                                                              │
@@ -23,6 +24,5 @@ expression: after_j5_second
 │                                                                              │
 ││100 Entry 99: MARKER_ENTRY_LAST - This is a line of content that takes up spa│
 ││    ce in the scroll viewport for testing.                                   │
-│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 [LIVE] Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes
