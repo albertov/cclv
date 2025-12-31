@@ -1,10 +1,8 @@
 //! Helper functions for constructing common Line patterns in the view layer
 
-use ratatui::text::Line;
-#[allow(unused_imports)] // Remove after implementation
-use ratatui::widgets::{Block, Borders};
-#[allow(unused_imports)] // Remove after implementation
 use ratatui::style::{Color, Style};
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Borders};
 use std::fmt::Display;
 
 /// Creates an empty line (commonly used as a separator)
@@ -27,9 +25,18 @@ pub fn key_value_line(key: &str, value: impl Display) -> Line<'static> {
 /// - Yellow border when focused, White when unfocused
 ///
 /// This encapsulates the focus border pattern used across stats, message, and other panels.
-#[allow(dead_code)] // Remove after tests written
-pub fn styled_block(_title: &str, _focused: bool) -> Block<'_> {
-    todo!("styled_block")
+#[allow(dead_code)] // Will be used when refactoring call sites
+pub fn styled_block(title: &str, focused: bool) -> Block<'_> {
+    let border_color = if focused {
+        Color::Yellow
+    } else {
+        Color::White
+    };
+
+    Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(border_color))
 }
 
 #[cfg(test)]
@@ -94,17 +101,5 @@ mod tests {
         let _block1 = styled_block("", true);
         let _block2 = styled_block("A very long title with many words", false);
         let _block3 = styled_block(" Padded ", true);
-    }
-
-    #[test]
-    #[should_panic(expected = "styled_block")]
-    fn styled_block_focused_fails_on_stub() {
-        let _block = styled_block("Test", true);
-    }
-
-    #[test]
-    #[should_panic(expected = "styled_block")]
-    fn styled_block_unfocused_fails_on_stub() {
-        let _block = styled_block("Test", false);
     }
 }
