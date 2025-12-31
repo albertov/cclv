@@ -464,8 +464,7 @@ where
                 // Filter to current subagent tab if selected
                 // Uses unified tab model (FR-086): tab 0 = main, tab 1+ = subagents
                 if let Some(agent_id) = self.app_state.selected_agent_id() {
-                    self.app_state.stats_filter =
-                        crate::model::StatsFilter::Subagent(agent_id);
+                    self.app_state.stats_filter = crate::model::StatsFilter::Subagent(agent_id);
                 }
             }
 
@@ -2226,8 +2225,9 @@ mod tests {
             .add_entries(vec![ConversationEntry::Valid(Box::new(sub_entry))]);
 
         // Focus on Subagent pane and set focused message in view-state
+        // Unified tab model (FR-086): tab 0 = main, tab 1 = first subagent
         app.app_state.focus = FocusPane::Subagent;
-        app.app_state.selected_tab = Some(0);
+        app.app_state.selected_tab = Some(1);
         if let Some(view) = app.app_state.subagent_conversation_view_mut(0) {
             view.relayout(80, crate::state::WrapMode::Wrap); // Initialize HeightIndex
             view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(0)));

@@ -15,53 +15,45 @@ use crate::state::{AppState, FocusPane, WrapMode};
 /// * `viewport_width` - Viewport width in characters for layout calculations
 ///
 /// Returns a new AppState with the wrap toggle applied (or unchanged if no message focused).
+///
+/// # Routing Logic
+///
+/// Routes to the appropriate conversation view based on selected_tab using central routing:
+/// - Tab 0 = Main agent conversation
+/// - Tab 1+ = Subagent conversations (index - 1 in sorted subagent list)
+///
+/// This matches the routing in scroll_handler.rs and expand_handler.rs to ensure consistency.
 pub fn handle_toggle_wrap(mut state: AppState, _viewport_width: u16) -> AppState {
+    // Early return for non-toggleable panes
     match state.focus {
-        FocusPane::Main => {
-            let global = state.global_wrap;
+        FocusPane::Stats | FocusPane::Search => return state,
+        _ => {}
+    }
 
-            if let Some(view) = state.main_conversation_view_mut() {
-                if let Some(index) = view.focused_message() {
-                    // Get current override to determine toggle behavior
-                    let current_override = view.get(index).and_then(|e| e.wrap_override());
+    // Read global wrap mode before borrowing conversation mutably
+    let global = state.global_wrap;
 
-                    // Toggle logic: if override exists, clear it; else set to opposite of global
-                    let new_override = match current_override {
-                        Some(_) => None, // Clear override (returns to global)
-                        None => Some(match global {
-                            WrapMode::Wrap => WrapMode::NoWrap,
-                            WrapMode::NoWrap => WrapMode::Wrap,
-                        }),
-                    };
+    // Get mutable reference to the selected conversation using central routing
+    let conversation = if let Some(conv) = state.selected_conversation_view_mut() {
+        conv
+    } else {
+        return state; // No conversation selected, nothing to toggle
+    };
 
-                    view.set_entry_wrap_override(index.get(), new_override);
-                }
-            }
-        }
-        FocusPane::Subagent => {
-            if let Some(tab_index) = state.selected_tab {
-                let global = state.global_wrap;
+    if let Some(index) = conversation.focused_message() {
+        // Get current override to determine toggle behavior
+        let current_override = conversation.get(index).and_then(|e| e.wrap_override());
 
-                if let Some(view) = state.subagent_conversation_view_mut(tab_index) {
-                    if let Some(index) = view.focused_message() {
-                        // Get current override to determine toggle behavior
-                        let current_override = view.get(index).and_then(|e| e.wrap_override());
+        // Toggle logic: if override exists, clear it; else set to opposite of global
+        let new_override = match current_override {
+            Some(_) => None, // Clear override (returns to global)
+            None => Some(match global {
+                WrapMode::Wrap => WrapMode::NoWrap,
+                WrapMode::NoWrap => WrapMode::Wrap,
+            }),
+        };
 
-                        // Toggle logic: if override exists, clear it; else set to opposite of global
-                        let new_override = match current_override {
-                            Some(_) => None, // Clear override (returns to global)
-                            None => Some(match global {
-                                WrapMode::Wrap => WrapMode::NoWrap,
-                                WrapMode::NoWrap => WrapMode::Wrap,
-                            }),
-                        };
-
-                        view.set_entry_wrap_override(index.get(), new_override);
-                    }
-                }
-            }
-        }
-        _ => {} // No-op for Stats/Search panes
+        conversation.set_entry_wrap_override(index.get(), new_override);
     }
 
     state

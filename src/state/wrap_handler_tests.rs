@@ -5,8 +5,8 @@
 
 use super::*;
 use crate::model::{
-    ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent,
-    Role, SessionId,
+    AgentId, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+    MessageContent, Role, SessionId,
 };
 use crate::view_state::types::EntryIndex;
 use chrono::Utc;
@@ -200,4 +200,111 @@ fn test_toggle_wrap_maintains_height_index_invariant() {
             );
         }
     }
+}
+
+/// Test that wrap toggle on subagent tab targets the CORRECT subagent.
+///
+/// BUG: cclv-5ur.46 - Line 45 passes selected_tab directly to subagent_conversation_view_mut,
+/// but should convert using (selected_tab - 1) pattern.
+///
+/// This test creates two subagents (alpha, beta) and verifies that toggling wrap on tab 1
+/// (first subagent tab) targets the first subagent (index 0 in sorted list).
+#[test]
+fn test_toggle_wrap_subagent_correct_indexing() {
+    let mut state = AppState::new();
+
+    // Create entries for two different subagents (alpha, beta - sorted alphabetically)
+    let agent_alpha = AgentId::new("alpha").unwrap();
+    let agent_beta = AgentId::new("beta").unwrap();
+
+    // Add entry for subagent "alpha" (will be index 0 in sorted list)
+    let message_alpha = Message::new(
+        Role::User,
+        MessageContent::Text("alpha message".to_string()),
+    );
+    let uuid_alpha = EntryUuid::new("uuid-alpha").unwrap();
+    let entry_alpha = LogEntry::new(
+        uuid_alpha.clone(),
+        None,
+        SessionId::new("session-1").unwrap(),
+        Some(agent_alpha.clone()),
+        Utc::now(),
+        EntryType::User,
+        message_alpha,
+        EntryMetadata::default(),
+    );
+
+    // Add entry for subagent "beta" (will be index 1 in sorted list)
+    let message_beta = Message::new(Role::User, MessageContent::Text("beta message".to_string()));
+    let uuid_beta = EntryUuid::new("uuid-beta").unwrap();
+    let entry_beta = LogEntry::new(
+        uuid_beta.clone(),
+        None,
+        SessionId::new("session-1").unwrap(),
+        Some(agent_beta.clone()),
+        Utc::now(),
+        EntryType::User,
+        message_beta,
+        EntryMetadata::default(),
+    );
+
+    state.add_entries(vec![
+        ConversationEntry::Valid(Box::new(entry_alpha)),
+        ConversationEntry::Valid(Box::new(entry_beta)),
+    ]);
+
+    // Initialize view states for both subagents
+    if let Some(view) = state.subagent_conversation_view_mut(0) {
+        view.relayout(80, WrapMode::Wrap);
+        view.set_focused_message(Some(EntryIndex::new(0)));
+    }
+    if let Some(view) = state.subagent_conversation_view_mut(1) {
+        view.relayout(80, WrapMode::Wrap);
+        view.set_focused_message(Some(EntryIndex::new(0)));
+    }
+
+    // Select tab 1 (first subagent tab = subagent index 0 = "alpha")
+    state.selected_tab = Some(1);
+    state.focus = FocusPane::Subagent;
+
+    // Verify initial state: no wrap override on either subagent
+    let alpha_before = state
+        .subagent_conversation_view_mut(0)
+        .and_then(|view| view.get(EntryIndex::new(0)))
+        .and_then(|e| e.wrap_override());
+    let beta_before = state
+        .subagent_conversation_view_mut(1)
+        .and_then(|view| view.get(EntryIndex::new(0)))
+        .and_then(|e| e.wrap_override());
+    assert_eq!(
+        alpha_before, None,
+        "alpha should have no wrap override initially"
+    );
+    assert_eq!(
+        beta_before, None,
+        "beta should have no wrap override initially"
+    );
+
+    // Toggle wrap on selected tab (tab 1 = should target subagent index 0 = "alpha")
+    let mut result = handle_toggle_wrap(state, 80);
+
+    // ASSERTION: Wrap override should be set on "alpha" (subagent index 0), NOT "beta"
+    let alpha_after = result
+        .subagent_conversation_view_mut(0)
+        .and_then(|view| view.get(EntryIndex::new(0)))
+        .and_then(|e| e.wrap_override());
+    let beta_after = result
+        .subagent_conversation_view_mut(1)
+        .and_then(|view| view.get(EntryIndex::new(0)))
+        .and_then(|e| e.wrap_override());
+
+    assert_eq!(
+        alpha_after,
+        Some(WrapMode::NoWrap),
+        "alpha (subagent index 0, tab 1) should have wrap override set"
+    );
+    assert_eq!(
+        beta_after, None,
+        "beta (subagent index 1, tab 2) should NOT have wrap override (bug would set this)"
+    );
 }
