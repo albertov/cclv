@@ -94,6 +94,7 @@ fn scroll_up_saturates_at_zero() {
 fn scroll_up_targets_subagent_when_focused() {
     let mut state = create_test_state_with_entries(5, 5);
     state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0); // Select first subagent tab
     state.main_scroll.vertical_offset = 3;
     state.subagent_scroll.vertical_offset = 4;
 
@@ -143,6 +144,7 @@ fn scroll_down_clamps_to_max_entries() {
 fn scroll_down_targets_subagent_when_focused() {
     let mut state = create_test_state_with_entries(5, 5);
     state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0); // Select first subagent tab
     state.main_scroll.vertical_offset = 2;
     state.subagent_scroll.vertical_offset = 1;
 
@@ -238,6 +240,7 @@ fn scroll_to_top_sets_offset_to_zero() {
 fn scroll_to_top_targets_subagent_when_focused() {
     let mut state = create_test_state_with_entries(5, 5);
     state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0); // Select first subagent tab
     state.main_scroll.vertical_offset = 4;
     state.subagent_scroll.vertical_offset = 4;
 
@@ -273,6 +276,7 @@ fn scroll_to_bottom_sets_offset_to_max() {
 fn scroll_to_bottom_targets_subagent_when_focused() {
     let mut state = create_test_state_with_entries(5, 10);
     state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0); // Select first subagent tab
     state.main_scroll.vertical_offset = 0;
     state.subagent_scroll.vertical_offset = 0;
 
