@@ -204,7 +204,10 @@ impl<'a> ConversationView<'a> {
     }
 
     /// Calculate how many display lines text will occupy when wrapped to viewport width.
-    fn calculate_wrapped_lines(text: &str, viewport_width: usize) -> usize {
+    ///
+    /// # Visibility
+    /// Public for property testing in integration tests.
+    pub fn calculate_wrapped_lines(text: &str, viewport_width: usize) -> usize {
         if viewport_width == 0 {
             return text.lines().count().max(1);
         }
@@ -748,7 +751,10 @@ fn render_entry_lines_with_search(
 ///
 /// # Returns
 /// `true` if any code block (fenced or indented) is present, `false` otherwise
-fn has_code_blocks(content: &str) -> bool {
+///
+/// # Visibility
+/// Public for property testing in integration tests (FR-053).
+pub fn has_code_blocks(content: &str) -> bool {
     for line in content.lines() {
         // Check for fenced code blocks (``` or ~~~)
         let trimmed = line.trim_start();
@@ -784,7 +790,10 @@ fn has_code_blocks(content: &str) -> bool {
 ///
 /// # Returns
 /// Concatenated text content from all text blocks in the entry
-fn extract_entry_text(entry: &ConversationEntry) -> String {
+///
+/// # Visibility
+/// Public for property testing in integration tests (FR-053).
+pub fn extract_entry_text(entry: &ConversationEntry) -> String {
     match entry {
         ConversationEntry::Valid(log_entry) => {
             let message = log_entry.message();

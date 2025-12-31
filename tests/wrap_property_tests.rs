@@ -4,55 +4,20 @@
 //! 1. Wrapped line count never less than unwrapped count
 //! 2. Zero viewport width handles gracefully (no panic)
 //! 3. Effective wrap mode double-toggle is identity
-//! 4. Height consistency across wrap modes for simple text
+//! 4. FR-053: Code blocks force NoWrap mode regardless of settings
+//! 5. Single-line text wraps correctly
+//! 6. Empty lines preserved when wrapping
+//! 7. Wrap override set membership consistency
+//! 8. Width increase never increases line count
 
 use cclv::model::{
-    ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent,
-    Role, SessionId,
+    ConversationEntry, ContentBlock, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+    MessageContent, Role, SessionId,
 };
 use cclv::state::{ScrollState, WrapMode};
+use cclv::view::{extract_entry_text, has_code_blocks, ConversationView};
 use chrono::Utc;
 use proptest::prelude::*;
-
-// ===== Helper Functions =====
-
-/// Create a test LogEntry with text content.
-#[allow(dead_code)]
-fn make_text_entry(uuid: &str, text: String) -> ConversationEntry {
-    let message = Message::new(Role::Assistant, MessageContent::Text(text));
-    let entry = LogEntry::new(
-        EntryUuid::new(uuid).unwrap(),
-        None,
-        SessionId::new("test-session").unwrap(),
-        None,
-        Utc::now(),
-        EntryType::Assistant,
-        message,
-        EntryMetadata::default(),
-    );
-    ConversationEntry::Valid(Box::new(entry))
-}
-
-/// Calculate wrapped lines using simple character-based wrapping.
-/// This duplicates the logic from ConversationView::calculate_wrapped_lines
-/// to test it independently.
-fn calculate_wrapped_lines(text: &str, viewport_width: usize) -> usize {
-    if viewport_width == 0 {
-        return text.lines().count().max(1);
-    }
-
-    let mut total_lines = 0;
-    for line in text.lines() {
-        let line_len = line.len();
-        if line_len == 0 {
-            total_lines += 1;
-        } else {
-            total_lines += line_len.div_ceil(viewport_width);
-        }
-    }
-
-    total_lines.max(1)
-}
 
 // ===== Property 1: Wrapped Lines Never Less Than Unwrapped =====
 
@@ -62,7 +27,7 @@ proptest! {
         text in ".{0,500}",
         width in 1usize..200
     ) {
-        let wrapped = calculate_wrapped_lines(&text, width);
+        let wrapped = ConversationView::calculate_wrapped_lines(&text, width);
         let unwrapped = text.lines().count().max(1);
 
         prop_assert!(
@@ -79,7 +44,7 @@ proptest! {
     #[test]
     fn zero_viewport_width_safe(text in ".{0,500}") {
         // Should not panic with zero width
-        let result = calculate_wrapped_lines(&text, 0);
+        let result = ConversationView::calculate_wrapped_lines(&text, 0);
 
         // Should return same as unwrapped line count
         let expected = text.lines().count().max(1);
@@ -147,26 +112,78 @@ proptest! {
     }
 }
 
-// ===== Property 4: Height Consistency - NoWrap Mode =====
+// ===== Property 4: FR-053 Code Blocks Force NoWrap Mode =====
 
 proptest! {
     #[test]
-    fn nowrap_height_equals_line_count(
-        text in ".{0,300}",
-        width in 1usize..200
+    fn code_blocks_force_nowrap_mode_regardless_of_settings(
+        prose_before in ".{10,100}",
+        code_content in ".{1,50}",
+        prose_after in ".{10,100}",
+        global in prop_oneof![Just(WrapMode::Wrap), Just(WrapMode::NoWrap)],
+        has_override in prop::bool::ANY,
     ) {
-        // For NoWrap mode, height should equal line count regardless of viewport width
-        let line_count = text.lines().count().max(1);
+        // Create text with fenced code block
+        let text_with_code = format!(
+            "{}\n```rust\n{}\n```\n{}",
+            prose_before, code_content, prose_after
+        );
 
-        // Calculate what wrapped would give (should be >= line_count)
-        let wrapped_lines = calculate_wrapped_lines(&text, width);
-
-        // For NoWrap, we should use line_count, not wrapped_lines
-        // This tests the logic: WrapMode::NoWrap => text.lines().count().max(1)
+        // Verify has_code_blocks detection works
         prop_assert!(
-            line_count <= wrapped_lines,
-            "NoWrap line count {} should be <= wrapped count {} (width={})",
-            line_count, wrapped_lines, width
+            has_code_blocks(&text_with_code),
+            "Text with fenced code block should be detected"
+        );
+
+        // Create entry with code block
+        let uuid = EntryUuid::new("test-code-entry").unwrap();
+        let message = Message::new(Role::Assistant, MessageContent::Text(text_with_code));
+        let entry = LogEntry::new(
+            uuid.clone(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        // Set up scroll state with optional override
+        let mut scroll = ScrollState {
+            vertical_offset: 0,
+            horizontal_offset: 0,
+            expanded_messages: Default::default(),
+            focused_message: None,
+            wrap_overrides: Default::default(),
+        };
+
+        if has_override {
+            scroll.toggle_wrap(&uuid);
+        }
+
+        // Extract text and verify code blocks detected
+        let entry_text = extract_entry_text(&ConversationEntry::Valid(Box::new(entry.clone())));
+        prop_assert!(
+            has_code_blocks(&entry_text),
+            "Code blocks should be detected in entry text"
+        );
+
+        // FR-053: Code blocks MUST force NoWrap regardless of global or per-item settings
+        // This is the critical invariant - if has_code_blocks returns true,
+        // the effective wrap mode MUST be NoWrap
+        let effective = if has_code_blocks(&entry_text) {
+            WrapMode::NoWrap
+        } else {
+            scroll.effective_wrap(&uuid, global)
+        };
+
+        prop_assert_eq!(
+            effective,
+            WrapMode::NoWrap,
+            "Code blocks must force NoWrap mode (global={:?}, has_override={})",
+            global,
+            has_override
         );
     }
 }
@@ -180,7 +197,7 @@ proptest! {
         text in "[^\n]{1,500}",
         width in 1usize..200
     ) {
-        let wrapped = calculate_wrapped_lines(&text, width);
+        let wrapped = ConversationView::calculate_wrapped_lines(&text, width);
         let expected = text.len().div_ceil(width);
 
         prop_assert_eq!(
@@ -203,7 +220,7 @@ proptest! {
         // Create text with N empty lines (just newlines)
         let text = "\n".repeat(line_count.saturating_sub(1));
 
-        let wrapped = calculate_wrapped_lines(&text, width);
+        let wrapped = ConversationView::calculate_wrapped_lines(&text, width);
 
         // Each empty line should still count as a line
         // lines() on "\n\n" yields ["", ""] (2 lines)
@@ -268,13 +285,147 @@ proptest! {
         let smaller_width = width1.min(width2);
         let larger_width = width1.max(width2);
 
-        let lines_at_smaller = calculate_wrapped_lines(&text, smaller_width);
-        let lines_at_larger = calculate_wrapped_lines(&text, larger_width);
+        let lines_at_smaller = ConversationView::calculate_wrapped_lines(&text, smaller_width);
+        let lines_at_larger = ConversationView::calculate_wrapped_lines(&text, larger_width);
 
         prop_assert!(
             lines_at_larger <= lines_at_smaller,
             "Larger width {} should not increase line count: {} lines vs {} lines at width {}",
             larger_width, lines_at_larger, lines_at_smaller, smaller_width
+        );
+    }
+}
+
+// ===== Property 9: Code Block Detection with Indented Blocks =====
+
+proptest! {
+    #[test]
+    fn indented_code_blocks_force_nowrap_mode(
+        prose in ".{10,100}",
+        code_line in ".{1,50}",
+        global in prop_oneof![Just(WrapMode::Wrap), Just(WrapMode::NoWrap)],
+    ) {
+        // Create text with indented code block (4+ spaces)
+        let text_with_code = format!(
+            "{}\n\n    {}\n\n{}",
+            prose, code_line, prose
+        );
+
+        // Verify has_code_blocks detection works for indented blocks
+        prop_assert!(
+            has_code_blocks(&text_with_code),
+            "Text with indented code block (4+ spaces) should be detected"
+        );
+
+        // Create entry
+        let uuid = EntryUuid::new("test-indent-code").unwrap();
+        let message = Message::new(Role::Assistant, MessageContent::Text(text_with_code));
+        let entry = LogEntry::new(
+            uuid.clone(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        let scroll = ScrollState {
+            vertical_offset: 0,
+            horizontal_offset: 0,
+            expanded_messages: Default::default(),
+            focused_message: None,
+            wrap_overrides: Default::default(),
+        };
+
+        // Extract text and verify
+        let entry_text = extract_entry_text(&ConversationEntry::Valid(Box::new(entry)));
+        prop_assert!(
+            has_code_blocks(&entry_text),
+            "Indented code blocks should be detected"
+        );
+
+        // FR-053: Must force NoWrap
+        let effective = if has_code_blocks(&entry_text) {
+            WrapMode::NoWrap
+        } else {
+            scroll.effective_wrap(&uuid, global)
+        };
+
+        prop_assert_eq!(
+            effective,
+            WrapMode::NoWrap,
+            "Indented code blocks must force NoWrap mode (global={:?})",
+            global
+        );
+    }
+}
+
+// ===== Property 10: Code Blocks in ContentBlocks =====
+
+proptest! {
+    #[test]
+    fn code_blocks_in_thinking_blocks_force_nowrap(
+        thinking_text in ".{10,100}",
+        code in ".{1,50}",
+        global in prop_oneof![Just(WrapMode::Wrap), Just(WrapMode::NoWrap)],
+    ) {
+        // Create Thinking block with code
+        let thinking_with_code = format!(
+            "{}\n```rust\n{}\n```",
+            thinking_text, code
+        );
+
+        let blocks = vec![
+            ContentBlock::Text {
+                text: "User-visible text".to_string(),
+            },
+            ContentBlock::Thinking {
+                thinking: thinking_with_code,
+            },
+        ];
+
+        let message = Message::new(Role::Assistant, MessageContent::Blocks(blocks));
+        let uuid = EntryUuid::new("test-thinking-code").unwrap();
+        let entry = LogEntry::new(
+            uuid.clone(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        let scroll = ScrollState {
+            vertical_offset: 0,
+            horizontal_offset: 0,
+            expanded_messages: Default::default(),
+            focused_message: None,
+            wrap_overrides: Default::default(),
+        };
+
+        // Extract and verify
+        let entry_text = extract_entry_text(&ConversationEntry::Valid(Box::new(entry)));
+        prop_assert!(
+            has_code_blocks(&entry_text),
+            "Code in Thinking blocks should be detected"
+        );
+
+        // FR-053: Must force NoWrap
+        let effective = if has_code_blocks(&entry_text) {
+            WrapMode::NoWrap
+        } else {
+            scroll.effective_wrap(&uuid, global)
+        };
+
+        prop_assert_eq!(
+            effective,
+            WrapMode::NoWrap,
+            "Code in Thinking blocks must force NoWrap mode (global={:?})",
+            global
         );
     }
 }

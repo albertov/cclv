@@ -11,7 +11,7 @@ pub mod tabs;
 
 pub use help::render_help_overlay;
 pub use log_pane::LogPaneView;
-pub use message::ConversationView;
+pub use message::{extract_entry_text, has_code_blocks, ConversationView};
 pub use search_input::SearchInput;
 pub use stats::StatsPanel;
 pub use styles::{ColorConfig, MessageStyles};
