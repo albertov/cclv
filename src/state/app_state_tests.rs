@@ -3,7 +3,8 @@
 //! These tests verify pure state transitions without any TUI dependencies.
 
 use super::*;
-use crate::model::{EntryUuid, SessionId};
+use crate::model::{AgentId, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role, SessionId};
+use chrono::Utc;
 
 // ===== Test Helpers =====
 
@@ -15,8 +16,40 @@ fn make_entry_uuid(s: &str) -> EntryUuid {
     EntryUuid::new(s).expect("valid uuid")
 }
 
+fn make_agent_id(s: &str) -> AgentId {
+    AgentId::new(s).expect("valid agent id")
+}
+
 fn make_test_session() -> Session {
     Session::new(make_session_id("test-session"))
+}
+
+fn make_main_entry(session_id: &str, uuid: &str) -> ConversationEntry {
+    let log_entry = LogEntry::new(
+        make_entry_uuid(uuid),
+        None,
+        make_session_id(session_id),
+        None, // No agent_id = main agent
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Test message".to_string())),
+        EntryMetadata::default(),
+    );
+    ConversationEntry::Valid(Box::new(log_entry))
+}
+
+fn make_subagent_entry_full(session_id: &str, agent_id: &str, uuid: &str) -> ConversationEntry {
+    let log_entry = LogEntry::new(
+        make_entry_uuid(uuid),
+        None,
+        make_session_id(session_id),
+        Some(make_agent_id(agent_id)),
+        Utc::now(),
+        EntryType::Assistant,
+        Message::new(Role::Assistant, MessageContent::Text("Test message".to_string())),
+        EntryMetadata::default(),
+    );
+    ConversationEntry::Valid(Box::new(log_entry))
 }
 
 // ===== AppState::new Tests =====
@@ -1293,3 +1326,61 @@ fn toggle_blink_returns_new_state() {
 
     assert_eq!(new_state, state.blink_on);
 }
+
+// ===== Dual-Write to LogViewState (cclv-5ur.6.1) =====
+
+#[test]
+fn add_entries_populates_log_view_state_with_main_entries() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+
+    let entry1 = make_main_entry("test-session", "uuid-1");
+    let entry2 = make_main_entry("test-session", "uuid-2");
+
+    state.add_entries(vec![entry1, entry2]);
+
+    // Verify log_view was populated
+    assert_eq!(state.log_view.session_count(), 1);
+    let session_view = state.log_view.get_session(0).expect("session should exist");
+    assert_eq!(session_view.main().len(), 2);
+}
+
+#[test]
+fn add_entries_populates_log_view_state_with_subagent_entries() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+
+    let entry = make_subagent_entry_full("test-session", "subagent-1", "uuid-1");
+
+    state.add_entries(vec![entry]);
+
+    // Verify log_view was populated
+    assert_eq!(state.log_view.session_count(), 1);
+    let session_view = state.log_view.get_session(0).expect("session should exist");
+
+    // Subagent should be known
+    let agent_id = make_agent_id("subagent-1");
+    assert!(session_view.subagent_ids().any(|id| id == &agent_id));
+}
+
+#[test]
+fn add_entries_creates_multiple_sessions_in_log_view() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+
+    let entry1 = make_main_entry("session-1", "uuid-1");
+    let entry2 = make_main_entry("session-2", "uuid-2");
+    let entry3 = make_main_entry("session-2", "uuid-3");
+
+    state.add_entries(vec![entry1, entry2, entry3]);
+
+    // Verify log_view has 2 sessions
+    assert_eq!(state.log_view.session_count(), 2);
+
+    let session1 = state.log_view.get_session(0).expect("session 1 should exist");
+    assert_eq!(session1.main().len(), 1);
+
+    let session2 = state.log_view.get_session(1).expect("session 2 should exist");
+    assert_eq!(session2.main().len(), 2);
+}
+

@@ -5,6 +5,7 @@
 
 use crate::model::{EntryUuid, Session, StatsFilter};
 use crate::state::SearchState;
+use crate::view_state::log::LogViewState;
 use std::collections::HashSet;
 
 // ===== InputMode =====
@@ -76,6 +77,12 @@ pub struct AppState {
     /// This is the domain model; all other fields are UI state.
     session: Session,
 
+    /// View-state layer for rendering log entries.
+    /// This becomes the primary source of truth for entry layout and display.
+    /// Dual-write pattern during migration (cclv-5ur.6.x tasks).
+    #[allow(dead_code)] // Used in subsequent migration tasks
+    log_view: LogViewState,
+
     /// Which pane currently has keyboard focus.
     /// Determines which pane receives keyboard input and displays focus indicator.
     /// See `FocusPane` for valid states and transitions.
@@ -140,6 +147,7 @@ impl AppState {
     pub fn new(session: Session) -> Self {
         Self {
             session,
+            log_view: LogViewState::new(),
             focus: FocusPane::Main,
             main_scroll: ScrollState::default(),
             subagent_scroll: ScrollState::default(),
