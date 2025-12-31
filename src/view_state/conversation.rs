@@ -44,6 +44,10 @@ pub struct ConversationViewState {
     focused_message: Option<EntryIndex>,
     /// Global parameters used for last layout computation.
     last_layout_params: Option<LayoutParams>,
+    /// Horizontal scroll offset (number of characters scrolled right from left edge).
+    /// Only relevant when line wrapping is disabled (FR-040).
+    /// 0 means viewing from the leftmost column.
+    horizontal_offset: u16,
 }
 
 impl ConversationViewState {
@@ -61,6 +65,7 @@ impl ConversationViewState {
             total_height: 0,
             focused_message: None,
             last_layout_params: None,
+            horizontal_offset: 0,
         }
     }
 
@@ -155,6 +160,28 @@ impl ConversationViewState {
     /// Set scroll position.
     pub fn set_scroll(&mut self, position: ScrollPosition) {
         self.scroll = position;
+    }
+
+    // === Horizontal Scrolling ===
+
+    /// Get horizontal scroll offset.
+    pub fn horizontal_offset(&self) -> u16 {
+        todo!("horizontal_offset getter")
+    }
+
+    /// Set horizontal scroll offset.
+    pub fn set_horizontal_offset(&mut self, _offset: u16) {
+        todo!("set_horizontal_offset")
+    }
+
+    /// Scroll left by amount, saturating at 0.
+    pub fn scroll_left(&mut self, _amount: u16) {
+        todo!("scroll_left")
+    }
+
+    /// Scroll right by amount.
+    pub fn scroll_right(&mut self, _amount: u16) {
+        todo!("scroll_right")
     }
 
     /// Total height in lines.
@@ -1341,6 +1368,122 @@ mod tests {
             15
         ); // Shifted up by 5
         assert_eq!(state.total_height(), 25);
+    }
+
+    // === Horizontal Scrolling Tests ===
+
+    #[test]
+    fn horizontal_offset_starts_at_zero() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let state = ConversationViewState::new(entries);
+
+        assert_eq!(
+            state.horizontal_offset(),
+            0,
+            "Horizontal offset should start at 0"
+        );
+    }
+
+    #[test]
+    fn set_horizontal_offset_updates_value() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let mut state = ConversationViewState::new(entries);
+
+        state.set_horizontal_offset(42);
+
+        assert_eq!(
+            state.horizontal_offset(),
+            42,
+            "Horizontal offset should be updated to 42"
+        );
+    }
+
+    #[test]
+    fn scroll_right_increases_offset() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let mut state = ConversationViewState::new(entries);
+
+        assert_eq!(state.horizontal_offset(), 0);
+
+        state.scroll_right(5);
+        assert_eq!(
+            state.horizontal_offset(),
+            5,
+            "Scrolling right by 5 should set offset to 5"
+        );
+
+        state.scroll_right(3);
+        assert_eq!(
+            state.horizontal_offset(),
+            8,
+            "Scrolling right by 3 more should set offset to 8"
+        );
+    }
+
+    #[test]
+    fn scroll_left_decreases_offset() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let mut state = ConversationViewState::new(entries);
+
+        state.set_horizontal_offset(10);
+        assert_eq!(state.horizontal_offset(), 10);
+
+        state.scroll_left(3);
+        assert_eq!(
+            state.horizontal_offset(),
+            7,
+            "Scrolling left by 3 should set offset to 7"
+        );
+
+        state.scroll_left(5);
+        assert_eq!(
+            state.horizontal_offset(),
+            2,
+            "Scrolling left by 5 more should set offset to 2"
+        );
+    }
+
+    #[test]
+    fn scroll_left_saturates_at_zero() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let mut state = ConversationViewState::new(entries);
+
+        state.set_horizontal_offset(5);
+        assert_eq!(state.horizontal_offset(), 5);
+
+        // Scroll left by more than current offset
+        state.scroll_left(10);
+        assert_eq!(
+            state.horizontal_offset(),
+            0,
+            "Scrolling left past 0 should saturate at 0"
+        );
+
+        // Scrolling left from 0 should stay at 0
+        state.scroll_left(5);
+        assert_eq!(
+            state.horizontal_offset(),
+            0,
+            "Scrolling left from 0 should stay at 0"
+        );
+    }
+
+    #[test]
+    fn scroll_right_handles_u16_max() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let mut state = ConversationViewState::new(entries);
+
+        // Set to near max
+        state.set_horizontal_offset(u16::MAX - 5);
+        assert_eq!(state.horizontal_offset(), u16::MAX - 5);
+
+        // Scroll right should saturate at u16::MAX
+        state.scroll_right(10);
+        assert_eq!(
+            state.horizontal_offset(),
+            u16::MAX,
+            "Scrolling right should saturate at u16::MAX"
+        );
     }
 
     #[test]
