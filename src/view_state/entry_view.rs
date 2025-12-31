@@ -98,6 +98,8 @@ impl EntryView {
         width: u16,
     ) -> Self {
         let expanded = false; // Start collapsed
+        // TODO: Pass MessageStyles from caller instead of default
+        let styles = crate::view::MessageStyles::new();
         let rendered_lines = compute_entry_lines(
             &entry,
             expanded,
@@ -105,6 +107,7 @@ impl EntryView {
             width,
             Self::COLLAPSE_THRESHOLD,
             Self::SUMMARY_LINES,
+            &styles,
         );
         Self {
             entry,
@@ -170,6 +173,8 @@ impl EntryView {
     pub(crate) fn recompute_lines(&mut self, wrap_mode: WrapMode, width: u16) {
         // Bug fix cclv-5ur.18: Use effective_wrap to respect per-entry override
         let effective_mode = self.effective_wrap(wrap_mode);
+        // TODO: Pass MessageStyles from caller instead of default
+        let styles = crate::view::MessageStyles::new();
         self.rendered_lines = compute_entry_lines(
             &self.entry,
             self.expanded,
@@ -177,6 +182,7 @@ impl EntryView {
             width,
             Self::COLLAPSE_THRESHOLD,
             Self::SUMMARY_LINES,
+            &styles,
         );
     }
 

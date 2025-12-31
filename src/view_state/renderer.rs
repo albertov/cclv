@@ -20,6 +20,7 @@
 
 use crate::model::{ContentBlock, ConversationEntry, MessageContent};
 use crate::state::WrapMode;
+use crate::view::MessageStyles;
 use ratatui::{
     style::{Modifier, Style},
     text::{Line, Span},
@@ -51,6 +52,7 @@ use ratatui::{
 /// * `width` - Viewport width for text wrapping calculations (applied to Thinking blocks)
 /// * `collapse_threshold` - Number of lines before collapsing (typically 10)
 /// * `summary_lines` - Number of lines to show when collapsed (typically 3)
+/// * `styles` - MessageStyles for role-based coloring (User=Cyan, Assistant=Green, etc.)
 ///
 /// # Returns
 ///
@@ -68,10 +70,11 @@ use ratatui::{
 ///
 /// ```ignore
 /// let entry = /* ConversationEntry with 100-line Thinking block */;
-/// let collapsed_lines = compute_entry_lines(&entry, false, WrapMode::Wrap, 80, 10, 3);
+/// let styles = MessageStyles::new();
+/// let collapsed_lines = compute_entry_lines(&entry, false, WrapMode::Wrap, 80, 10, 3, &styles);
 /// // Should return ~4 lines (3 summary + 1 collapse indicator)
 ///
-/// let expanded_lines = compute_entry_lines(&entry, true, WrapMode::Wrap, 80, 10, 3);
+/// let expanded_lines = compute_entry_lines(&entry, true, WrapMode::Wrap, 80, 10, 3, &styles);
 /// // Should return ~100 lines (all content)
 /// ```
 pub fn compute_entry_lines(
@@ -81,6 +84,7 @@ pub fn compute_entry_lines(
     width: u16,
     collapse_threshold: usize,
     summary_lines: usize,
+    styles: &MessageStyles,
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 
@@ -97,6 +101,7 @@ pub fn compute_entry_lines(
     let message = valid_entry.message();
 
     // Handle message content
+    // TODO: Use styles.style_for_role(message.role()) for base text styling
     match message.content() {
         MessageContent::Text(text) => {
             // Render plain text with collapse support
@@ -131,7 +136,7 @@ pub fn compute_entry_lines(
         MessageContent::Blocks(blocks) => {
             // Render each content block
             for block in blocks {
-                let block_lines = render_block(block, expanded, wrap_mode, width, collapse_threshold, summary_lines);
+                let block_lines = render_block(block, expanded, wrap_mode, width, collapse_threshold, summary_lines, styles);
                 lines.extend(block_lines);
             }
 
@@ -199,7 +204,9 @@ fn render_block(
     width: u16,
     collapse_threshold: usize,
     summary_lines: usize,
+    _styles: &MessageStyles,
 ) -> Vec<Line<'static>> {
+    // TODO: Use styles.style_for_content_block() to apply block-specific colors
     match block {
         ContentBlock::Text { text } => {
             let text_lines: Vec<_> = text.lines().collect();

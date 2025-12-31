@@ -4,7 +4,79 @@ use super::compute_entry_lines;
 use crate::model::{ContentBlock, ConversationEntry, EntryMetadata, EntryType, LogEntry, Message, MessageContent, Role};
 use crate::state::WrapMode;
 use crate::model::identifiers::{EntryUuid, SessionId};
+use crate::view::MessageStyles;
 use chrono::Utc;
+
+/// Helper to create default MessageStyles for tests.
+fn default_styles() -> MessageStyles {
+    MessageStyles::new()
+}
+
+// ===== Role-Based Styling Tests (FR-021, FR-022) =====
+
+#[test]
+fn test_user_entry_has_cyan_color() {
+    // Create a User entry with simple text
+    let text = "User message";
+    let entry = create_entry_with_text(text);
+
+    // Render with MessageStyles
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+    );
+
+    // FR-021: User messages should have Cyan color
+    // Check that at least one line has Cyan foreground color
+    let has_cyan = lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.style.fg == Some(ratatui::style::Color::Cyan)
+        })
+    });
+
+    assert!(
+        has_cyan,
+        "User entry should have at least one span with Cyan color (FR-021)"
+    );
+}
+
+#[test]
+fn test_assistant_entry_has_green_color() {
+    // Create an Assistant entry with Thinking block
+    let thinking_text = "Assistant thinking...";
+    let entry = create_entry_with_thinking(thinking_text);
+
+    // Render with MessageStyles
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+    );
+
+    // FR-022: Assistant messages should have Green color
+    // Check that at least one line has Green foreground color
+    let has_green = lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.style.fg == Some(ratatui::style::Color::Green)
+        })
+    });
+
+    assert!(
+        has_green,
+        "Assistant entry should have at least one span with Green color (FR-022)"
+    );
+}
 
 /// Helper to create a test LogEntry with Thinking block.
 fn create_entry_with_thinking(thinking_text: &str) -> ConversationEntry {
@@ -50,6 +122,7 @@ fn test_collapsed_thinking_block_respects_collapse_threshold() {
         80,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: Collapsed Thinking block should show:
@@ -97,6 +170,7 @@ fn test_expanded_thinking_block_shows_all_lines() {
         80,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: Expanded Thinking block should show all 100 lines + 1 separator
@@ -135,6 +209,7 @@ fn test_small_thinking_block_never_collapses() {
         80,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: Below-threshold entry shows all lines even when "collapsed"
@@ -195,6 +270,7 @@ fn test_collapsed_text_content_respects_collapse_threshold() {
         80,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: Collapsed Text content should show:
@@ -247,6 +323,7 @@ fn test_expanded_text_content_shows_all_lines() {
         80,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: Expanded Text content should show all 100 lines + 1 separator
@@ -285,6 +362,7 @@ fn test_small_text_content_never_collapses() {
         80,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: Below-threshold text entry shows all lines even when "collapsed"
@@ -330,6 +408,7 @@ fn test_text_block_wraps_long_lines() {
         width,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
@@ -363,6 +442,7 @@ fn test_text_block_nowrap_does_not_wrap() {
         width,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: NoWrap mode keeps the 100-char line as a single line
@@ -421,6 +501,7 @@ fn test_tool_result_wraps_long_lines() {
         width,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
@@ -454,6 +535,7 @@ fn test_tool_result_nowrap_does_not_wrap() {
         width,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: NoWrap mode keeps the 100-char line as a single line
@@ -517,6 +599,7 @@ fn test_tool_use_wraps_long_input_lines() {
         width,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: ToolUse renders as:
@@ -555,6 +638,7 @@ fn test_tool_use_nowrap_does_not_wrap() {
         width,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     let nowrap_lines = compute_entry_lines(
@@ -564,6 +648,7 @@ fn test_tool_use_nowrap_does_not_wrap() {
         width,
         collapse_threshold,
         summary_lines,
+        &default_styles(),
     );
 
     // ASSERTION: NoWrap mode should produce FEWER lines than Wrap mode
