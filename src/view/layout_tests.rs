@@ -765,7 +765,7 @@ fn build_keyboard_hints_subagent_pane_shows_tab_shortcuts() {
 
     // Should contain tab navigation
     assert!(
-        hints.contains("[/]") || hints.contains("Tab"),
+        hints.contains("[ ]") || hints.contains("Tab"),
         "Subagent pane hints should include tab navigation"
     );
 

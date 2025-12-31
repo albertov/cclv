@@ -219,10 +219,10 @@ fn build_keyboard_hints(focus: FocusPane, search_active: bool, terminal_width: u
     // Context-specific shortcuts based on focus pane
     let context_hints = match focus {
         FocusPane::Main => "/: Search | s: Stats | Tab: Cycle panes",
-        FocusPane::Subagent => "[/]: Tabs | 1-9: Select tab | Tab: Cycle panes",
+        FocusPane::Subagent => "[ ]: Tabs | 1-9: Select tab | Tab: Cycle panes",
         FocusPane::Stats => "!: Global | @: Main | #: Current | Tab: Cycle panes",
-        FocusPane::Search if search_active => "Enter: Submit | Esc: Cancel | n: Next | N: Prev",
-        FocusPane::Search => "/: Search | Esc: Cancel",
+        FocusPane::Search if search_active => "n: Next | N: Prev | Esc: Exit",
+        FocusPane::Search => "Enter: Submit | Esc: Cancel",
     };
 
     // Combine common and context hints
@@ -233,19 +233,19 @@ fn build_keyboard_hints(focus: FocusPane, search_active: bool, terminal_width: u
         // Very narrow - show only critical shortcuts
         format!("q: Quit | ?: Help | {}", match focus {
             FocusPane::Main => "/: Search",
-            FocusPane::Subagent => "[/]: Tabs",
+            FocusPane::Subagent => "[ ]: Tabs",
             FocusPane::Stats => "!/@/#: Filter",
             FocusPane::Search if search_active => "n: Next",
-            FocusPane::Search => "Esc: Cancel",
+            FocusPane::Search => "Enter",
         })
     } else if (full_hints.len() as u16) > terminal_width {
         // Moderate width - abbreviate but keep most info
         let abbreviated = match focus {
             FocusPane::Main => "q: Quit | /: Search | s: Stats | ?: Help",
-            FocusPane::Subagent => "q: Quit | [/]: Tabs | 1-9: Select | ?: Help",
+            FocusPane::Subagent => "q: Quit | [ ]: Tabs | 1-9: Select | ?: Help",
             FocusPane::Stats => "q: Quit | !/@/#: Filters | ?: Help",
-            FocusPane::Search if search_active => "Enter: Submit | Esc: Cancel | n/N: Navigate",
-            FocusPane::Search => "q: Quit | Esc: Cancel | ?: Help",
+            FocusPane::Search if search_active => "n/N: Navigate | Esc: Exit",
+            FocusPane::Search => "Enter: Submit | Esc: Cancel",
         };
         abbreviated.to_string()
     } else {
@@ -265,8 +265,11 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     // Determine if search is active
     let search_active = matches!(state.search, SearchState::Active { .. });
 
+    // Calculate available width after live indicator
+    let available_width = area.width.saturating_sub(live_indicator.len() as u16);
+
     // Build context-sensitive keyboard hints
-    let hints = build_keyboard_hints(state.focus, search_active, area.width);
+    let hints = build_keyboard_hints(state.focus, search_active, available_width);
 
     // Combine live indicator and hints
     let status_text = format!("{}{}", live_indicator, hints);
