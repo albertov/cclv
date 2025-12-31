@@ -109,8 +109,8 @@ struct ModelId(String);
 ///     output_tokens: 500,
 ///     cache_creation_input_tokens: 200,
 ///     cache_read_input_tokens: 300,
-///     ephemeral_5m_cache_tokens: 150,
-///     ephemeral_1h_cache_tokens: 50,
+///     ephemeral_5m_input_tokens: 150,
+///     ephemeral_1h_input_tokens: 50,
 /// };
 ///
 /// // Total input includes all input categories
@@ -145,10 +145,10 @@ pub struct TokenUsage {
     pub cache_read_input_tokens: u64,
 
     /// Ephemeral 5-minute cache tokens (from cache_creation breakdown).
-    pub ephemeral_5m_cache_tokens: u64,
+    pub ephemeral_5m_input_tokens: u64,
 
     /// Ephemeral 1-hour cache tokens (from cache_creation breakdown).
-    pub ephemeral_1h_cache_tokens: u64,
+    pub ephemeral_1h_input_tokens: u64,
 }
 
 impl TokenUsage {
@@ -210,8 +210,8 @@ mod tests {
             output_tokens: 50,
             cache_creation_input_tokens: 20,
             cache_read_input_tokens: 30,
-            ephemeral_5m_cache_tokens: 0,
-            ephemeral_1h_cache_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
         };
         assert_eq!(usage.total_input(), 150);
     }
@@ -223,8 +223,8 @@ mod tests {
             output_tokens: 50,
             cache_creation_input_tokens: 20,
             cache_read_input_tokens: 30,
-            ephemeral_5m_cache_tokens: 0,
-            ephemeral_1h_cache_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
         };
         assert_eq!(usage.total(), 200);
     }

@@ -309,8 +309,8 @@ fn parse_message(raw: RawMessage) -> Result<Message, ParseError> {
             output_tokens: raw_usage.output_tokens,
             cache_creation_input_tokens: raw_usage.cache_creation_input_tokens,
             cache_read_input_tokens: raw_usage.cache_read_input_tokens,
-            ephemeral_5m_cache_tokens: ephemeral_5m,
-            ephemeral_1h_cache_tokens: ephemeral_1h,
+            ephemeral_5m_input_tokens: ephemeral_5m,
+            ephemeral_1h_input_tokens: ephemeral_1h,
         };
         message = message.with_usage(usage);
     }
@@ -1094,11 +1094,11 @@ mod tests {
 
         // Verify ephemeral breakdown extracted from nested object
         assert_eq!(
-            usage.ephemeral_5m_cache_tokens, 24337,
+            usage.ephemeral_5m_input_tokens, 24337,
             "Should extract ephemeral_5m_input_tokens from cache_creation"
         );
         assert_eq!(
-            usage.ephemeral_1h_cache_tokens, 0,
+            usage.ephemeral_1h_input_tokens, 0,
             "Should extract ephemeral_1h_input_tokens from cache_creation"
         );
     }
@@ -1119,11 +1119,11 @@ mod tests {
 
         // Ephemeral fields should default to 0 when cache_creation is missing
         assert_eq!(
-            usage.ephemeral_5m_cache_tokens, 0,
+            usage.ephemeral_5m_input_tokens, 0,
             "Should default to 0 when cache_creation is missing"
         );
         assert_eq!(
-            usage.ephemeral_1h_cache_tokens, 0,
+            usage.ephemeral_1h_input_tokens, 0,
             "Should default to 0 when cache_creation is missing"
         );
     }
@@ -1138,8 +1138,8 @@ mod tests {
         let entry = result.unwrap();
         let usage = entry.message().usage().expect("Should have usage");
 
-        assert_eq!(usage.ephemeral_5m_cache_tokens, 6000);
-        assert_eq!(usage.ephemeral_1h_cache_tokens, 4000);
+        assert_eq!(usage.ephemeral_5m_input_tokens, 6000);
+        assert_eq!(usage.ephemeral_1h_input_tokens, 4000);
     }
 
     // ===== Bug Fix: cclv-07v.11.1 - session_id snake_case format =====

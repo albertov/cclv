@@ -129,8 +129,8 @@ proptest! {
             output_tokens: main_output,
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
-            ephemeral_5m_cache_tokens: 0,
-            ephemeral_1h_cache_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
         };
         let main_message = Message::new(
             Role::Assistant,
@@ -163,8 +163,8 @@ proptest! {
                 output_tokens: *output,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_cache_tokens: 0,
-            ephemeral_1h_cache_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
             };
             let message = Message::new(
                 Role::Assistant,
