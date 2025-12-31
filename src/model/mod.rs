@@ -2,6 +2,7 @@
 //!
 //! All types in this module are pure data with smart constructors.
 
+pub mod conversation_entry;
 pub mod error;
 pub mod identifiers;
 pub mod log_entry;
@@ -12,6 +13,7 @@ pub mod stats;
 pub mod usage;
 
 // Re-export for convenience
+pub use conversation_entry::ConversationEntry;
 pub use error::{AppError, InputError, ParseError};
 pub use identifiers::{
     AgentId, EntryUuid, InvalidAgentId, InvalidSessionId, InvalidToolUseId, InvalidUuid,
