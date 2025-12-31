@@ -115,13 +115,78 @@ pub fn detect_tab_click(
 /// - Accounts for scroll offset and entry heights
 /// - Inner area has 1px border on each side
 pub fn detect_entry_click(
-    _click_x: u16,
-    _click_y: u16,
-    _main_pane_area: ratatui::layout::Rect,
-    _subagent_pane_area: Option<ratatui::layout::Rect>,
-    _state: &AppState,
+    click_x: u16,
+    click_y: u16,
+    main_pane_area: ratatui::layout::Rect,
+    subagent_pane_area: Option<ratatui::layout::Rect>,
+    state: &AppState,
 ) -> EntryClickResult {
-    todo!("detect_entry_click")
+    // Check if click is in subagent pane
+    if let Some(subagent_area) = subagent_pane_area {
+        if click_x >= subagent_area.x
+            && click_x < subagent_area.x + subagent_area.width
+            && click_y >= subagent_area.y
+            && click_y < subagent_area.y + subagent_area.height
+        {
+            // Click is in subagent pane - check if it's within inner area (accounting for border)
+            let inner_x = subagent_area.x + 1;
+            let inner_y = subagent_area.y + 1;
+            let inner_width = subagent_area.width.saturating_sub(2);
+            let inner_height = subagent_area.height.saturating_sub(2);
+
+            if click_x >= inner_x
+                && click_x < inner_x + inner_width
+                && click_y >= inner_y
+                && click_y < inner_y + inner_height
+            {
+                // Check if there are any entries
+                if let Some(tab_index) = state.selected_tab {
+                    let agent_ids = state.session().subagent_ids_ordered();
+                    if let Some(agent_id) = agent_ids.get(tab_index) {
+                        if let Some(conversation) = state.session().subagents().get(agent_id) {
+                            if !conversation.entries().is_empty() {
+                                // For now, simple implementation: return first entry
+                                // TODO: Calculate actual entry layout based on Y position
+                                return EntryClickResult::SubagentPaneEntry(0);
+                            }
+                        }
+                    }
+                }
+            }
+            return EntryClickResult::NoEntry;
+        }
+    }
+
+    // Check if click is in main pane
+    if click_x >= main_pane_area.x
+        && click_x < main_pane_area.x + main_pane_area.width
+        && click_y >= main_pane_area.y
+        && click_y < main_pane_area.y + main_pane_area.height
+    {
+        // Click is in main pane - check if it's within inner area (accounting for border)
+        let inner_x = main_pane_area.x + 1;
+        let inner_y = main_pane_area.y + 1;
+        let inner_width = main_pane_area.width.saturating_sub(2);
+        let inner_height = main_pane_area.height.saturating_sub(2);
+
+        if click_x >= inner_x
+            && click_x < inner_x + inner_width
+            && click_y >= inner_y
+            && click_y < inner_y + inner_height
+        {
+            // Check if there are any entries
+            let entries = state.session().main_agent().entries();
+            if !entries.is_empty() {
+                // For now, simple implementation: return first entry
+                // TODO: Calculate actual entry layout based on Y position
+                return EntryClickResult::MainPaneEntry(0);
+            }
+        }
+        return EntryClickResult::NoEntry;
+    }
+
+    // Click is outside both panes
+    EntryClickResult::NoEntry
 }
 
 /// Handle an entry click event and toggle expand/collapse.
@@ -138,8 +203,44 @@ pub fn detect_entry_click(
 /// - Main pane entries toggle in main_scroll.expanded_messages
 /// - Subagent pane entries toggle in subagent_scroll.expanded_messages
 /// - If click was outside entries, state is unchanged
-pub fn handle_entry_click(_state: AppState, _entry_click: EntryClickResult) -> AppState {
-    todo!("handle_entry_click")
+pub fn handle_entry_click(mut state: AppState, entry_click: EntryClickResult) -> AppState {
+    match entry_click {
+        EntryClickResult::MainPaneEntry(index) => {
+            // Get the UUID of the clicked entry (clone to avoid borrow conflict)
+            let uuid_opt = state
+                .session()
+                .main_agent()
+                .entries()
+                .get(index)
+                .and_then(|entry| entry.uuid())
+                .cloned();
+
+            if let Some(uuid) = uuid_opt {
+                state.main_scroll.toggle_expand(&uuid);
+            }
+            state
+        }
+        EntryClickResult::SubagentPaneEntry(index) => {
+            // Get the current selected tab's conversation and clone UUID
+            let uuid_opt = if let Some(tab_index) = state.selected_tab {
+                let agent_ids = state.session().subagent_ids_ordered();
+                agent_ids
+                    .get(tab_index)
+                    .and_then(|agent_id| state.session().subagents().get(agent_id))
+                    .and_then(|conversation| conversation.entries().get(index))
+                    .and_then(|entry| entry.uuid())
+                    .cloned()
+            } else {
+                None
+            };
+
+            if let Some(uuid) = uuid_opt {
+                state.subagent_scroll.toggle_expand(&uuid);
+            }
+            state
+        }
+        EntryClickResult::NoEntry => state,
+    }
 }
 
 /// Handle a mouse click event and update AppState accordingly.

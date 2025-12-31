@@ -409,7 +409,11 @@ fn detect_entry_click_detects_main_pane_first_entry() {
 
 #[test]
 fn detect_entry_click_detects_subagent_pane_entry() {
-    let state = create_app_state_with_tabs(vec!["agent-1"]);
+    let mut state = create_app_state_with_tabs(vec!["agent-1"]);
+
+    // Set focus and select the first subagent tab
+    state.focus = crate::state::FocusPane::Subagent;
+    state.select_tab(1); // 1-indexed
 
     // Main pane area
     let main_area = Rect::new(0, 0, 40, 20);
@@ -546,7 +550,11 @@ fn handle_entry_click_toggles_expanded_entry_to_collapsed() {
 
 #[test]
 fn handle_entry_click_toggles_subagent_pane_entry() {
-    let state = create_app_state_with_tabs(vec!["agent-1"]);
+    let mut state = create_app_state_with_tabs(vec!["agent-1"]);
+
+    // Set focus and select the first subagent tab
+    state.focus = crate::state::FocusPane::Subagent;
+    state.select_tab(1); // 1-indexed
 
     // Get the UUID of the subagent entry (created by create_app_state_with_tabs)
     let agent_id_ref = agent_id("agent-1");
