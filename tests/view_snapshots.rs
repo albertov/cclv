@@ -741,6 +741,59 @@ fn bug_entry_indices_not_visible_in_rendered_output() {
     );
 }
 
+/// Bug reproduction: cclv-07v.12.21.4
+/// Initial screen is blank until user presses a key.
+///
+/// EXPECTED: Content visible immediately after app creation.
+/// ACTUAL: Terminal buffer is empty until first event triggers render.
+#[test]
+#[ignore = "cclv-07v.12.21.4: initial screen blank until keypress - no initial draw() call"]
+fn bug_initial_screen_blank_until_keypress() {
+    use cclv::model::Session;
+    use cclv::source::FileSource;
+    use cclv::state::AppState;
+    use cclv::view::TuiApp;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+
+    // Load fixture
+    let mut file_source =
+        FileSource::new(PathBuf::from("tests/fixtures/blank_lines_repro.jsonl"))
+            .expect("Should load fixture");
+    let entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = entries.len();
+
+    let mut session = Session::new(entries[0].session_id().clone());
+    for entry in entries {
+        session.add_entry(entry);
+    }
+
+    // Create app but DON'T call render_test() - simulating initial state
+    let backend = TestBackend::new(80, 40);
+    let terminal = Terminal::new(backend).unwrap();
+    let app_state = AppState::new(session);
+    let key_bindings = cclv::config::keybindings::KeyBindings::default();
+    let input_source = cclv::source::InputSource::Stdin(
+        cclv::source::StdinSource::from_reader(&b""[..]),
+    );
+
+    let app = TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Check buffer BEFORE any render - should have content but doesn't
+    let buffer = app.terminal().backend().buffer();
+    let output = buffer_to_string(buffer);
+
+    // BUG: Buffer is empty because no initial draw() happens
+    // The run() loop only renders after first event or 500ms timer
+    assert!(
+        !output.is_empty(),
+        "Screen should have content immediately after app creation.\n\
+         But buffer is empty - no initial render occurred.\n\
+         This is why users see blank screen until they press a key."
+    );
+}
+
 /// Bug reproduction: cclv-07v.12.21.3
 /// Excessive blank lines appear at top of viewport when rendering real log data.
 ///
