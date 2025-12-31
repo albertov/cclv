@@ -17,12 +17,6 @@ fn test_key_action_variants_exist() {
     let _: KeyAction = KeyAction::ScrollToTop;
     let _: KeyAction = KeyAction::ScrollToBottom;
 
-    // Focus navigation
-    let _: KeyAction = KeyAction::FocusMain;
-    let _: KeyAction = KeyAction::FocusSubagent;
-    let _: KeyAction = KeyAction::FocusStats;
-    let _: KeyAction = KeyAction::CycleFocus;
-
     // Tab navigation
     let _: KeyAction = KeyAction::NextTab;
     let _: KeyAction = KeyAction::PrevTab;

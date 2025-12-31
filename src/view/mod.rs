@@ -309,20 +309,6 @@ where
             // Quit
             KeyAction::Quit => return true,
 
-            // Focus navigation
-            KeyAction::CycleFocus => {
-                self.app_state.cycle_focus();
-            }
-            KeyAction::FocusMain => {
-                self.app_state.focus_main();
-            }
-            KeyAction::FocusSubagent => {
-                self.app_state.focus_subagent();
-            }
-            KeyAction::FocusStats => {
-                self.app_state.focus_stats();
-            }
-
             // Auto-scroll
             KeyAction::ToggleAutoScroll => {
                 self.app_state.auto_scroll = !self.app_state.auto_scroll;

@@ -26,16 +26,6 @@ pub enum KeyAction {
     /// Jump to bottom of conversation (FR-027). Default: G/End
     ScrollToBottom,
 
-    // Focus navigation
-    /// Focus main agent conversation pane (FR-001, FR-025). Default: 1
-    FocusMain,
-    /// Focus subagent tabbed pane (FR-003, FR-025). Default: 2
-    FocusSubagent,
-    /// Focus statistics panel (FR-015-020, FR-025). Default: 3
-    FocusStats,
-    /// Cycle focus between panes: Main → Subagent → Stats (FR-025). Default: Tab
-    CycleFocus,
-
     // Tab navigation
     /// Switch to next subagent tab (FR-003, FR-004). Default: ]
     NextTab,

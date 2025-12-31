@@ -306,38 +306,6 @@ fn select_tab_too_high_clamps_to_last() {
     );
 }
 
-// ===== Tests: cycle_focus() =====
-
-#[test]
-fn cycle_focus_to_subagent_selects_first_subagent() {
-    let mut state = state_with_subagents();
-    state.focus = FocusPane::Main;
-
-    state.cycle_focus(); // Main -> Subagent
-
-    // Should switch to Subagent pane and select agent-a
-    assert_eq!(state.focus, FocusPane::Subagent);
-    let agent_a = AgentId::new("agent-a").unwrap();
-    assert_eq!(
-        state.selected_conversation,
-        ConversationSelection::Subagent(agent_a)
-    );
-}
-
-#[test]
-fn cycle_focus_to_main_selects_main_conversation() {
-    let mut state = state_with_subagents();
-    state.focus = FocusPane::Stats;
-    let agent_a = AgentId::new("agent-a").unwrap();
-    state.selected_conversation = ConversationSelection::Subagent(agent_a);
-
-    state.cycle_focus(); // Stats -> Main
-
-    // Should switch to Main pane and select Main conversation
-    assert_eq!(state.focus, FocusPane::Main);
-    assert_eq!(state.selected_conversation, ConversationSelection::Main);
-}
-
 // ===== Tests: Stability across subagent changes =====
 
 #[test]
