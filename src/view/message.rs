@@ -780,7 +780,7 @@ pub fn render_conversation_view(
         );
 
         // Apply horizontal offset if NoWrap mode and offset > 0 (FR-040)
-        if global_wrap == WrapMode::NoWrap && horizontal_offset > 0 {
+        if effective_wrap == WrapMode::NoWrap && horizontal_offset > 0 {
             entry_lines = entry_lines
                 .into_iter()
                 .map(|line| apply_horizontal_offset(line, horizontal_offset))
@@ -1077,7 +1077,6 @@ fn apply_highlights_to_text(
 /// If offset exceeds line length, returns empty line.
 ///
 /// Uses character-based indexing (not byte-based) for UTF-8 safety.
-// TODO(cclv-07v.9): Wire up once horizontal scroll enabled
 #[allow(dead_code)]
 fn apply_horizontal_offset(line: Line<'static>, offset: usize) -> Line<'static> {
     if offset == 0 {
