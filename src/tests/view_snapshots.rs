@@ -2911,3 +2911,89 @@ fn bug_tab_click_region_mismatch() {
         tab_after
     );
 }
+
+/// Bug reproduction: Help popup does not appear when pressing '?' in terminal
+///
+/// EXPECTED: Pressing '?' shows the help popup overlay
+/// ACTUAL: Nothing happens - help popup does not appear
+///
+/// Root cause: The keybinding is registered as:
+///   KeyEvent::new(KeyCode::Char('?'), KeyModifiers::SHIFT)
+/// But real terminals (tmux, crossterm raw mode) send '?' as:
+///   KeyEvent { code: Char('?'), modifiers: NONE }
+/// The SHIFT modifier is "absorbed" into the character itself.
+///
+/// Steps to reproduce manually:
+/// 1. cargo run -- tests/fixtures/minimal_session.jsonl
+/// 2. Press '?' key
+/// 3. Observe: No help popup appears (status bar still shows "?: Help")
+/// 4. Press 's' to verify stats popup works (it does)
+#[test]
+#[ignore = "cclv-5ur.65: help popup not triggered by '?' key from real terminals"]
+fn bug_help_popup_not_triggered_by_question_mark() {
+    use crate::source::FileSource;
+    use crate::state::AppState;
+    use crate::view::TuiApp;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+
+    // Load minimal fixture
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/minimal_session.jsonl"))
+        .expect("Should load fixture");
+    let log_entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = log_entries.len();
+
+    let entries: Vec<ConversationEntry> = log_entries
+        .into_iter()
+        .map(|e| ConversationEntry::Valid(Box::new(e)))
+        .collect();
+
+    // Create app
+    let backend = TestBackend::new(80, 40);
+    let terminal = Terminal::new(backend).unwrap();
+    let mut app_state = AppState::new();
+    app_state.add_entries(entries);
+    let key_bindings = crate::config::keybindings::KeyBindings::default();
+    let input_source =
+        crate::source::InputSource::Stdin(crate::source::StdinSource::from_reader(&b""[..]));
+
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Initial render
+    app.render_test().expect("Initial render should succeed");
+
+    // Verify help is NOT visible initially
+    assert!(
+        !app.app_state().help_visible,
+        "Help should not be visible initially"
+    );
+
+    // Simulate pressing '?' as a real terminal would send it:
+    // Terminals send the '?' character directly WITHOUT the SHIFT modifier flag
+    // (the shift is "absorbed" into producing the '?' character)
+    let question_mark_real_terminal = KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE);
+    app.handle_key_test(question_mark_real_terminal);
+    app.render_test()
+        .expect("Render after '?' should succeed");
+
+    // Capture output - should show help overlay
+    let output = buffer_to_string(app.terminal().backend().buffer());
+    insta::assert_snapshot!("bug_help_popup_not_triggered", output.clone());
+
+    // BUG ASSERTION: Help popup should be visible after pressing '?'
+    // The existing test uses KeyModifiers::SHIFT which works in test harness
+    // but real terminals send '?' with KeyModifiers::NONE
+    assert!(
+        app.app_state().help_visible,
+        "BUG: Pressing '?' should show help popup.\n\
+         Real terminals (tmux, crossterm) send '?' as Char('?') with KeyModifiers::NONE.\n\
+         The keybinding expects KeyModifiers::SHIFT which doesn't match.\n\n\
+         Expected: help_visible = true\n\
+         Actual: help_visible = false\n\n\
+         The status bar shows '?: Help' but pressing '?' does nothing.\n\
+         This is verified by manual testing in tmux pane."
+    );
+}
