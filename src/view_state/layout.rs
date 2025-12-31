@@ -10,7 +10,7 @@ use super::types::{LineHeight, LineOffset};
 /// # Invariants
 /// - `height >= 1` (enforced by LineHeight)
 /// - `cumulative_y[i] = sum(height[0..i])` (maintained by ConversationViewState)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EntryLayout {
     /// Height of this entry in lines.
     height: LineHeight,
@@ -46,6 +46,15 @@ impl EntryLayout {
     }
 }
 
+#[allow(clippy::derivable_impls)]
+impl Default for EntryLayout {
+    fn default() -> Self {
+        Self {
+            height: LineHeight::default(),
+            cumulative_y: LineOffset::default(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
