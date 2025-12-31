@@ -155,6 +155,116 @@ Press `Enter` to expand.
 
 ---
 
+## JSONL Format Reference
+
+Claude Code logs use JSONL (JSON Lines) format with these entry types:
+
+### Entry Types
+
+| Type | Description |
+|------|-------------|
+| `user` | User input to Claude |
+| `assistant` | Claude's response |
+| `system` | System events (session init, hooks) |
+| `result` | Session completion with cost/duration |
+| `summary` | Conversation summary |
+
+### Common Fields
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `type` | string | Yes | Entry type (see above) |
+| `uuid` | string | Yes | Unique entry identifier |
+| `session_id` | string | No | Session ID (snake_case, defaults to "unknown-session") |
+| `timestamp` | string | No | Not present in actual output |
+| `parent_tool_use_id` | string | No | Links to parent entry for tool calls |
+| `agentId` | string | No | Subagent identifier (camelCase) |
+| `message` | object | Varies | Message content for user/assistant entries |
+
+### Example: System Init Entry
+
+```json
+{
+  "type": "system",
+  "subtype": "init",
+  "session_id": "e9bc0c98",
+  "uuid": "38df9820",
+  "cwd": "/home/user/project",
+  "model": "claude-opus-4-5-20251101",
+  "tools": ["Read", "Write", "Bash"]
+}
+```
+
+### Example: User Message
+
+```json
+{
+  "type": "user",
+  "message": {
+    "role": "user",
+    "content": "Hello"
+  },
+  "session_id": "e9bc0c98",
+  "uuid": "uuid-001"
+}
+```
+
+### Example: Assistant with Tool Use
+
+```json
+{
+  "type": "assistant",
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "I'll investigate the issue."
+      },
+      {
+        "type": "tool_use",
+        "id": "toolu_abc",
+        "name": "Read",
+        "input": {"file_path": "/path/to/file.rs"}
+      }
+    ],
+    "model": "claude-opus-4-5-20251101",
+    "usage": {
+      "input_tokens": 1250,
+      "output_tokens": 320,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 850
+    }
+  },
+  "session_id": "e9bc0c98",
+  "uuid": "uuid-002"
+}
+```
+
+### Example: Session Result
+
+```json
+{
+  "type": "result",
+  "is_error": false,
+  "duration_ms": 306681,
+  "num_turns": 36,
+  "total_cost_usd": 1.39,
+  "result": "Session complete",
+  "session_id": "e9bc0c98",
+  "uuid": "9cafe6c3"
+}
+```
+
+**Key Points**:
+- Field `session_id` uses **snake_case** (not camelCase)
+- Field `agentId` uses **camelCase** (inconsistent naming)
+- Field `timestamp` is **not present** in actual output (parser uses fallback)
+- Field `parent_tool_use_id` (not `parentUuid`) links tool results to tool use
+- Token usage includes cache metrics (`cache_creation_input_tokens`, `cache_read_input_tokens`)
+
+---
+
 ## Statistics Panel
 
 Press `s` to toggle the statistics panel:

@@ -173,6 +173,8 @@ pub enum EntryType {
     User,
     Assistant,
     Summary,
+    System,   // Session init, hooks, and other system events
+    Result,   // Session completion with cost/duration metadata
 }
 
 /// Additional metadata from the entry.
@@ -183,7 +185,36 @@ pub struct EntryMetadata {
     pub version: Option<String>,
     pub is_sidechain: bool,
 }
+
+/// System entry metadata (type: "system")
+/// Used for session initialization and hook responses.
+#[derive(Debug, Clone)]
+pub struct SystemMetadata {
+    pub subtype: String,             // "init", "hook_response", etc.
+    pub cwd: Option<PathBuf>,        // Working directory
+    pub model: Option<String>,       // Model ID (e.g., "claude-opus-4-5-20251101")
+    pub tools: Vec<String>,          // Available tools
+    pub agents: Vec<String>,         // Available agents
+    pub skills: Vec<String>,         // Available skills
+}
+
+/// Result entry metadata (type: "result")
+/// Used for session completion with metrics.
+#[derive(Debug, Clone)]
+pub struct ResultMetadata {
+    pub is_error: bool,              // Whether session ended in error
+    pub duration_ms: u64,            // Total session duration in milliseconds
+    pub num_turns: u32,              // Number of conversation turns
+    pub total_cost_usd: f64,         // Estimated total cost in USD
+    pub result_text: String,         // Result summary text
+}
 ```
+
+**Notes on Actual JSONL Format**:
+- Field `session_id` uses **snake_case** (not camelCase) and is **optional** (defaults to "unknown-session" if missing)
+- Field `timestamp` is **optional** in actual output (parser uses UNIX_EPOCH fallback when missing)
+- Field `parent_tool_use_id` (not `parentUuid`) links to parent entry for tool calls
+- Field `agentId` uses **camelCase** (inconsistent with `session_id`)
 
 ---
 
@@ -334,7 +365,185 @@ impl ToolName {
 
 ---
 
-## 4. Model and Token Usage
+## 4. Actual JSONL Format Examples
+
+These examples reflect the actual format produced by Claude Code CLI (as of 2025-12-26).
+
+### System Init Entry
+
+Session initialization with metadata:
+
+```json
+{
+  "type": "system",
+  "subtype": "init",
+  "session_id": "e9bc0c98",
+  "uuid": "38df9820",
+  "cwd": "/home/user/project",
+  "model": "claude-opus-4-5-20251101",
+  "tools": ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch"],
+  "agents": ["general-purpose"],
+  "skills": ["commit", "test-driven-development"]
+}
+```
+
+**Key observations**:
+- Field `session_id` is **snake_case**
+- Field `subtype` distinguishes different system event types ("init", "hook_response", etc.)
+- No `timestamp` field in actual output
+- Model ID includes full version string
+
+### User Entry
+
+User input message:
+
+```json
+{
+  "type": "user",
+  "message": {
+    "role": "user",
+    "content": "Fix the authentication bug"
+  },
+  "session_id": "e9bc0c98",
+  "uuid": "uuid-002"
+}
+```
+
+**Key observations**:
+- Simple `content` string for plain text messages
+- No `timestamp` field
+
+### Assistant Entry with Tool Use
+
+Assistant response containing a tool call:
+
+```json
+{
+  "type": "assistant",
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "I'll read the authentication module to investigate."
+      },
+      {
+        "type": "tool_use",
+        "id": "toolu_abc123",
+        "name": "Read",
+        "input": {
+          "file_path": "/home/user/project/src/auth.rs"
+        }
+      }
+    ],
+    "model": "claude-opus-4-5-20251101",
+    "usage": {
+      "input_tokens": 1250,
+      "output_tokens": 320,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 850
+    }
+  },
+  "session_id": "e9bc0c98",
+  "uuid": "uuid-003"
+}
+```
+
+**Key observations**:
+- Content is array of blocks when tool use is present
+- Usage statistics included on assistant messages
+- Token usage includes cache metrics
+
+### Tool Result Entry
+
+User message containing tool result:
+
+```json
+{
+  "type": "user",
+  "message": {
+    "role": "user",
+    "content": [
+      {
+        "type": "tool_result",
+        "tool_use_id": "toolu_abc123",
+        "content": "pub fn authenticate(token: &str) -> Result<User, AuthError> {\n    // ... (file contents)\n}"
+      }
+    ]
+  },
+  "session_id": "e9bc0c98",
+  "uuid": "uuid-004",
+  "parent_tool_use_id": "toolu_abc123"
+}
+```
+
+**Key observations**:
+- Tool results appear in user-role messages
+- Field `parent_tool_use_id` links result to originating tool_use
+- Field name is `parent_tool_use_id` (not `parentUuid`)
+
+### Subagent Entry
+
+Entry from a subagent (indicated by `agentId` field):
+
+```json
+{
+  "type": "assistant",
+  "message": {
+    "role": "assistant",
+    "content": "Based on my research, the recommended pattern is..."
+  },
+  "session_id": "e9bc0c98",
+  "uuid": "uuid-020",
+  "agentId": "a7b2877"
+}
+```
+
+**Key observations**:
+- Field `agentId` uses **camelCase** (inconsistent with `session_id`)
+- Presence of `agentId` indicates subagent entry
+
+### Result Entry
+
+Session completion with metrics:
+
+```json
+{
+  "type": "result",
+  "is_error": false,
+  "duration_ms": 306681,
+  "num_turns": 36,
+  "total_cost_usd": 1.39,
+  "result": "Authentication bug fixed. Tests passing.",
+  "session_id": "e9bc0c98",
+  "uuid": "9cafe6c3"
+}
+```
+
+**Key observations**:
+- Field `result` contains summary text (maps to `result_text` in ResultMetadata)
+- Includes accurate cost and duration metrics
+- Always appears as last entry in a completed session
+
+### Summary Entry
+
+Conversation summary (if generated):
+
+```json
+{
+  "type": "summary",
+  "message": {
+    "role": "assistant",
+    "content": "Summary of conversation: investigated authentication bug, found issue in token validation, implemented fix with tests."
+  },
+  "session_id": "e9bc0c98",
+  "uuid": "uuid-summary-001"
+}
+```
+
+---
+
+## 5. Model and Token Usage
 
 ```rust
 // ===== src/model/usage.rs =====
@@ -387,7 +596,7 @@ impl TokenUsage {
 
 ---
 
-## 5. Session Model (Aggregate)
+## 6. Session Model (Aggregate)
 
 A session contains the main agent and subagents.
 
@@ -483,7 +692,7 @@ impl AgentConversation {
 
 ---
 
-## 6. Statistics Model
+## 7. Statistics Model
 
 Aggregated statistics with filtering.
 
@@ -602,7 +811,7 @@ pub enum StatsFilter {
 
 ---
 
-## 7. UI State Model (Pure)
+## 8. UI State Model (Pure)
 
 Application state as an immutable value with transitions.
 
@@ -759,7 +968,7 @@ impl ScrollState {
 
 ---
 
-## 8. Search State
+## 9. Search State
 
 ```rust
 // ===== src/state/search.rs =====
@@ -809,7 +1018,7 @@ pub struct SearchMatch {
 
 ---
 
-## 9. Application Configuration
+## 10. Application Configuration
 
 Unified configuration with hardcoded defaults. Single config file at `~/.config/cclv/config.toml`.
 
@@ -1072,7 +1281,7 @@ toggle_global_wrap = "W" # FR-050: global wrap toggle
 
 ---
 
-## 10. Key Actions (Enumerated)
+## 11. Key Actions (Enumerated)
 
 ```rust
 // ===== src/model/key_action.rs =====
@@ -1136,7 +1345,7 @@ pub enum KeyAction {
 
 ---
 
-## 11. Error Types
+## 12. Error Types
 
 ```rust
 // ===== src/model/error.rs =====
