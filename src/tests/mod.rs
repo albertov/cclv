@@ -22,3 +22,10 @@ mod acceptance_us5;
 mod acceptance_scroll;
 mod crash_regression;
 mod help_overlay_tests;
+
+// Whitebox tests with internal access
+mod view_snapshots;
+mod event_driven_rendering;
+mod scroll_properties;
+mod tool_block_nowrap_default;
+mod stats_multi_scope_tests;

@@ -1,0 +1,9 @@
+---
+source: src/tests/view_snapshots.rs
+expression: output
+---
+┌Conversations─────────────────────────┐
+│ Main Agent │ agent-abc123            │
+│                                      │
+│                                      │
+└──────────────────────────────────────┘
