@@ -186,11 +186,11 @@ fn test_tooluse_respects_explicit_wrap_override() {
     // When explicitly overridden to Wrap, the long path SHOULD be split across lines
     // After the wrap_lines fix (cclv-5ur.45), content width accounts for entry index prefix,
     // causing tighter wrapping. We verify that the path is split by checking that
-    // the start appears on a different line than a middle part of the path.
+    // the start appears on a different line than the end of the path.
     let path_start_line = output
         .lines()
         .position(|line| line.contains("/some/very/long"));
-    let path_continuation_line = output.lines().position(|line| line.contains("exceeds"));
+    let path_continuation_line = output.lines().position(|line| line.contains("marker.txt"));
 
     assert!(
         path_start_line.is_some()

@@ -2,11 +2,11 @@
 source: tests/view_snapshots.rs
 expression: after_str
 ---
-││       First entry line 2                                                    │
-││       First entry line 3                                                    │
+││    First entry line 2                                                       │
+││    First entry line 3                                                       │
 │                                                                              │
-││     2 Second entry line 1                                                   │
-││       Second entry line 2                                                   │
+││  2 Second entry line 1                                                      │
+││    Second entry line 2                                                      │
 │                                                                              │
-││     3 Third entry - single line                                             │
+││  3 Third entry - single line                                                │
 │                                                                              │
