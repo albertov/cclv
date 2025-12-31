@@ -787,6 +787,11 @@ pub fn render_conversation_view(
                 .collect();
         }
 
+        // Add wrap continuation indicators if Wrap mode (FR-052)
+        if effective_wrap == WrapMode::Wrap {
+            entry_lines = add_wrap_continuation_indicators(entry_lines, inner_area.width as usize);
+        }
+
         // Create Paragraph with appropriate wrap setting
         let entry_paragraph = match effective_wrap {
             WrapMode::Wrap => Paragraph::new(entry_lines).wrap(Wrap { trim: false }),
@@ -1457,7 +1462,6 @@ pub fn render_content_block(
 ///
 /// # Panics
 /// Never panics in public API. Invalid inputs (viewport_width = 0) return input unchanged.
-#[cfg(test)]
 fn add_wrap_continuation_indicators(
     lines: Vec<Line<'static>>,
     viewport_width: usize,
@@ -5526,6 +5530,7 @@ mod tests {
     ///
     /// Integration point: render_entry_lines() should detect code blocks and apply
     /// NoWrap mode specifically for those lines.
+    // TODO(cclv-07v.9.10): Requires FR-053 code block exemption
     #[test]
     #[ignore = "TODO: Code block wrap exemption not yet implemented (cclv-07v.9.10 / FR-053)"]
     fn test_render_code_blocks_never_wrap() {
