@@ -19,7 +19,8 @@ struct RawLogEntry {
     #[serde(rename = "type")]
     entry_type: String,
     message: RawMessage,
-    session_id: String,
+    #[serde(default)]
+    session_id: Option<String>,
     uuid: String,
     #[serde(default)]
     parent_uuid: Option<String>,
@@ -191,12 +192,14 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
         })
         .transpose()?;
 
-    // Validate and construct session ID
-    let session_id =
-        SessionId::new(raw_entry.session_id).map_err(|_| ParseError::MissingField {
+    // Validate and construct session ID (use unknown as fallback)
+    let session_id = match raw_entry.session_id {
+        Some(id) if !id.is_empty() => SessionId::new(id).map_err(|_| ParseError::MissingField {
             line: line_number,
             field: "sessionId",
-        })?;
+        })?,
+        _ => SessionId::unknown(),
+    };
 
     // Validate and construct agent ID (optional)
     let agent_id = raw_entry
@@ -494,21 +497,20 @@ mod tests {
 
     #[test]
     fn parse_entry_missing_session_id() {
+        // Updated: missing sessionId now defaults to unknown instead of error
         let raw = r#"{"type":"user","message":{"role":"user","content":"Test"},"uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
         let result = parse_entry(raw, 20);
 
-        assert!(result.is_err(), "Should reject missing sessionId");
-        match result.unwrap_err() {
-            ParseError::InvalidJson { line, message } => {
-                assert_eq!(line, 20);
-                assert!(
-                    message.contains("session") || message.contains("missing field"),
-                    "Error should mention sessionId or missing field, got: {}",
-                    message
-                );
-            }
-            _ => panic!("Expected InvalidJson error for missing required field"),
-        }
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with missing sessionId"
+        );
+        let entry = result.unwrap();
+        assert_eq!(
+            entry.session_id().as_str(),
+            "unknown-session",
+            "Should use unknown when sessionId is missing"
+        );
     }
 
     #[test]
@@ -563,17 +565,20 @@ mod tests {
 
     #[test]
     fn parse_entry_empty_session_id() {
+        // Updated: empty sessionId now defaults to unknown instead of error
         let raw = r#"{"type":"user","message":{"role":"user","content":"Test"},"sessionId":"","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
         let result = parse_entry(raw, 7);
 
-        assert!(result.is_err(), "Should reject empty sessionId");
-        match result.unwrap_err() {
-            ParseError::MissingField { line, field } => {
-                assert_eq!(line, 7);
-                assert_eq!(field, "sessionId");
-            }
-            _ => panic!("Expected MissingField error for empty sessionId"),
-        }
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with empty sessionId"
+        );
+        let entry = result.unwrap();
+        assert_eq!(
+            entry.session_id().as_str(),
+            "unknown-session",
+            "Should use unknown when sessionId is empty"
+        );
     }
 
     // ===== Entry Type Parsing Tests =====
