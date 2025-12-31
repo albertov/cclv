@@ -1145,3 +1145,153 @@ fn test_entry_index_prefix_on_collapsed_entry() {
         );
     }
 }
+
+// ============================================================================
+// MARKDOWN RENDERING TESTS - Test that markdown is parsed and styled
+// ============================================================================
+
+#[test]
+fn test_text_block_renders_bold_markdown() {
+    // Create entry with bold markdown: "**bold text**"
+    let markdown_text = "This has **bold text** in it";
+    let entry = create_entry_with_text(markdown_text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index prefix for clarity
+        false, // Not a subagent view
+    );
+
+    // ASSERTION: At least one span should have Bold modifier
+    // (tui_markdown parses **bold** and applies Modifier::BOLD)
+    let has_bold = lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.style.add_modifier.contains(ratatui::style::Modifier::BOLD)
+        })
+    });
+
+    assert!(
+        has_bold,
+        "Markdown text with **bold** should have at least one span with BOLD modifier"
+    );
+}
+
+#[test]
+fn test_text_block_renders_italic_markdown() {
+    // Create entry with italic markdown: "*italic text*"
+    let markdown_text = "This has *italic text* in it";
+    let entry = create_entry_with_text(markdown_text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index prefix for clarity
+        false, // Not a subagent view
+    );
+
+    // ASSERTION: At least one span should have Italic modifier
+    // (tui_markdown parses *italic* and applies Modifier::ITALIC)
+    let has_italic = lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.style.add_modifier.contains(ratatui::style::Modifier::ITALIC)
+        })
+    });
+
+    assert!(
+        has_italic,
+        "Markdown text with *italic* should have at least one span with ITALIC modifier"
+    );
+}
+
+#[test]
+fn test_text_block_renders_inline_code_markdown() {
+    // Create entry with inline code markdown: "`code`"
+    let markdown_text = "This has `inline code` in it";
+    let entry = create_entry_with_text(markdown_text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index prefix for clarity
+        false, // Not a subagent view
+    );
+
+    // ASSERTION: The inline code should be styled differently from plain text
+    // tui_markdown typically applies a distinct style to inline code
+    // We check that there are multiple distinct styles (not all the same)
+    let unique_styles: std::collections::HashSet<_> = lines
+        .iter()
+        .flat_map(|line| line.spans.iter().map(|span| format!("{:?}", span.style)))
+        .collect();
+
+    assert!(
+        unique_styles.len() > 1,
+        "Markdown with `inline code` should have multiple distinct styles, got: {:?}",
+        unique_styles
+    );
+}
+
+#[test]
+fn test_text_block_preserves_role_color_in_markdown() {
+    // Create entry with markdown text from User (Cyan color)
+    let markdown_text = "**Bold** and *italic* with role color";
+    let entry = create_entry_with_text(markdown_text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index prefix for clarity
+        false, // Not a subagent view
+    );
+
+    // ASSERTION: At least one span should have Cyan foreground (User role color)
+    // AND at least one span should have Bold or Italic modifier
+    // This verifies that markdown styling is layered ON TOP of role color
+    let has_cyan = lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.style.fg == Some(ratatui::style::Color::Cyan)
+        })
+    });
+
+    let has_markdown_modifier = lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.style.add_modifier.contains(ratatui::style::Modifier::BOLD)
+                || span.style.add_modifier.contains(ratatui::style::Modifier::ITALIC)
+        })
+    });
+
+    assert!(
+        has_cyan,
+        "User entry should have Cyan color (role-based styling)"
+    );
+
+    assert!(
+        has_markdown_modifier,
+        "Markdown should apply Bold/Italic modifiers on top of role color"
+    );
+}
