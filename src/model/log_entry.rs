@@ -84,8 +84,9 @@ impl LogEntry {
     /// - Required fields are missing
     /// - Timestamps are invalid
     /// - UUIDs or IDs are empty
-    pub fn parse(_raw: &str) -> Result<Self, crate::model::ParseError> {
-        todo!("LogEntry::parse")
+    pub fn parse(raw: &str) -> Result<Self, crate::model::ParseError> {
+        // Delegate to parser module with line number 1 for single-entry parsing
+        crate::parser::parse_entry(raw, 1)
     }
 
     // ===== Accessors (read-only) =====
