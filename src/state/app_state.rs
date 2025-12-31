@@ -7,6 +7,37 @@ use crate::model::{EntryUuid, Session, StatsFilter};
 use crate::state::{LogPaneState, SearchState};
 use std::collections::HashSet;
 
+// ===== InputMode =====
+
+/// Input mode indicator for the LIVE status indicator.
+///
+/// Tracks whether the application is reading from a static file,
+/// actively streaming from stdin, or has reached EOF on stdin.
+///
+/// # Functional Requirements
+///
+/// - **FR-042b**: LIVE indicator displays gray when Static or Eof,
+///   blinking green when Streaming
+///
+/// # State Transitions
+///
+/// - Static (file input, default)
+/// - Streaming (stdin active)
+/// - Eof (stdin reached end)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InputMode {
+    /// File loaded once, no live updates expected.
+    /// This is the default variant (FR-042b).
+    #[default]
+    Static,
+
+    /// Actively streaming from stdin.
+    Streaming,
+
+    /// Stdin has reached EOF, no more data expected.
+    Eof,
+}
+
 // ===== AppState =====
 
 /// Application state. Pure data, no side effects.
@@ -97,6 +128,10 @@ pub struct AppState {
     /// Toggleable internal logging pane state.
     /// Maintains a ring buffer of log entries with unread tracking.
     pub log_pane: LogPaneState,
+
+    /// Input mode for LIVE indicator display (FR-042b).
+    /// Indicates whether reading from static file, actively streaming, or EOF.
+    pub input_mode: InputMode,
 }
 
 impl AppState {
@@ -116,6 +151,7 @@ impl AppState {
             auto_scroll: true,
             global_wrap: WrapMode::default(),
             log_pane: LogPaneState::new(1000),
+            input_mode: InputMode::default(),
         }
     }
 

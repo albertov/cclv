@@ -1383,6 +1383,36 @@ fn toggle_log_pane_twice_returns_to_hidden() {
     );
 }
 
+// ===== InputMode Tests =====
+
+#[test]
+fn input_mode_default_is_static() {
+    // FR-042b: Default to Static for file input
+    assert_eq!(InputMode::default(), InputMode::Static);
+}
+
+#[test]
+fn input_mode_variants_are_distinct() {
+    assert_ne!(InputMode::Static, InputMode::Streaming);
+    assert_ne!(InputMode::Static, InputMode::Eof);
+    assert_ne!(InputMode::Streaming, InputMode::Eof);
+}
+
+#[test]
+fn input_mode_equality() {
+    assert_eq!(InputMode::Static, InputMode::Static);
+    assert_eq!(InputMode::Streaming, InputMode::Streaming);
+    assert_eq!(InputMode::Eof, InputMode::Eof);
+}
+
+#[test]
+fn app_state_new_defaults_input_mode_to_static() {
+    let session = make_test_session();
+    let state = AppState::new(session);
+
+    assert_eq!(state.input_mode, InputMode::Static);
+}
+
 // ===== Focus Cycling with LogPane Integration Tests =====
 
 #[test]
