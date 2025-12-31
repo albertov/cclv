@@ -2807,3 +2807,104 @@ fn bug_subagent_mouse_click_expand_not_working() {
         expanded_after
     );
 }
+
+/// Bug reproduction: Tab click regions don't match visible tab positions
+///
+/// EXPECTED: Clicking on the visible "subagent_alpha" tab label should switch to that tab
+/// ACTUAL: Click regions are evenly divided across full terminal width, not aligned with
+///         visible tab labels. Clicking on visible tab text activates wrong tab or no tab.
+///
+/// Steps to reproduce manually:
+/// 1. cargo run -- tests/fixtures/tab_click_mismatch_repro.jsonl
+/// 2. Click on the visible "subagent_alpha" text in the tab bar (around x=15-30)
+/// 3. Observe: Tab does NOT switch (or switches to wrong tab)
+/// 4. Click very far right (x=100+) to find where click detection actually responds
+///
+/// Bead: cclv-154
+#[test]
+#[ignore = "cclv-154: tab click regions don't match visible tab positions"]
+fn bug_tab_click_region_mismatch() {
+    use cclv::config::keybindings::KeyBindings;
+    use cclv::source::{FileSource, InputSource, StdinSource};
+    use cclv::state::AppState;
+    use cclv::view::TuiApp;
+    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use std::path::PathBuf;
+
+    // Load fixture with 4 tabs: Main Agent + 3 subagents
+    let mut file_source =
+        FileSource::new(PathBuf::from("tests/fixtures/tab_click_mismatch_repro.jsonl"))
+            .expect("Should load fixture");
+    let log_entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = log_entries.len();
+
+    let entries: Vec<ConversationEntry> = log_entries
+        .into_iter()
+        .map(|e| ConversationEntry::Valid(Box::new(e)))
+        .collect();
+
+    // Create terminal (wide enough to show all tabs)
+    let backend = TestBackend::new(120, 30);
+    let terminal = Terminal::new(backend).unwrap();
+    let mut app_state = AppState::new();
+    app_state.add_entries(entries);
+    let key_bindings = KeyBindings::default();
+    let input_source = InputSource::Stdin(StdinSource::from_reader(&b""[..]));
+
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Initial render - should show Main Agent tab active
+    app.render_test().expect("Initial render should succeed");
+
+    let initial_output = buffer_to_string(app.terminal().backend().buffer());
+    insta::assert_snapshot!("bug_tab_click_initial", initial_output.clone());
+
+    // Verify initial state shows Main Agent
+    assert!(
+        initial_output.contains("Main Agent (2 entries)"),
+        "Should start with Main Agent tab active"
+    );
+
+    // The tab bar shows: "│ Main Agent │ subagent_alpha │ subagent_beta │ subagent_gamma"
+    // Visual position of "subagent_alpha" starts around column 15
+    // We click at column 20, row 2 (where the tab bar is rendered, 0-indexed)
+
+    let tab_before = app.app_state().selected_tab_index();
+
+    // Click on visible "subagent_alpha" text area (row 2 is tab bar, column 20 is in the label)
+    let mouse_event = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 20, // Inside visible "subagent_alpha" text
+        row: 2,     // Tab bar row (0-indexed)
+        modifiers: KeyModifiers::NONE,
+    };
+    app.handle_mouse_test(mouse_event);
+
+    app.render_test()
+        .expect("Render after click should succeed");
+
+    let after_click_output = buffer_to_string(app.terminal().backend().buffer());
+    insta::assert_snapshot!("bug_tab_click_after_visual_position", after_click_output.clone());
+
+    let tab_after = app.app_state().selected_tab_index();
+
+    // BUG ASSERTION: Clicking on visible tab label should switch to that tab
+    // Expected: tab_after should be Some(1) for subagent_alpha
+    // Actual: tab stays at Some(0) for Main Agent
+    assert_eq!(
+        tab_after,
+        Some(1),
+        "BUG: Clicking on visible 'subagent_alpha' tab label (column 20) should activate it.\n\
+         Tab before click: {:?}\n\
+         Tab after click: {:?}\n\
+         Clicked at: column=20, row=2\n\n\
+         The tab bar shows tabs left-aligned, but click detection divides\n\
+         terminal width evenly. This creates a mismatch between what users\n\
+         see and where they need to click.\n\n\
+         Expected: Click on visible tab label switches to that tab\n\
+         Actual: Must click far to the right (past visible content) to switch tabs",
+        tab_before,
+        tab_after
+    );
+}
