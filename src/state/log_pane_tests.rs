@@ -1,7 +1,5 @@
 //! Tests for log pane state.
 
-#![cfg(test)]
-
 use super::{LogPaneEntry, LogPaneState};
 use chrono::Utc;
 use tracing::Level;
