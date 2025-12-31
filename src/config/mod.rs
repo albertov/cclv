@@ -18,7 +18,7 @@ pub struct AppConfig {
 
 impl Default for AppConfig {
     fn default() -> Self {
-        todo!("AppConfig::default")
+        Self { line_wrap: true }
     }
 }
 
