@@ -1428,6 +1428,38 @@ mod tests {
     // ===== US4: Horizontal Scrolling Tests =====
 
     #[test]
+    fn handle_key_ctrl_f_starts_search() {
+        let mut app = create_test_app();
+
+        // Start with focus on Main
+        app.app_state.focus = FocusPane::Main;
+
+        // Verify search is inactive
+        assert!(matches!(
+            app.app_state.search,
+            crate::state::SearchState::Inactive
+        ));
+
+        // Press Ctrl+F to start search
+        let key = KeyEvent::new(KeyCode::Char('f'), KeyModifiers::CONTROL);
+        let should_quit = app.handle_key(key);
+
+        assert!(!should_quit, "Ctrl+F should not trigger quit");
+        assert_eq!(
+            app.app_state.focus,
+            FocusPane::Search,
+            "Ctrl+F should focus on Search pane"
+        );
+        assert!(
+            matches!(
+                app.app_state.search,
+                crate::state::SearchState::Typing { .. }
+            ),
+            "Ctrl+F should activate search input"
+        );
+    }
+
+    #[test]
     fn handle_key_h_scrolls_left() {
         let mut app = create_test_app();
 
