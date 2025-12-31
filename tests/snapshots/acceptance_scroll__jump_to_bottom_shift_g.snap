@@ -7,22 +7,22 @@ Model: Unknown | Main Agent | ? | 0 tools, 0 agents, 0 skills
 │ Main Agent                                                                   │
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌Main Agent (20 entries) ▶─────────────────────────────────────────────────────┐
-│  16│    "description": "Show epic details"                                   │
-│  16│  }                                                                      │
+││         "description": "Show epic details"                                  │
+││       }                                                                     │
 │                                                                              │
-│  17│{"FEATURE_DIR":"/home/claude/cclv/specs/001-claude-code-log-viewer","AVAI│
+││  17 {"FEATURE_DIR":"/home/claude/cclv/specs/001-claude-code-log-viewer","AVA│
 │                                                                              │
-│  18│001-claude-code-log-viewer                                               │
+││  18 001-claude-code-log-viewer                                              │
 │                                                                              │
-│  19│[                                                                        │
-│  19│  {                                                                      │
-│  19│    "id": "cclv-07v.1",                                                  │
-│  19│(+47 more lines)                                                         │
+││  19 [                                                                       │
+││       {                                                                     │
+││         "id": "cclv-07v.1",                                                 │
+││     (+47 more lines)                                                        │
 │                                                                              │
-│  20│[                                                                        │
-│  20│  {                                                                      │
-│  20│    "id": "cclv-07v",                                                    │
-│  20│(+97 more lines)                                                         │
+││  20 [                                                                       │
+││       {                                                                     │
+││         "id": "cclv-07v",                                                   │
+││     (+97 more lines)                                                        │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 [LIVE] Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes

@@ -1,6 +1,5 @@
 ---
 source: tests/view_snapshots.rs
-assertion_line: 801
 expression: output
 ---
 Model: Unknown | Main Agent | ? | 0 tools, 0 agents, 0 skills
@@ -10,36 +9,36 @@ Model: Unknown | Main Agent | ? | 0 tools, 0 agents, 0 skills
 ┌Main Agent (20 entries) ▶─────────────────────────────────────────────────────┐
 │                                                                              │
 │                                                                              │
-│   3│Let me understand the task:                                              │
-│   3│                                                                         │
-│   3│1. I'm a coordinator agent that CANNOT read/write code directly          │
-│   3│(+8 more lines)                                                          │
+││   3 Let me understand the task:                                             │
+││                                                                             │
+││     1. I'm a coordinator agent that CANNOT read/write code directly         │
+││     (+8 more lines)                                                         │
 │                                                                              │
-│   4│I'll start by loading the required skill and then following the coordinat│
-│   4│otocol.                                                                  │
+││   4 I'll start by loading the required skill and then following the coordina│
+││     otocol.                                                                 │
 │                                                                              │
-│   5│🔧  Tool: Skill                                                           │
-│   5│  {                                                                      │
-│   5│    "skill": "efficient-subagent-orchestration"                          │
-│   5│  }                                                                      │
+││   5 🔧  Tool: Skill                                                          │
+││       {                                                                     │
+││         "skill": "efficient-subagent-orchestration"                         │
+││       }                                                                     │
 │                                                                              │
-│   6│🔧  Tool: Skill                                                           │
-│   6│  {                                                                      │
-│   6│    "skill": "beads-project-tracking"                                    │
-│   6│  }                                                                      │
+││   6 🔧  Tool: Skill                                                          │
+││       {                                                                     │
+││         "skill": "beads-project-tracking"                                   │
+││       }                                                                     │
 │                                                                              │
-│   7│Launching skill: efficient-subagent-orchestration                        │
+││   7 Launching skill: efficient-subagent-orchestration                       │
 │                                                                              │
-│   8│Base directory for this skill: /home/claude/.claude/skills/efficient-suba│
-│   8│orchestration                                                            │
-│   8│                                                                         │
-│   8│(+179 more lines)                                                        │
+││   8 Base directory for this skill: /home/claude/.claude/skills/efficient-sub│
+││     orchestration                                                           │
+││                                                                             │
+││     (+179 more lines)                                                       │
 │                                                                              │
-│   9│Launching skill: beads-project-tracking                                  │
+││   9 Launching skill: beads-project-tracking                                 │
 │                                                                              │
-│  10│Base directory for this skill: /home/claude/.claude/skills/beads-project-│
-│  10│ing                                                                      │
-│  10│                                                                         │
-│  10│(+210 more lines)                                                        │
+││  10 Base directory for this skill: /home/claude/.claude/skills/beads-project│
+││     ing                                                                     │
+││                                                                             │
+││     (+210 more lines)                                                       │
 └──────────────────────────────────────────────────────────────────────────────┘
 [LIVE] Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes

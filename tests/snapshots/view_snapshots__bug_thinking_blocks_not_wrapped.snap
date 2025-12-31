@@ -7,13 +7,13 @@ Model: Unknown | Main Agent
 │ Main Agent                                               │
 └──────────────────────────────────────────────────────────┘
 ┌Main Agent (1 entries) ▶──────────────────────────────────┐
-│   1│This is a short line.                                │
-│   1│                                                     │
-│   1│This is a very long line that should definitely wrap │
-│   1│displayed in a narrow terminal window because it exce│
-│   1│he typical width of most terminal displays.          │
-│   1│                                                     │
-│   1│Another short line.                                  │
+││   1 This is a short line.                               │
+││                                                         │
+││     This is a very long line that should definitely wrap│
+││     displayed in a narrow terminal window because it exc│
+││     he typical width of most terminal displays.         │
+││                                                         │
+││     Another short line.                                 │
 │                                                          │
 │                                                          │
 │                                                          │
