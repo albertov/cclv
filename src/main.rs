@@ -62,11 +62,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!(version = env!("CARGO_PKG_VERSION"), "cclv starting");
 
+    // Load configuration with full precedence chain:
+    // Defaults → Config File → Env Vars → CLI Args
+    let config = {
+        // 1. Load config file (or None if missing)
+        let config_file = cclv::config::load_config_with_precedence(args.config.clone())?;
+
+        // 2. Merge with defaults
+        let merged = cclv::config::merge_config(config_file);
+
+        // 3. Apply environment variable overrides
+        let with_env = cclv::config::apply_env_overrides(merged);
+
+        // 4. Apply CLI argument overrides
+        // For theme: always use CLI value (has default)
+        // For follow/stats: only override if flag was explicitly set (true)
+        let theme_override = Some(args.theme.clone());
+        let follow_override = if args.follow { Some(true) } else { None };
+        let stats_override = if args.stats { Some(true) } else { None };
+
+        cclv::config::apply_cli_overrides(with_env, theme_override, follow_override, stats_override)
+    };
+
+    info!(
+        config = ?config,
+        "Configuration loaded and resolved"
+    );
+
     // Detect input source (file or stdin)
     let input_source = cclv::source::detect_input_source(args.file.clone())?;
 
-    // Create CliArgs for TUI
-    let cli_args = cclv::view::CliArgs::new(args.stats, args.follow);
+    // Create CliArgs for TUI using resolved config
+    let cli_args = cclv::view::CliArgs::new(config.show_stats, config.follow);
 
     // Run the TUI with the input source
     cclv::view::run_with_source(input_source, cli_args)?;

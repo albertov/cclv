@@ -69,9 +69,47 @@ pub struct ConfigFile {
     #[serde(default)]
     pub keybindings: Option<toml::Value>,
 
-    /// Pricing section for cost estimation (future use).
+    /// Pricing section for cost estimation.
     #[serde(default)]
-    pub pricing: Option<toml::Value>,
+    pub pricing: Option<PricingConfigSection>,
+}
+
+/// Pricing configuration section from TOML.
+///
+/// Structure matches the TOML format:
+/// ```toml
+/// [pricing.models.opus]
+/// input = 15.0
+/// output = 75.0
+/// cached_input = 1.5
+/// ```
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PricingConfigSection {
+    /// Per-model pricing entries (e.g., "opus", "sonnet", "haiku").
+    #[serde(default)]
+    pub models: std::collections::HashMap<String, PricingEntry>,
+
+    /// Default pricing for unknown models.
+    #[serde(default)]
+    pub default: Option<PricingEntry>,
+}
+
+/// Pricing entry for a specific model.
+///
+/// All costs are per million tokens in USD.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PricingEntry {
+    /// Cost per million input tokens.
+    pub input: f64,
+
+    /// Cost per million output tokens.
+    pub output: f64,
+
+    /// Cost per million cached input tokens (optional).
+    #[serde(default)]
+    pub cached_input: Option<f64>,
 }
 
 /// Resolved configuration after applying precedence rules.
@@ -242,6 +280,47 @@ pub fn merge_config(config_file: Option<ConfigFile>) -> ResolvedConfig {
             .log_buffer_capacity
             .unwrap_or(defaults.log_buffer_capacity),
     }
+}
+
+/// Apply CLI argument overrides to resolved config.
+///
+/// CLI args have the highest precedence and override all other sources.
+/// Only applies overrides for flags that were explicitly set by the user.
+///
+/// Precedence chain: Defaults → Config File → Env Vars → CLI Args (highest)
+///
+/// # Arguments
+///
+/// * `config` - Base resolved config (already merged with defaults, file, and env vars)
+/// * `theme_override` - Optional theme from `--theme` flag
+/// * `follow_override` - Optional follow mode from `--follow` flag
+/// * `stats_override` - Optional stats visibility from `--stats` flag
+///
+/// # Returns
+///
+/// Config with CLI overrides applied.
+pub fn apply_cli_overrides(
+    mut config: ResolvedConfig,
+    theme_override: Option<String>,
+    follow_override: Option<bool>,
+    stats_override: Option<bool>,
+) -> ResolvedConfig {
+    // Apply theme override if provided
+    if let Some(theme) = theme_override {
+        config.theme = theme;
+    }
+
+    // Apply follow override if provided
+    if let Some(follow) = follow_override {
+        config.follow = follow;
+    }
+
+    // Apply stats override if provided
+    if let Some(stats) = stats_override {
+        config.show_stats = stats;
+    }
+
+    config
 }
 
 #[cfg(test)]

@@ -374,3 +374,412 @@ unknown_field = "should fail"
         "Should reject TOML with unknown fields due to deny_unknown_fields"
     );
 }
+
+// ===== Pricing Section Tests =====
+
+#[test]
+fn pricing_section_parses_single_model() {
+    let toml_content = r#"
+[pricing.models.opus]
+input = 15.0
+output = 75.0
+cached_input = 1.5
+"#;
+
+    let config: ConfigFile = toml::from_str(toml_content).expect("Should parse pricing section");
+
+    assert!(config.pricing.is_some(), "Pricing section should be parsed");
+
+    let pricing = config.pricing.unwrap();
+    assert_eq!(pricing.models.len(), 1, "Should have one model");
+
+    let opus = pricing.models.get("opus").expect("Should have opus model");
+    assert_eq!(opus.input, 15.0, "Input cost should match");
+    assert_eq!(opus.output, 75.0, "Output cost should match");
+    assert_eq!(
+        opus.cached_input,
+        Some(1.5),
+        "Cached input cost should match"
+    );
+}
+
+#[test]
+fn pricing_section_parses_multiple_models() {
+    let toml_content = r#"
+[pricing.models.opus]
+input = 15.0
+output = 75.0
+cached_input = 1.5
+
+[pricing.models.sonnet]
+input = 3.0
+output = 15.0
+cached_input = 0.3
+
+[pricing.models.haiku]
+input = 0.8
+output = 4.0
+cached_input = 0.08
+"#;
+
+    let config: ConfigFile = toml::from_str(toml_content).expect("Should parse multiple models");
+
+    let pricing = config.pricing.expect("Pricing section should be present");
+    assert_eq!(pricing.models.len(), 3, "Should have three models");
+
+    // Check opus
+    let opus = pricing.models.get("opus").expect("Should have opus");
+    assert_eq!(opus.input, 15.0);
+    assert_eq!(opus.output, 75.0);
+
+    // Check sonnet
+    let sonnet = pricing.models.get("sonnet").expect("Should have sonnet");
+    assert_eq!(sonnet.input, 3.0);
+    assert_eq!(sonnet.output, 15.0);
+
+    // Check haiku
+    let haiku = pricing.models.get("haiku").expect("Should have haiku");
+    assert_eq!(haiku.input, 0.8);
+    assert_eq!(haiku.output, 4.0);
+}
+
+#[test]
+fn pricing_entry_allows_missing_cached_input() {
+    let toml_content = r#"
+[pricing.models.custom]
+input = 10.0
+output = 50.0
+"#;
+
+    let config: ConfigFile = toml::from_str(toml_content).expect("Should parse without cached_input");
+
+    let pricing = config.pricing.expect("Pricing section should be present");
+    let custom = pricing.models.get("custom").expect("Should have custom model");
+
+    assert_eq!(custom.input, 10.0);
+    assert_eq!(custom.output, 50.0);
+    assert_eq!(
+        custom.cached_input, None,
+        "Cached input should be None when omitted"
+    );
+}
+
+#[test]
+fn pricing_section_parses_default_pricing() {
+    let toml_content = r#"
+[pricing.default]
+input = 20.0
+output = 100.0
+cached_input = 2.0
+"#;
+
+    let config: ConfigFile = toml::from_str(toml_content).expect("Should parse default pricing");
+
+    let pricing = config.pricing.expect("Pricing section should be present");
+    let default = pricing.default.expect("Should have default pricing");
+
+    assert_eq!(default.input, 20.0);
+    assert_eq!(default.output, 100.0);
+    assert_eq!(default.cached_input, Some(2.0));
+}
+
+#[test]
+fn pricing_section_parses_models_and_default() {
+    let toml_content = r#"
+[pricing.models.opus]
+input = 15.0
+output = 75.0
+
+[pricing.default]
+input = 10.0
+output = 50.0
+"#;
+
+    let config: ConfigFile = toml::from_str(toml_content).expect("Should parse models and default");
+
+    let pricing = config.pricing.expect("Pricing section should be present");
+    assert_eq!(pricing.models.len(), 1);
+    assert!(pricing.default.is_some());
+}
+
+#[test]
+fn pricing_section_rejects_unknown_fields_in_entry() {
+    let toml_content = r#"
+[pricing.models.opus]
+input = 15.0
+output = 75.0
+unknown_field = "fail"
+"#;
+
+    let result: Result<ConfigFile, _> = toml::from_str(toml_content);
+    assert!(
+        result.is_err(),
+        "Should reject unknown fields in pricing entry"
+    );
+}
+
+#[test]
+fn pricing_section_rejects_unknown_fields_in_section() {
+    let toml_content = r#"
+[pricing]
+unknown_section = "fail"
+"#;
+
+    let result: Result<ConfigFile, _> = toml::from_str(toml_content);
+    assert!(
+        result.is_err(),
+        "Should reject unknown fields in pricing section"
+    );
+}
+
+#[test]
+fn full_config_with_pricing_parses_correctly() {
+    let temp_dir = env::temp_dir();
+    let config_path = temp_dir.join("cclv_test_full_pricing.toml");
+
+    let toml_content = r#"
+theme = "solarized-dark"
+follow = false
+show_stats = true
+
+[pricing.models.opus]
+input = 15.0
+output = 75.0
+cached_input = 1.5
+
+[pricing.models.sonnet]
+input = 3.0
+output = 15.0
+"#;
+
+    fs::write(&config_path, toml_content).expect("Failed to write test config");
+
+    let result = load_config_file(&config_path);
+    assert!(result.is_ok(), "Should parse full config with pricing");
+
+    let config = result.unwrap().expect("Should have config");
+    assert_eq!(config.theme, Some("solarized-dark".to_string()));
+    assert_eq!(config.follow, Some(false));
+
+    let pricing = config.pricing.expect("Should have pricing section");
+    assert_eq!(pricing.models.len(), 2);
+    assert!(pricing.models.contains_key("opus"));
+    assert!(pricing.models.contains_key("sonnet"));
+
+    // Cleanup
+    fs::remove_file(config_path).ok();
+}
+
+// ===== CLI Override Tests =====
+
+#[test]
+fn apply_cli_overrides_theme_override() {
+    let base = ResolvedConfig {
+        theme: "base16-ocean".to_string(),
+        follow: true,
+        show_stats: false,
+        collapse_threshold: 10,
+        summary_lines: 3,
+        line_wrap: true,
+        log_buffer_capacity: 1000,
+    };
+
+    let result = apply_cli_overrides(base.clone(), Some("monokai".to_string()), None, None);
+
+    assert_eq!(result.theme, "monokai", "CLI theme should override");
+    assert_eq!(result.follow, base.follow, "Other fields unchanged");
+    assert_eq!(result.show_stats, base.show_stats, "Other fields unchanged");
+}
+
+#[test]
+fn apply_cli_overrides_follow_override() {
+    let base = ResolvedConfig::default();
+
+    let result = apply_cli_overrides(base.clone(), None, Some(false), None);
+
+    assert_eq!(result.follow, false, "CLI follow should override");
+    assert_eq!(result.theme, base.theme, "Other fields unchanged");
+}
+
+#[test]
+fn apply_cli_overrides_stats_override() {
+    let base = ResolvedConfig::default();
+
+    let result = apply_cli_overrides(base.clone(), None, None, Some(true));
+
+    assert_eq!(result.show_stats, true, "CLI stats should override");
+    assert_eq!(result.theme, base.theme, "Other fields unchanged");
+}
+
+#[test]
+fn apply_cli_overrides_multiple_overrides() {
+    let base = ResolvedConfig {
+        theme: "base16-ocean".to_string(),
+        follow: true,
+        show_stats: false,
+        collapse_threshold: 10,
+        summary_lines: 3,
+        line_wrap: true,
+        log_buffer_capacity: 1000,
+    };
+
+    let result = apply_cli_overrides(
+        base.clone(),
+        Some("solarized-dark".to_string()),
+        Some(false),
+        Some(true),
+    );
+
+    assert_eq!(result.theme, "solarized-dark");
+    assert_eq!(result.follow, false);
+    assert_eq!(result.show_stats, true);
+    assert_eq!(
+        result.collapse_threshold, base.collapse_threshold,
+        "Non-overridden fields unchanged"
+    );
+}
+
+#[test]
+fn apply_cli_overrides_no_overrides() {
+    let base = ResolvedConfig::default();
+
+    let result = apply_cli_overrides(base.clone(), None, None, None);
+
+    assert_eq!(result, base, "No overrides should leave config unchanged");
+}
+
+#[test]
+fn precedence_chain_defaults_to_config_file() {
+    // Test: Defaults → Config File
+    let config_file = ConfigFile {
+        theme: Some("custom-theme".to_string()),
+        follow: Some(false),
+        show_stats: None,
+        collapse_threshold: None,
+        summary_lines: None,
+        line_wrap: None,
+        log_buffer_capacity: None,
+        keybindings: None,
+        pricing: None,
+    };
+
+    let resolved = merge_config(Some(config_file));
+
+    assert_eq!(resolved.theme, "custom-theme", "Config file overrides default");
+    assert_eq!(resolved.follow, false, "Config file overrides default");
+    assert_eq!(
+        resolved.show_stats,
+        ResolvedConfig::default().show_stats,
+        "Defaults used when config file has None"
+    );
+}
+
+#[test]
+fn precedence_chain_config_file_to_env_vars() {
+    // Clean up
+    env::remove_var("CCLV_THEME");
+
+    // Test: Config File → Env Vars
+    let config_file = ConfigFile {
+        theme: Some("config-theme".to_string()),
+        follow: None,
+        show_stats: None,
+        collapse_threshold: None,
+        summary_lines: None,
+        line_wrap: None,
+        log_buffer_capacity: None,
+        keybindings: None,
+        pricing: None,
+    };
+
+    let merged = merge_config(Some(config_file));
+    assert_eq!(merged.theme, "config-theme");
+
+    // Set env var
+    env::set_var("CCLV_THEME", "env-theme");
+    let with_env = apply_env_overrides(merged);
+
+    assert_eq!(
+        with_env.theme, "env-theme",
+        "Env var should override config file"
+    );
+
+    // Cleanup
+    env::remove_var("CCLV_THEME");
+}
+
+#[test]
+fn precedence_chain_env_vars_to_cli_args() {
+    // Clean up
+    env::remove_var("CCLV_THEME");
+
+    // Test: Env Vars → CLI Args
+    let base = ResolvedConfig {
+        theme: "base".to_string(),
+        follow: true,
+        show_stats: false,
+        collapse_threshold: 10,
+        summary_lines: 3,
+        line_wrap: true,
+        log_buffer_capacity: 1000,
+    };
+
+    // Apply env override
+    env::set_var("CCLV_THEME", "env-theme");
+    let with_env = apply_env_overrides(base);
+    assert_eq!(with_env.theme, "env-theme");
+
+    // Apply CLI override
+    let with_cli = apply_cli_overrides(with_env, Some("cli-theme".to_string()), None, None);
+    assert_eq!(
+        with_cli.theme, "cli-theme",
+        "CLI should override env var"
+    );
+
+    // Cleanup
+    env::remove_var("CCLV_THEME");
+}
+
+#[test]
+fn precedence_chain_full_defaults_to_cli() {
+    // Clean up
+    env::remove_var("CCLV_THEME");
+
+    // Test full precedence chain: Defaults → Config File → Env Vars → CLI Args
+    let config_file = ConfigFile {
+        theme: Some("config-theme".to_string()),
+        follow: Some(false),
+        show_stats: None,
+        collapse_threshold: None,
+        summary_lines: None,
+        line_wrap: None,
+        log_buffer_capacity: None,
+        keybindings: None,
+        pricing: None,
+    };
+
+    // Step 1: Defaults → Config File
+    let merged = merge_config(Some(config_file));
+    assert_eq!(merged.theme, "config-theme");
+    assert_eq!(merged.follow, false);
+
+    // Step 2: → Env Vars
+    env::set_var("CCLV_THEME", "env-theme");
+    let with_env = apply_env_overrides(merged);
+    assert_eq!(with_env.theme, "env-theme", "Env overrides config file");
+    assert_eq!(with_env.follow, false, "Follow unchanged by env");
+
+    // Step 3: → CLI Args
+    let with_cli = apply_cli_overrides(
+        with_env,
+        Some("cli-theme".to_string()),
+        Some(true),
+        Some(true),
+    );
+    assert_eq!(with_cli.theme, "cli-theme", "CLI overrides env");
+    assert_eq!(with_cli.follow, true, "CLI overrides config file");
+    assert_eq!(with_cli.show_stats, true, "CLI overrides default");
+
+    // Cleanup
+    env::remove_var("CCLV_THEME");
+}
