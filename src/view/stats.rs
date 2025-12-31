@@ -103,8 +103,8 @@ impl<'a> Widget for StatsPanel<'a> {
 
         lines.push(Line::from(""));
 
-        // Cost section
-        let cost = self.stats.estimated_cost(self.pricing, self.model_id);
+        // Cost section - calculate from filtered usage
+        let cost = calculate_cost(&usage, self.pricing, self.model_id);
         lines.push(
             Line::from("Estimated Cost:").style(
                 Style::default()
@@ -149,6 +149,39 @@ impl<'a> Widget for StatsPanel<'a> {
 }
 
 // ===== Formatting Helpers =====
+
+/// Calculate estimated cost in USD for the given token usage.
+///
+/// Cost includes:
+/// - Input tokens at input rate
+/// - Output tokens at output rate
+/// - Cached tokens (cache_creation + cache_read) at cached rate (or input rate if not specified)
+///
+/// Model pricing is determined by matching the model_id string (e.g., "opus", "sonnet").
+fn calculate_cost(
+    usage: &crate::model::TokenUsage,
+    pricing: &PricingConfig,
+    model_id: Option<&str>,
+) -> f64 {
+    let model_pricing = pricing.get(model_id.unwrap_or("opus"));
+
+    let input_cost =
+        (usage.input_tokens as f64 / 1_000_000.0) * model_pricing.input_cost_per_million;
+
+    let output_cost =
+        (usage.output_tokens as f64 / 1_000_000.0) * model_pricing.output_cost_per_million;
+
+    // Use cached rate if available, otherwise use standard input rate
+    let cache_rate = model_pricing
+        .cached_input_cost_per_million
+        .unwrap_or(model_pricing.input_cost_per_million);
+
+    let cache_cost = ((usage.cache_creation_input_tokens + usage.cache_read_input_tokens) as f64
+        / 1_000_000.0)
+        * cache_rate;
+
+    input_cost + output_cost + cache_cost
+}
 
 /// Format tool usage breakdown with top N limiting.
 ///
