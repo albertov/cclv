@@ -13,17 +13,21 @@ pub struct EntryUuid(String);
 impl EntryUuid {
     /// Smart constructor: validates non-empty UUID
     pub fn new(raw: impl Into<String>) -> Result<Self, InvalidUuid> {
-        todo!("EntryUuid::new")
+        let s = raw.into();
+        if s.is_empty() {
+            return Err(InvalidUuid::Empty);
+        }
+        Ok(Self(s))
     }
 
     pub fn as_str(&self) -> &str {
-        todo!("EntryUuid::as_str")
+        &self.0
     }
 }
 
 impl fmt::Display for EntryUuid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("EntryUuid::Display")
+        write!(f, "{}", self.0)
     }
 }
 
@@ -34,17 +38,21 @@ pub struct SessionId(String);
 impl SessionId {
     /// Smart constructor: validates non-empty session ID
     pub fn new(raw: impl Into<String>) -> Result<Self, InvalidSessionId> {
-        todo!("SessionId::new")
+        let s = raw.into();
+        if s.is_empty() {
+            return Err(InvalidSessionId::Empty);
+        }
+        Ok(Self(s))
     }
 
     pub fn as_str(&self) -> &str {
-        todo!("SessionId::as_str")
+        &self.0
     }
 }
 
 impl fmt::Display for SessionId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("SessionId::Display")
+        write!(f, "{}", self.0)
     }
 }
 
@@ -55,17 +63,21 @@ pub struct AgentId(String);
 impl AgentId {
     /// Smart constructor: validates non-empty agent ID
     pub fn new(raw: impl Into<String>) -> Result<Self, InvalidAgentId> {
-        todo!("AgentId::new")
+        let s = raw.into();
+        if s.is_empty() {
+            return Err(InvalidAgentId::Empty);
+        }
+        Ok(Self(s))
     }
 
     pub fn as_str(&self) -> &str {
-        todo!("AgentId::as_str")
+        &self.0
     }
 }
 
 impl fmt::Display for AgentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("AgentId::Display")
+        write!(f, "{}", self.0)
     }
 }
 
@@ -76,17 +88,21 @@ pub struct ToolUseId(String);
 impl ToolUseId {
     /// Smart constructor: validates non-empty tool use ID
     pub fn new(raw: impl Into<String>) -> Result<Self, InvalidToolUseId> {
-        todo!("ToolUseId::new")
+        let s = raw.into();
+        if s.is_empty() {
+            return Err(InvalidToolUseId::Empty);
+        }
+        Ok(Self(s))
     }
 
     pub fn as_str(&self) -> &str {
-        todo!("ToolUseId::as_str")
+        &self.0
     }
 }
 
 impl fmt::Display for ToolUseId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("ToolUseId::Display")
+        write!(f, "{}", self.0)
     }
 }
 
