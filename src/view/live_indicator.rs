@@ -4,6 +4,7 @@
 //! - Gray when Static or Eof
 //! - Blinking green when Streaming
 
+use super::styles::MUTED_TEXT;
 use crate::state::InputMode;
 use ratatui::{
     style::{Color, Style},
@@ -78,7 +79,7 @@ impl LiveIndicator {
         match self.mode {
             InputMode::Static | InputMode::Eof => {
                 // Always gray when static or EOF
-                Span::styled(LIVE_INDICATOR_PREFIX, Style::default().fg(Color::Gray))
+                Span::styled(LIVE_INDICATOR_PREFIX, MUTED_TEXT)
             }
             InputMode::Streaming => {
                 if self.blink_on {

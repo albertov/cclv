@@ -1,11 +1,12 @@
 //! Statistics panel widget for displaying session metrics.
 
 use super::helpers::{empty_line, key_value_line};
+use super::styles::SECTION_HEADER;
 use crate::model::{PricingConfig, SessionStats, StatsFilter};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph, Widget},
 };
@@ -84,13 +85,7 @@ impl<'a> Widget for StatsPanel<'a> {
         let usage = self.stats.filtered_usage(self.filter);
 
         // Token section
-        lines.push(
-            Line::from("Tokens:").style(
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        );
+        lines.push(Line::from("Tokens:").style(SECTION_HEADER));
         lines.push(Line::from(format!(
             "  Input:  {}",
             format_tokens(usage.total_input())
@@ -117,36 +112,18 @@ impl<'a> Widget for StatsPanel<'a> {
 
         // Cost section - show actual cost from result entry if available, otherwise estimated
         if let Some(actual_cost) = self.stats.actual_cost_usd {
-            lines.push(
-                Line::from("Actual Cost:").style(
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            );
+            lines.push(Line::from("Actual Cost:").style(SECTION_HEADER));
             lines.push(Line::from(format!("  {}", format_cost(actual_cost))));
         } else {
             let cost = calculate_cost(&usage, self.pricing, self.model_id);
-            lines.push(
-                Line::from("Estimated Cost:").style(
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            );
+            lines.push(Line::from("Estimated Cost:").style(SECTION_HEADER));
             lines.push(Line::from(format!("  {}", format_cost(cost))));
         }
         lines.push(empty_line());
 
         // Tool usage section
         if !self.stats.filtered_tool_counts(self.filter).is_empty() {
-            lines.push(
-                Line::from("Tool Usage:").style(
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            );
+            lines.push(Line::from("Tool Usage:").style(SECTION_HEADER));
             let tool_lines =
                 format_tool_breakdown(self.stats.filtered_tool_counts(self.filter), 10);
             lines.extend(tool_lines);
@@ -154,24 +131,12 @@ impl<'a> Widget for StatsPanel<'a> {
         }
 
         // Subagents section
-        lines.push(
-            Line::from("Subagents:").style(
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        );
+        lines.push(Line::from("Subagents:").style(SECTION_HEADER));
         lines.push(key_value_line("Count", self.stats.subagent_count));
         lines.push(empty_line());
 
         // Entries section
-        lines.push(
-            Line::from("Entries:").style(
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        );
+        lines.push(Line::from("Entries:").style(SECTION_HEADER));
         lines.push(key_value_line("Count", self.stats.entry_count));
 
         // Render the paragraph

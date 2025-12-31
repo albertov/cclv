@@ -59,7 +59,7 @@ pub fn render_help_overlay(frame: &mut Frame) {
 
     let hint = Paragraph::new(Line::from(vec![Span::styled(
         " Press Esc or ? to close ",
-        Style::default().fg(Color::Gray).add_modifier(Modifier::DIM),
+        super::styles::MUTED_TEXT.add_modifier(Modifier::DIM),
     )]))
     .alignment(Alignment::Center);
 
@@ -88,9 +88,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
 ///
 /// Returns a Vec of Line representing all shortcuts with category headers.
 fn build_help_content() -> Vec<Line<'static>> {
-    let category_style = Style::default()
-        .fg(Color::Cyan)
-        .add_modifier(Modifier::BOLD);
+    let category_style = super::styles::SECTION_HEADER;
     let key_style = Style::default()
         .fg(Color::Yellow)
         .add_modifier(Modifier::BOLD);

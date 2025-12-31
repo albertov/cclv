@@ -1,9 +1,24 @@
 //! Message type styling configuration.
 //!
 //! Provides distinct colors for different message types (User, Assistant, Tool calls, Errors).
+//! Also provides common UI style constants for section headers and muted text.
 
 use crate::model::{ContentBlock, Role};
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
+
+// ===== Common UI Styles =====
+
+/// Style for section headers: Cyan + Bold.
+///
+/// Used for section headers in stats, help, and other UI components.
+pub const SECTION_HEADER: Style = Style::new()
+    .fg(Color::Cyan)
+    .add_modifier(Modifier::BOLD);
+
+/// Style for muted text: Gray.
+///
+/// Used for less prominent UI elements like disabled indicators.
+pub const MUTED_TEXT: Style = Style::new().fg(Color::Gray);
 
 // ===== ColorConfig =====
 

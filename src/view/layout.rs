@@ -16,7 +16,6 @@ use crate::view::{
 };
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
     text::{Line, Span},
     widgets::Paragraph,
     Frame,
@@ -409,7 +408,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
         WrapMode::Wrap => "Wrap: On | ",
         WrapMode::NoWrap => "Wrap: Off | ",
     };
-    spans.push(Span::styled(wrap_text, Style::default().fg(Color::Gray)));
+    spans.push(Span::styled(wrap_text, super::styles::MUTED_TEXT));
 
     // Calculate available width for hints
     let used_width: u16 = spans.iter().map(|s| s.content.len() as u16).sum();
@@ -418,7 +417,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     // Keyboard hints
     let search_active = matches!(state.search, SearchState::Active { .. });
     let hints = build_keyboard_hints(state.focus, search_active, available_width);
-    spans.push(Span::styled(hints, Style::default().fg(Color::Gray)));
+    spans.push(Span::styled(hints, super::styles::MUTED_TEXT));
 
     let paragraph = Paragraph::new(Line::from(spans));
     frame.render_widget(paragraph, area);

@@ -1,6 +1,7 @@
 //! Tests for LiveIndicator widget (FR-042b).
 
 use super::*;
+use super::super::styles::MUTED_TEXT;
 use ratatui::style::{Color, Style};
 
 // ===== Static Mode Tests =====
@@ -15,9 +16,8 @@ fn static_mode_renders_gray_text() {
         "Static mode should show '[LIVE] ' text"
     );
     assert_eq!(
-        span.style,
-        Style::default().fg(Color::Gray),
-        "Static mode should use gray color"
+        span.style, MUTED_TEXT,
+        "Static mode should use MUTED_TEXT style"
     );
 }
 
@@ -28,9 +28,8 @@ fn static_mode_ignores_blink_state() {
     let span = indicator.render();
 
     assert_eq!(
-        span.style,
-        Style::default().fg(Color::Gray),
-        "Static mode should ignore blink_on and stay gray"
+        span.style, MUTED_TEXT,
+        "Static mode should ignore blink_on and use MUTED_TEXT"
     );
 }
 
@@ -46,9 +45,8 @@ fn eof_mode_renders_gray_text() {
         "EOF mode should show '[LIVE] ' text"
     );
     assert_eq!(
-        span.style,
-        Style::default().fg(Color::Gray),
-        "EOF mode should use gray color"
+        span.style, MUTED_TEXT,
+        "EOF mode should use MUTED_TEXT style"
     );
 }
 
@@ -59,9 +57,8 @@ fn eof_mode_ignores_blink_state() {
     let span = indicator.render();
 
     assert_eq!(
-        span.style,
-        Style::default().fg(Color::Gray),
-        "EOF mode should ignore blink_on and stay gray"
+        span.style, MUTED_TEXT,
+        "EOF mode should ignore blink_on and use MUTED_TEXT"
     );
 }
 

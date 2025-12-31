@@ -6,11 +6,12 @@
 //! 3. Global totals (all sessions - future multi-session support)
 
 use super::helpers::empty_line;
+use super::styles::SECTION_HEADER;
 use crate::model::{PricingConfig, SessionStats, StatsFilter};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph, Widget},
 };
@@ -241,13 +242,7 @@ fn render_stat_scope(
     let usage = stats.filtered_usage(filter);
 
     // Token section (compact)
-    lines.push(
-        Line::from("Tokens:").style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-    );
+    lines.push(Line::from("Tokens:").style(SECTION_HEADER));
     lines.push(Line::from(format!(
         "  In:  {}",
         format_tokens(usage.total_input())
@@ -260,26 +255,14 @@ fn render_stat_scope(
 
     // Cost section
     let cost = calculate_cost(&usage, pricing, model_id);
-    lines.push(
-        Line::from("Cost:").style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-    );
+    lines.push(Line::from("Cost:").style(SECTION_HEADER));
     lines.push(Line::from(format!("  {}", format_cost(cost))));
     lines.push(empty_line());
 
     // Top 5 tools (compact)
     let tool_counts = stats.filtered_tool_counts(filter);
     if !tool_counts.is_empty() {
-        lines.push(
-            Line::from("Tools:").style(
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        );
+        lines.push(Line::from("Tools:").style(SECTION_HEADER));
         let tool_lines = format_tool_breakdown(tool_counts, 5);
         lines.extend(tool_lines);
     }
