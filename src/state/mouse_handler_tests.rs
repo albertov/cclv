@@ -1,0 +1,318 @@
+//! Tests for mouse event handling.
+
+use super::*;
+use crate::model::{
+    AgentId, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+    MessageContent, Role, Session, SessionId,
+};
+use crate::state::AppState;
+use chrono::Utc;
+use ratatui::layout::Rect;
+
+// ===== Test Helpers =====
+
+fn agent_id(s: &str) -> AgentId {
+    AgentId::new(s).unwrap()
+}
+
+fn make_session_id(s: &str) -> SessionId {
+    SessionId::new(s).expect("valid session id")
+}
+
+fn make_entry_uuid(s: &str) -> EntryUuid {
+    EntryUuid::new(s).expect("valid uuid")
+}
+
+fn make_subagent_entry(agent_id: &str) -> ConversationEntry {
+    let log_entry = LogEntry::new(
+        make_entry_uuid(&format!("entry-{}", agent_id)),
+        None,
+        make_session_id("test-session"),
+        Some(AgentId::new(agent_id).expect("valid agent id")),
+        Utc::now(),
+        EntryType::Assistant,
+        Message::new(
+            Role::Assistant,
+            MessageContent::Text("Test message".to_string()),
+        ),
+        EntryMetadata::default(),
+    );
+
+    ConversationEntry::Valid(Box::new(log_entry))
+}
+
+fn create_app_state_with_tabs(agent_ids: Vec<&str>) -> AppState {
+    let mut session = Session::new(make_session_id("test-session"));
+
+    // Add a conversation entry for each subagent (this creates the subagent)
+    for id in agent_ids {
+        session.add_conversation_entry(make_subagent_entry(id));
+    }
+
+    AppState::new(session)
+}
+
+// ===== detect_tab_click Tests =====
+
+#[test]
+fn detect_tab_click_returns_no_tab_when_click_outside_bounds() {
+    let agent1 = agent_id("agent-1");
+    let agent_ids = vec![&agent1];
+
+    // Tab area at (0, 0) with width 20, height 3
+    let tab_area = Rect::new(0, 0, 20, 3);
+
+    // Click outside the area (x=25, y=5)
+    let result = detect_tab_click(25, 5, tab_area, &agent_ids);
+
+    assert_eq!(
+        result,
+        TabClickResult::NoTab,
+        "Click outside tab area should return NoTab"
+    );
+}
+
+#[test]
+fn detect_tab_click_returns_no_tab_when_click_before_tab_area() {
+    let agent1 = agent_id("agent-1");
+    let agent_ids = vec![&agent1];
+
+    // Tab area starts at x=10
+    let tab_area = Rect::new(10, 0, 20, 3);
+
+    // Click before the area (x=5, y=1)
+    let result = detect_tab_click(5, 1, tab_area, &agent_ids);
+
+    assert_eq!(
+        result,
+        TabClickResult::NoTab,
+        "Click before tab area should return NoTab"
+    );
+}
+
+#[test]
+fn detect_tab_click_detects_first_tab_in_single_tab_scenario() {
+    let agent1 = agent_id("agent-1");
+    let agent_ids = vec![&agent1];
+
+    // Tab area at (0, 0) with width 40, height 3
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Click in the middle of the tab bar (x=20, y=1)
+    // With only one tab, any click within bounds should hit it
+    let result = detect_tab_click(20, 1, tab_area, &agent_ids);
+
+    assert_eq!(
+        result,
+        TabClickResult::TabClicked(0),
+        "Click within single tab should return index 0"
+    );
+}
+
+#[test]
+fn detect_tab_click_detects_second_tab_when_multiple_tabs() {
+    let agent1 = agent_id("agent-1");
+    let agent2 = agent_id("agent-2");
+    let agent3 = agent_id("agent-3");
+    let agent_ids = vec![&agent1, &agent2, &agent3];
+
+    // Tab area with width 60 (each tab gets ~20 chars)
+    let tab_area = Rect::new(0, 0, 60, 3);
+
+    // Click in the second tab's area (roughly x=25, y=1)
+    // This assumes each tab takes equal width
+    let result = detect_tab_click(25, 1, tab_area, &agent_ids);
+
+    assert_eq!(
+        result,
+        TabClickResult::TabClicked(1),
+        "Click in second tab area should return index 1"
+    );
+}
+
+#[test]
+fn detect_tab_click_detects_first_tab_at_left_edge() {
+    let agent1 = agent_id("agent-1");
+    let agent2 = agent_id("agent-2");
+    let agent_ids = vec![&agent1, &agent2];
+
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Click at the very start of first tab (x=1, y=1)
+    // Note: x=0 might be the border
+    let result = detect_tab_click(1, 1, tab_area, &agent_ids);
+
+    assert_eq!(
+        result,
+        TabClickResult::TabClicked(0),
+        "Click at left edge should hit first tab"
+    );
+}
+
+#[test]
+fn detect_tab_click_detects_last_tab_at_right_edge() {
+    let agent1 = agent_id("agent-1");
+    let agent2 = agent_id("agent-2");
+    let agent_ids = vec![&agent1, &agent2];
+
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Click near the right edge (x=38, y=1)
+    let result = detect_tab_click(38, 1, tab_area, &agent_ids);
+
+    assert_eq!(
+        result,
+        TabClickResult::TabClicked(1),
+        "Click at right edge should hit last tab"
+    );
+}
+
+#[test]
+fn detect_tab_click_works_with_empty_agent_list() {
+    let agent_ids: Vec<&AgentId> = vec![];
+
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Any click with no tabs should return NoTab
+    let result = detect_tab_click(20, 1, tab_area, &agent_ids);
+
+    assert_eq!(
+        result,
+        TabClickResult::NoTab,
+        "Click with no tabs should return NoTab"
+    );
+}
+
+#[test]
+fn detect_tab_click_respects_vertical_bounds() {
+    let agent1 = agent_id("agent-1");
+    let agent_ids = vec![&agent1];
+
+    // Tab area height is 3, from y=0 to y=2
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Click below the tab area (y=5)
+    let result = detect_tab_click(20, 5, tab_area, &agent_ids);
+
+    assert_eq!(
+        result,
+        TabClickResult::NoTab,
+        "Click below tab area should return NoTab"
+    );
+}
+
+// ===== handle_mouse_click Tests =====
+
+#[test]
+fn handle_mouse_click_switches_to_clicked_tab() {
+    let state = create_app_state_with_tabs(vec!["agent-1", "agent-2", "agent-3"]);
+
+    // Initially select first tab (need to set focus first)
+    let mut state = state;
+    state.focus = crate::state::FocusPane::Subagent;
+    state.select_tab(1); // 1-indexed
+    assert_eq!(state.selected_tab, Some(0));
+
+    // Tab area
+    let tab_area = Rect::new(0, 0, 60, 3);
+
+    // Click on second tab (assume x=25 is in second tab)
+    let updated_state = handle_mouse_click(state, 25, 1, tab_area);
+
+    assert_eq!(
+        updated_state.selected_tab,
+        Some(1),
+        "Clicking second tab should switch selection to index 1"
+    );
+}
+
+#[test]
+fn handle_mouse_click_preserves_state_when_clicking_outside_tabs() {
+    let state = create_app_state_with_tabs(vec!["agent-1", "agent-2"]);
+    let mut state = state;
+    state.focus = crate::state::FocusPane::Subagent;
+    state.select_tab(1); // 1-indexed
+
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Click outside the tab area
+    let updated_state = handle_mouse_click(state.clone(), 100, 1, tab_area);
+
+    assert_eq!(
+        updated_state.selected_tab, state.selected_tab,
+        "Clicking outside tabs should preserve selection"
+    );
+}
+
+#[test]
+fn handle_mouse_click_switches_from_none_to_first_tab() {
+    let state = create_app_state_with_tabs(vec!["agent-1", "agent-2"]);
+
+    // Start with no tab selected
+    let mut state = state;
+    state.selected_tab = None;
+
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Click on first tab
+    let updated_state = handle_mouse_click(state, 5, 1, tab_area);
+
+    assert_eq!(
+        updated_state.selected_tab,
+        Some(0),
+        "Clicking first tab when none selected should select it"
+    );
+}
+
+#[test]
+fn handle_mouse_click_can_switch_to_last_tab() {
+    let state = create_app_state_with_tabs(vec!["agent-1", "agent-2", "agent-3"]);
+    let mut state = state;
+    state.focus = crate::state::FocusPane::Subagent;
+    state.select_tab(1); // 1-indexed
+
+    let tab_area = Rect::new(0, 0, 60, 3);
+
+    // Click on third/last tab (x=50)
+    let updated_state = handle_mouse_click(state, 50, 1, tab_area);
+
+    assert_eq!(
+        updated_state.selected_tab,
+        Some(2),
+        "Should switch to third tab"
+    );
+}
+
+#[test]
+fn handle_mouse_click_with_no_tabs_preserves_state() {
+    let state = create_app_state_with_tabs(vec![]);
+
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Click anywhere
+    let updated_state = handle_mouse_click(state.clone(), 20, 1, tab_area);
+
+    assert_eq!(
+        updated_state.selected_tab, state.selected_tab,
+        "With no tabs, state should be unchanged"
+    );
+}
+
+#[test]
+fn handle_mouse_click_clicking_same_tab_is_idempotent() {
+    let state = create_app_state_with_tabs(vec!["agent-1", "agent-2"]);
+    let mut state = state;
+    state.focus = crate::state::FocusPane::Subagent;
+    state.select_tab(2); // 1-indexed, select second tab
+
+    let tab_area = Rect::new(0, 0, 40, 3);
+
+    // Click on the already-selected second tab
+    let updated_state = handle_mouse_click(state.clone(), 30, 1, tab_area);
+
+    assert_eq!(
+        updated_state.selected_tab,
+        Some(1),
+        "Clicking already-selected tab should keep it selected"
+    );
+}
