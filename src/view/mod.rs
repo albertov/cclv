@@ -1921,6 +1921,126 @@ mod tests {
         );
     }
 
+    // ===== Event::Resize Tests =====
+
+    #[test]
+    fn event_resize_triggers_relayout_of_all_views() {
+        use crate::model::{
+            AgentId, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId, TokenUsage,
+        };
+        use crate::state::WrapMode;
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+
+        // Create test app with wide terminal (80 columns)
+        let backend = TestBackend::new(80, 24);
+        let terminal = Terminal::new(backend).unwrap();
+
+        let stdin_data = b"";
+        let stdin_source = crate::source::StdinSource::from_reader(&stdin_data[..]);
+        let input_source = InputSource::Stdin(stdin_source);
+
+        let mut app_state = AppState::new();
+
+        // Add entry to main pane with long text that will wrap differently at different widths
+        let long_text = "This is a very long message that will definitely wrap at narrow widths but might not wrap at wider terminal widths and will have different heights";
+        let main_message = Message::new(Role::User, MessageContent::Text(long_text.to_string()));
+        let main_entry = LogEntry::new(
+            EntryUuid::new("main-uuid").unwrap(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            None,
+            Utc::now(),
+            EntryType::User,
+            main_message,
+            EntryMetadata::default(),
+        );
+        app_state.add_entries(vec![ConversationEntry::Valid(Box::new(main_entry))]);
+
+        // Add subagent entry with long text
+        let agent_id = AgentId::new("test-agent").unwrap();
+        let sub_message =
+            Message::new(Role::Assistant, MessageContent::Text(long_text.to_string()))
+                .with_usage(TokenUsage::default());
+        let sub_entry = LogEntry::new(
+            EntryUuid::new("sub-uuid").unwrap(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            Some(agent_id),
+            Utc::now(),
+            EntryType::Assistant,
+            sub_message,
+            EntryMetadata::default(),
+        );
+        app_state.add_entries(vec![ConversationEntry::Valid(Box::new(sub_entry))]);
+
+        let key_bindings = KeyBindings::default();
+
+        let mut app = TuiApp {
+            terminal,
+            app_state,
+            input_source,
+            line_counter: 0,
+            key_bindings,
+            pending_entries: Vec::new(),
+            last_tab_area: None,
+            last_main_area: None,
+            last_subagent_area: None,
+        };
+
+        // Initial relayout at 80 columns
+        if let Some(view) = app.app_state.main_conversation_view_mut() {
+            view.relayout(80, WrapMode::Wrap);
+        }
+        if let Some(view) = app.app_state.subagent_conversation_view_mut(0) {
+            view.relayout(80, WrapMode::Wrap);
+        }
+
+        let initial_main_height = app
+            .app_state
+            .main_conversation_view()
+            .map(|v| v.total_height())
+            .unwrap_or(0);
+        let initial_sub_height = app
+            .app_state
+            .subagent_conversation_view(0)
+            .map(|v| v.total_height())
+            .unwrap_or(0);
+
+        // Resize terminal to 40 columns (much narrower - will cause more wrapping)
+        app.terminal.backend_mut().resize(40, 24);
+
+        // Simulate Event::Resize(40, 24) - this should trigger relayout
+        // For now, manually call what we expect resize handler to do (test will fail)
+        // TODO: Once implemented, this will be done by the event handler
+        let _resize_width = 40u16;
+        let _resize_height = 24u16;
+
+        // Test expectation: After resize event, all views should be relayouted
+        // Since we haven't implemented the handler yet, heights should still be at 80 width
+        let after_resize_main_height = app
+            .app_state
+            .main_conversation_view()
+            .map(|v| v.total_height())
+            .unwrap_or(0);
+        let after_resize_sub_height = app
+            .app_state
+            .subagent_conversation_view(0)
+            .map(|v| v.total_height())
+            .unwrap_or(0);
+
+        // At narrower width (40 vs 80), wrapped text should have greater height
+        assert!(
+            after_resize_main_height > initial_main_height,
+            "Main view should have greater height after resize to narrower width (relayout should have been triggered)"
+        );
+        assert!(
+            after_resize_sub_height > initial_sub_height,
+            "Subagent view should have greater height after resize to narrower width (relayout should have been triggered)"
+        );
+    }
+
     // ===== CliArgs Tests =====
 
     #[test]
