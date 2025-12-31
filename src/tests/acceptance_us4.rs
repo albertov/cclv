@@ -583,9 +583,9 @@ fn us4_scenario8_horizontal_scroll() {
 
 #[test]
 fn us4_scenario6_enter_expands_collapsed() {
-    // GIVEN: A session with multiple messages, scrolled to message 1 (not entry 0)
+    // GIVEN: A session with a large message at entry 0, scrolled down within entry 0
     // WHEN: User presses Enter
-    // THEN: The currently visible message (entry 1) expands, not entry 0
+    // THEN: Entry 0 (the currently focused entry) expands
     //
     // This test reproduces the bug where Enter/Space always toggle entry 0
     // instead of the entry that's currently at the top of the viewport.
@@ -622,10 +622,8 @@ fn us4_scenario6_enter_expands_collapsed() {
     // WHEN: User presses Enter to expand
     harness.send_key(KeyCode::Enter);
 
-    // VERIFY: Entry 1 (the topmost visible entry) is now expanded
+    // VERIFY: Entry 0 (the focused entry after scrolling within it) is now expanded
     let state_after = harness.state();
-
-    // VERIFY: Entry 0 (the topmost focused entry after scroll) is now expanded
     assert!(
         state_after
             .log_view()
@@ -639,9 +637,9 @@ fn us4_scenario6_enter_expands_collapsed() {
 
 #[test]
 fn us4_scenario7_enter_collapses_expanded() {
-    // GIVEN: A session with entry 1 expanded, scrolled to show entry 1
-    // WHEN: User presses Enter
-    // THEN: Entry 1 (the topmost visible entry) collapses, not entry 0
+    // GIVEN: A session with entry 0 expanded, scrolled down within entry 0
+    // WHEN: User presses Enter again
+    // THEN: Entry 0 (the currently focused entry) collapses
     //
     // This test reproduces the bug where Enter/Space always toggle entry 0
     // instead of the entry that's currently at the top of the viewport.
