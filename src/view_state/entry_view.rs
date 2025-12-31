@@ -1,6 +1,5 @@
 //! Entry view with per-entry state and precomputed rendered lines.
 
-#[allow(unused_imports)] // Used after stub implementation
 use super::renderer::compute_entry_lines;
 use super::types::{EntryIndex, LineHeight};
 use crate::model::ConversationEntry;
@@ -41,7 +40,6 @@ pub struct EntryView {
     index: EntryIndex,
     /// Precomputed rendered lines (source of truth for height).
     /// These are cached ratatui Lines ready for rendering.
-    #[allow(dead_code)] // Used after stub implementation
     rendered_lines: Vec<Line<'static>>,
     /// Whether this entry is expanded (shows full content).
     /// Collapsed entries show summary + "(+N more lines)" indicator.
@@ -54,11 +52,9 @@ pub struct EntryView {
 
 impl EntryView {
     /// Default collapse threshold (lines before collapsing).
-    #[allow(dead_code)] // Used after stub implementation
     const COLLAPSE_THRESHOLD: usize = 10;
 
     /// Default summary lines (shown when collapsed).
-    #[allow(dead_code)] // Used after stub implementation
     const SUMMARY_LINES: usize = 3;
 
     /// Create new EntryView with minimal state (for initial construction).
@@ -96,12 +92,27 @@ impl EntryView {
     /// * `wrap_mode` - Effective wrap mode for this entry
     /// * `width` - Viewport width for text wrapping
     pub fn with_rendered_lines(
-        _entry: ConversationEntry,
-        _index: EntryIndex,
-        _wrap_mode: WrapMode,
-        _width: u16,
+        entry: ConversationEntry,
+        index: EntryIndex,
+        wrap_mode: WrapMode,
+        width: u16,
     ) -> Self {
-        todo!("EntryView::with_rendered_lines - compute rendered_lines via compute_entry_lines")
+        let expanded = false; // Start collapsed
+        let rendered_lines = compute_entry_lines(
+            &entry,
+            expanded,
+            wrap_mode,
+            width,
+            Self::COLLAPSE_THRESHOLD,
+            Self::SUMMARY_LINES,
+        );
+        Self {
+            entry,
+            index,
+            rendered_lines,
+            expanded,
+            wrap_override: None,
+        }
     }
 
     /// Get the entry index (0-based).
@@ -133,7 +144,9 @@ impl EntryView {
     /// for entry height. The returned LineHeight is guaranteed to be >= 1
     /// for all entries (minimum is separator line).
     pub fn height(&self) -> LineHeight {
-        todo!("EntryView::height - return LineHeight from rendered_lines.len()")
+        let len = self.rendered_lines.len() as u16;
+        // LineHeight::new validates >= 1, but we guarantee at least 1 line (separator)
+        LineHeight::new(len).unwrap_or(LineHeight::ONE)
     }
 
     /// Get reference to the rendered lines.
@@ -141,7 +154,7 @@ impl EntryView {
     /// These are precomputed ratatui Lines ready for rendering.
     /// The slice has 'static lifetime because all content is owned.
     pub fn rendered_lines(&self) -> &[Line<'static>] {
-        todo!("EntryView::rendered_lines - return slice of rendered_lines")
+        &self.rendered_lines
     }
 
     /// Recompute rendered lines after state change.
@@ -153,8 +166,16 @@ impl EntryView {
     ///
     /// This is `pub(crate)` because only ConversationViewState should
     /// trigger recomputation (to maintain HeightIndex consistency).
-    pub(crate) fn recompute_lines(&mut self, _wrap_mode: WrapMode, _width: u16) {
-        todo!("EntryView::recompute_lines - call compute_entry_lines and update rendered_lines")
+    #[allow(dead_code)] // Will be used by ConversationViewState in future tasks
+    pub(crate) fn recompute_lines(&mut self, wrap_mode: WrapMode, width: u16) {
+        self.rendered_lines = compute_entry_lines(
+            &self.entry,
+            self.expanded,
+            wrap_mode,
+            width,
+            Self::COLLAPSE_THRESHOLD,
+            Self::SUMMARY_LINES,
+        );
     }
 
     /// Check if this entry is expanded.
@@ -177,6 +198,7 @@ impl EntryView {
     // ConversationViewState will handle recompute_lines() and these can be private.
 
     /// Set the expanded state (internal - called by ConversationViewState).
+    #[allow(dead_code)] // Will be used by ConversationViewState in future tasks
     pub(crate) fn set_expanded(&mut self, expanded: bool) {
         self.expanded = expanded;
     }
