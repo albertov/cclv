@@ -106,11 +106,88 @@ impl<'a> ConversationView<'a> {
     /// For malformed entries, returns fixed height (line number + error message).
     fn calculate_entry_height(
         &self,
-        _entry: &ConversationEntry,
-        _viewport_width: usize,
-        _global_wrap: WrapMode,
+        entry: &ConversationEntry,
+        viewport_width: usize,
+        global_wrap: WrapMode,
     ) -> usize {
-        todo!("calculate_entry_height: implement wrap-aware height calculation")
+        match entry {
+            ConversationEntry::Valid(log_entry) => {
+                let is_expanded = self.scroll_state.is_expanded(log_entry.uuid());
+
+                // Get effective wrap mode (per-entry override may invert global)
+                let effective_wrap = self.scroll_state.effective_wrap(log_entry.uuid(), global_wrap);
+
+                match log_entry.message().content() {
+                    MessageContent::Text(text) => {
+                        let total_lines = match effective_wrap {
+                            WrapMode::Wrap => {
+                                // Calculate wrapped line count
+                                Self::calculate_wrapped_lines(text, viewport_width)
+                            }
+                            WrapMode::NoWrap => {
+                                // Count newlines (original behavior)
+                                text.lines().count().max(1) // At least 1 line for empty text
+                            }
+                        };
+
+                        if total_lines > self.collapse_threshold && !is_expanded {
+                            // Collapsed: summary_lines + 1 indicator line
+                            self.summary_lines + 1
+                        } else {
+                            total_lines
+                        }
+                    }
+                    MessageContent::Blocks(blocks) => {
+                        let mut total_height = 0;
+                        let role = log_entry.message().role();
+                        let role_style = self.styles.style_for_role(role);
+
+                        for block in blocks {
+                            let block_lines = render_content_block(
+                                block,
+                                log_entry.uuid(),
+                                self.scroll_state,
+                                self.styles,
+                                role_style,
+                                self.collapse_threshold,
+                                self.summary_lines,
+                            );
+                            total_height += block_lines.len();
+                        }
+                        // Add spacing between entries
+                        total_height + 1
+                    }
+                }
+            }
+            ConversationEntry::Malformed(malformed) => {
+                // Malformed entries: error message might wrap
+                let error_lines = malformed.error_message().lines().count();
+                // Header line + error lines + spacing
+                2 + error_lines
+            }
+        }
+    }
+
+    /// Calculate how many display lines text will occupy when wrapped to viewport width.
+    fn calculate_wrapped_lines(text: &str, viewport_width: usize) -> usize {
+        if viewport_width == 0 {
+            return text.lines().count().max(1);
+        }
+
+        let mut total_lines = 0;
+        for line in text.lines() {
+            // Simple character-based wrapping (not grapheme-aware for now)
+            let line_len = line.len();
+            if line_len == 0 {
+                total_lines += 1; // Empty line still counts
+            } else {
+                // Calculate how many wrapped lines this logical line produces
+                total_lines += line_len.div_ceil(viewport_width);
+            }
+        }
+
+        // Ensure at least 1 line for empty text
+        total_lines.max(1)
     }
 
     /// Determine the range of entries that should be rendered based on viewport.
