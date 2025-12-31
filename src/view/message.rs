@@ -165,7 +165,7 @@ impl<'a> ConversationView<'a> {
                 start_entry_index = i;
                 break;
             }
-            cumulative_height += entry_height;
+            cumulative_height = cumulative_height.saturating_add(entry_height);
         }
 
         // Find the last entry that should be visible (accounting for buffer)
@@ -174,13 +174,13 @@ impl<'a> ConversationView<'a> {
 
         for (i, entry) in entries.iter().enumerate().skip(start_entry_index) {
             let entry_height = self.calculate_entry_height(entry);
-            cumulative_height += entry_height;
+            cumulative_height = cumulative_height.saturating_add(entry_height);
 
-            if cumulative_height > viewport_height + (self.buffer_size * 2) {
+            if cumulative_height > viewport_height + self.buffer_size.saturating_mul(2) {
                 end_entry_index = i;
                 break;
             }
-            end_entry_index = i + 1;
+            end_entry_index = i.saturating_add(1);
         }
 
         // Ensure we don't exceed bounds
@@ -414,7 +414,7 @@ pub fn render_conversation_view(
                                     )]));
                                 }
                                 // Add collapse indicator
-                                let remaining = total_lines - summary_lines;
+                                let remaining = total_lines.saturating_sub(summary_lines);
                                 lines.push(Line::from(vec![ratatui::text::Span::styled(
                                     format!("(+{} more lines)", remaining),
                                     Style::default()
@@ -593,17 +593,17 @@ pub fn render_conversation_view_with_search(
                                 }
                             } else {
                                 // With highlighting - track line positions
-                                let mut cumulative_offset = 0;
+                                let mut cumulative_offset: usize = 0;
                                 for line_text in text.lines() {
                                     let line_start = cumulative_offset;
-                                    let line_end = line_start + line_text.len();
+                                    let line_end = line_start.saturating_add(line_text.len());
 
                                     // Filter and convert matches for this line
                                     let line_matches: Vec<(usize, usize, bool)> = entry_matches
                                         .iter()
                                         .filter_map(|(offset, length, is_current)| {
                                             let match_start = *offset;
-                                            let match_end = match_start + length;
+                                            let match_end = match_start.saturating_add(*length);
 
                                             // Check if match overlaps this line
                                             if match_start < line_end && match_end > line_start {
@@ -632,7 +632,7 @@ pub fn render_conversation_view_with_search(
                                     lines.push(highlighted_line);
 
                                     // Update cumulative offset (add line length + newline char)
-                                    cumulative_offset = line_end + 1;
+                                    cumulative_offset = line_end.saturating_add(1);
                                 }
                             }
                         }
