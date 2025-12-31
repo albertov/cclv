@@ -363,6 +363,249 @@ mod tests {
         );
     }
 
+    #[test]
+    fn stats_panel_displays_cost_for_opus_model() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: 1M input tokens, 1M output tokens using Opus pricing
+        // Expected: $15 (input) + $75 (output) = $90.00
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1_000_000,
+                output_tokens: 1_000_000,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 5,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Verify "Estimated Cost:" label is present
+        assert!(
+            content.contains("Estimated Cost:"),
+            "Expected 'Estimated Cost:' label in output, got:\n{}",
+            content
+        );
+
+        // Verify the actual cost is displayed correctly
+        assert!(
+            content.contains("$90.00"),
+            "Expected cost '$90.00' for Opus model (1M input + 1M output), got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_displays_cost_for_sonnet_model() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: 2M input tokens, 1M output tokens using Sonnet pricing
+        // Expected: $6 (2M * $3) + $15 (1M * $15) = $21.00
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 2_000_000,
+                output_tokens: 1_000_000,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 5,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("sonnet"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        assert!(
+            content.contains("$21.00"),
+            "Expected cost '$21.00' for Sonnet model (2M input + 1M output), got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_displays_cost_for_haiku_model() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: 5M input tokens, 2M output tokens using Haiku pricing
+        // Expected: $4 (5M * $0.8) + $8 (2M * $4) = $12.00
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 5_000_000,
+                output_tokens: 2_000_000,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 5,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("haiku"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        assert!(
+            content.contains("$12.00"),
+            "Expected cost '$12.00' for Haiku model (5M input + 2M output), got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_displays_cost_with_cached_tokens() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: 1M input, 1M output, 1M cache using Opus pricing
+        // Expected: $15 (input) + $75 (output) + $1.50 (cache) = $91.50
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1_000_000,
+                output_tokens: 1_000_000,
+                cache_creation_input_tokens: 500_000,
+                cache_read_input_tokens: 500_000,
+            },
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 5,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        assert!(
+            content.contains("$91.50"),
+            "Expected cost '$91.50' for Opus with cache (1M input + 1M output + 1M cache), got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_matches_model_family_from_full_model_id() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: Use full model ID "claude-sonnet-4-5-20250929"
+        // Should match "sonnet" family and use $3/$15 pricing
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1_000_000,
+                output_tokens: 1_000_000,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 5,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("claude-sonnet-4-5-20250929"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Should use Sonnet pricing: $3 + $15 = $18
+        assert!(
+            content.contains("$18.00"),
+            "Expected cost '$18.00' for full Sonnet model ID, got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_displays_fractional_cost_correctly() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: 100k input tokens, 50k output tokens using Opus pricing
+        // Expected: $1.50 (0.1M * $15) + $3.75 (0.05M * $75) = $5.25
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 100_000,
+                output_tokens: 50_000,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 5,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        assert!(
+            content.contains("$5.25"),
+            "Expected fractional cost '$5.25', got:\n{}",
+            content
+        );
+    }
+
     /// Helper to extract text content from a ratatui Buffer
     fn buffer_to_string(buffer: &Buffer) -> String {
         let area = buffer.area();
