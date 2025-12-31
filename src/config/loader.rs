@@ -4,6 +4,30 @@ use serde::Deserialize;
 use std::path::PathBuf;
 use thiserror::Error;
 
+// Theme name constants (cclv-5ur.67.9)
+/// Base16 Ocean theme name.
+pub const THEME_BASE16_OCEAN: &str = "base16-ocean";
+
+/// Solarized Dark theme name.
+pub const THEME_SOLARIZED_DARK: &str = "solarized-dark";
+
+/// Solarized Light theme name.
+pub const THEME_SOLARIZED_LIGHT: &str = "solarized-light";
+
+/// Monokai theme name.
+pub const THEME_MONOKAI: &str = "monokai";
+
+/// Default theme (Base16 Ocean per CLI contract).
+pub const THEME_DEFAULT: &str = THEME_BASE16_OCEAN;
+
+/// Array of all valid theme names for validation.
+pub const VALID_THEMES: &[&str] = &[
+    THEME_BASE16_OCEAN,
+    THEME_SOLARIZED_DARK,
+    THEME_SOLARIZED_LIGHT,
+    THEME_MONOKAI,
+];
+
 /// Errors that can occur during config loading.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ConfigError {

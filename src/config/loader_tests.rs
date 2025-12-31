@@ -862,3 +862,69 @@ fn merge_config_uses_default_when_max_context_tokens_none() {
         "Should use default max_context_tokens when config file has None"
     );
 }
+
+// Tests for theme constants (cclv-5ur.67.9)
+#[test]
+fn theme_base16_ocean_constant_matches_string() {
+    assert_eq!(
+        THEME_BASE16_OCEAN, "base16-ocean",
+        "THEME_BASE16_OCEAN constant must match expected string"
+    );
+}
+
+#[test]
+fn theme_solarized_dark_constant_matches_string() {
+    assert_eq!(
+        THEME_SOLARIZED_DARK, "solarized-dark",
+        "THEME_SOLARIZED_DARK constant must match expected string"
+    );
+}
+
+#[test]
+fn theme_solarized_light_constant_matches_string() {
+    assert_eq!(
+        THEME_SOLARIZED_LIGHT, "solarized-light",
+        "THEME_SOLARIZED_LIGHT constant must match expected string"
+    );
+}
+
+#[test]
+fn theme_monokai_constant_matches_string() {
+    assert_eq!(
+        THEME_MONOKAI, "monokai",
+        "THEME_MONOKAI constant must match expected string"
+    );
+}
+
+#[test]
+fn theme_default_points_to_base16_ocean() {
+    assert_eq!(
+        THEME_DEFAULT, THEME_BASE16_OCEAN,
+        "THEME_DEFAULT must point to base16-ocean per CLI contract"
+    );
+}
+
+#[test]
+fn valid_themes_array_contains_all_themes() {
+    assert_eq!(
+        VALID_THEMES.len(),
+        4,
+        "VALID_THEMES must contain exactly 4 theme names"
+    );
+    assert!(
+        VALID_THEMES.contains(&THEME_BASE16_OCEAN),
+        "VALID_THEMES must contain base16-ocean"
+    );
+    assert!(
+        VALID_THEMES.contains(&THEME_SOLARIZED_DARK),
+        "VALID_THEMES must contain solarized-dark"
+    );
+    assert!(
+        VALID_THEMES.contains(&THEME_SOLARIZED_LIGHT),
+        "VALID_THEMES must contain solarized-light"
+    );
+    assert!(
+        VALID_THEMES.contains(&THEME_MONOKAI),
+        "VALID_THEMES must contain monokai"
+    );
+}
