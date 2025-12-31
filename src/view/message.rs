@@ -1383,4 +1383,205 @@ mod tests {
             "Builder pattern should set buffer_size"
         );
     }
+
+    // ===== render_conversation_view MessageContent::Text collapse tests (FR-031/032/033) =====
+
+    #[test]
+    fn render_conversation_view_collapses_long_messagecontent_text() {
+        use crate::model::{
+            AgentConversation, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let mut conversation = AgentConversation::new(None);
+
+        // Create entry with long MessageContent::Text (15 lines, exceeds threshold of 10)
+        let long_text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n\
+                        Line 6\nLine 7\nLine 8\nLine 9\nLine 10\n\
+                        Line 11\nLine 12\nLine 13\nLine 14\nLine 15";
+        let message = Message::new(Role::Assistant, MessageContent::Text(long_text.to_string()));
+
+        let entry = LogEntry::new(
+            EntryUuid::new("entry-collapse-test").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        conversation.add_entry(entry);
+
+        let scroll_state = ScrollState::default(); // NOT expanded
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view(frame, area, &conversation, &scroll_state, false);
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        // FR-031: Should show first 3 lines + collapse indicator
+        assert!(
+            content.contains("Line 1"),
+            "Should show first line when collapsed"
+        );
+        assert!(
+            content.contains("Line 2"),
+            "Should show second line when collapsed"
+        );
+        assert!(
+            content.contains("Line 3"),
+            "Should show third line when collapsed"
+        );
+        assert!(
+            content.contains("more lines") || content.contains("+"),
+            "FR-031: Should show collapse indicator for long MessageContent::Text"
+        );
+        assert!(
+            !content.contains("Line 15"),
+            "Should NOT show last line when collapsed"
+        );
+    }
+
+    #[test]
+    fn render_conversation_view_expands_long_messagecontent_text_when_toggled() {
+        use crate::model::{
+            AgentConversation, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let mut conversation = AgentConversation::new(None);
+
+        // Create entry with long MessageContent::Text (15 lines)
+        let long_text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n\
+                        Line 6\nLine 7\nLine 8\nLine 9\nLine 10\n\
+                        Line 11\nLine 12\nLine 13\nLine 14\nLine 15";
+        let message = Message::new(Role::Assistant, MessageContent::Text(long_text.to_string()));
+
+        let entry_uuid = EntryUuid::new("entry-expand-test").expect("valid uuid");
+
+        let entry = LogEntry::new(
+            entry_uuid.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        conversation.add_entry(entry);
+
+        // Toggle expansion for this entry
+        let mut scroll_state = ScrollState::default();
+        scroll_state.toggle_expand(&entry_uuid);
+
+        let backend = TestBackend::new(80, 30);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view(frame, area, &conversation, &scroll_state, false);
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        // FR-032: Should show all lines when expanded
+        assert!(
+            content.contains("Line 1"),
+            "Should show first line when expanded"
+        );
+        assert!(
+            content.contains("Line 15"),
+            "FR-032: Should show last line when expanded"
+        );
+        assert!(
+            !content.contains("more lines"),
+            "Should NOT show collapse indicator when expanded"
+        );
+    }
+
+    #[test]
+    fn render_conversation_view_does_not_collapse_short_messagecontent_text() {
+        use crate::model::{
+            AgentConversation, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let mut conversation = AgentConversation::new(None);
+
+        // Create entry with short MessageContent::Text (5 lines, below threshold)
+        let short_text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
+        let message = Message::new(Role::Assistant, MessageContent::Text(short_text.to_string()));
+
+        let entry = LogEntry::new(
+            EntryUuid::new("entry-short-test").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        conversation.add_entry(entry);
+
+        let scroll_state = ScrollState::default();
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view(frame, area, &conversation, &scroll_state, false);
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        // Should show all lines for short content (no collapse)
+        assert!(content.contains("Line 1"), "Should show Line 1");
+        assert!(content.contains("Line 5"), "Should show Line 5");
+        assert!(
+            !content.contains("more lines"),
+            "Should NOT show collapse indicator for short content"
+        );
+    }
 }
