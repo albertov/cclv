@@ -49,6 +49,10 @@ pub enum KeyAction {
     ToggleAutoScroll,
     ScrollToLatest,
 
+    // Line wrapping
+    ToggleWrap,
+    ToggleGlobalWrap,
+
     // Application
     Quit,
     Help,
