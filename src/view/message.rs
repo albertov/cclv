@@ -582,19 +582,57 @@ pub fn render_conversation_view_with_search(
                                 Vec::new()
                             };
 
-                            // Render text with highlighting
-                            for line_text in text.lines() {
-                                if entry_matches.is_empty() {
-                                    // No highlighting
+                            // Render text with highlighting (handle multi-line correctly)
+                            if entry_matches.is_empty() {
+                                // No highlighting - simple iteration
+                                for line_text in text.lines() {
                                     lines.push(Line::from(vec![Span::styled(
                                         line_text.to_string(),
                                         role_style,
                                     )]));
-                                } else {
-                                    // Apply highlighting
-                                    let highlighted_line =
-                                        apply_highlights_to_text(line_text, &entry_matches, role_style);
+                                }
+                            } else {
+                                // With highlighting - track line positions
+                                let mut cumulative_offset = 0;
+                                for line_text in text.lines() {
+                                    let line_start = cumulative_offset;
+                                    let line_end = line_start + line_text.len();
+
+                                    // Filter and convert matches for this line
+                                    let line_matches: Vec<(usize, usize, bool)> = entry_matches
+                                        .iter()
+                                        .filter_map(|(offset, length, is_current)| {
+                                            let match_start = *offset;
+                                            let match_end = match_start + length;
+
+                                            // Check if match overlaps this line
+                                            if match_start < line_end && match_end > line_start {
+                                                // Convert to line-relative offset
+                                                let line_relative_start = match_start.saturating_sub(line_start);
+                                                let line_relative_end = (match_end - line_start).min(line_text.len());
+                                                let line_relative_length = line_relative_end.saturating_sub(line_relative_start);
+
+                                                if line_relative_length > 0 {
+                                                    Some((line_relative_start, line_relative_length, *is_current))
+                                                } else {
+                                                    None
+                                                }
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect();
+
+                                    // Render line with highlights
+                                    let highlighted_line = apply_highlights_to_text(
+                                        line_text,
+                                        &line_matches,
+                                        role_style,
+                                    );
                                     lines.push(highlighted_line);
+
+                                    // Update cumulative offset (add line length + newline char)
+                                    cumulative_offset = line_end + 1;
                                 }
                             }
                         }
