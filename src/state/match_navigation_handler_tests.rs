@@ -450,3 +450,132 @@ fn prev_match_switches_to_subagent_pane_when_match_in_subagent() {
         "Should switch to Subagent pane when match is in subagent"
     );
 }
+
+// ===== Scroll Position Tests (US5/FR-013) =====
+
+#[test]
+fn next_match_scrolls_to_match_entry_in_main_conversation() {
+    use crate::model::{EntryMetadata, EntryType, LogEntry, Message, MessageContent, Role};
+    use crate::view_state::scroll::ScrollPosition;
+    use crate::view_state::types::EntryIndex;
+    use chrono::Utc;
+
+    // Create multiple entries in main conversation
+    let mut entries = Vec::new();
+    let timestamp: chrono::DateTime<Utc> = "2025-12-25T10:00:00Z".parse().unwrap();
+
+    for i in 0..5 {
+        let entry = LogEntry::new(
+            make_entry_uuid(&format!("entry-{}", i)),
+            None,
+            make_session_id("test-session"),
+            None, // Main agent
+            timestamp,
+            EntryType::User,
+            Message::new(Role::User, MessageContent::Text(format!("message {}", i))),
+            EntryMetadata::default(),
+        );
+        entries.push(crate::model::ConversationEntry::Valid(Box::new(entry)));
+    }
+
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    // Compute layout so entries have positions
+    let params = crate::view_state::layout_params::LayoutParams {
+        width: 80,
+        global_wrap: crate::state::app_state::WrapMode::Wrap,
+    };
+    state.log_view_mut().current_session_mut().unwrap().main_mut().recompute_layout(params);
+
+    let query = SearchQuery::new("message").expect("valid query");
+
+    // Match at entry index 3
+    state.search = SearchState::Active {
+        query,
+        matches: vec![
+            make_search_match(None, "entry-3"), // Main agent, entry 3
+        ],
+        current_match: 0,
+    };
+    state.focus = FocusPane::Main;
+
+    let result = next_match(state);
+
+    // Verify scroll position updated to show entry 3
+    let main_conv = result.main_conversation_view().expect("should have main conversation");
+    match main_conv.scroll() {
+        ScrollPosition::AtEntry { entry_index, .. } => {
+            assert_eq!(
+                *entry_index,
+                EntryIndex::new(3),
+                "Should scroll to entry 3 where match is located"
+            );
+        }
+        other => panic!("Expected ScrollPosition::AtEntry, got {:?}", other),
+    }
+}
+
+#[test]
+fn prev_match_scrolls_to_match_entry_in_main_conversation() {
+    use crate::model::{EntryMetadata, EntryType, LogEntry, Message, MessageContent, Role};
+    use crate::view_state::scroll::ScrollPosition;
+    use crate::view_state::types::EntryIndex;
+    use chrono::Utc;
+
+    // Create multiple entries in main conversation
+    let mut entries = Vec::new();
+    let timestamp: chrono::DateTime<Utc> = "2025-12-25T10:00:00Z".parse().unwrap();
+
+    for i in 0..5 {
+        let entry = LogEntry::new(
+            make_entry_uuid(&format!("entry-{}", i)),
+            None,
+            make_session_id("test-session"),
+            None, // Main agent
+            timestamp,
+            EntryType::User,
+            Message::new(Role::User, MessageContent::Text(format!("message {}", i))),
+            EntryMetadata::default(),
+        );
+        entries.push(crate::model::ConversationEntry::Valid(Box::new(entry)));
+    }
+
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    // Compute layout
+    let params = crate::view_state::layout_params::LayoutParams {
+        width: 80,
+        global_wrap: crate::state::app_state::WrapMode::Wrap,
+    };
+    state.log_view_mut().current_session_mut().unwrap().main_mut().recompute_layout(params);
+
+    let query = SearchQuery::new("message").expect("valid query");
+
+    // Two matches: entry 1 and entry 4
+    state.search = SearchState::Active {
+        query,
+        matches: vec![
+            make_search_match(None, "entry-1"),
+            make_search_match(None, "entry-4"),
+        ],
+        current_match: 1, // Start at second match (entry 4)
+    };
+    state.focus = FocusPane::Main;
+
+    let result = prev_match(state);
+
+    // Verify scroll position updated to show entry 1 (prev match)
+    let main_conv = result.main_conversation_view().expect("should have main conversation");
+    match main_conv.scroll() {
+        ScrollPosition::AtEntry { entry_index, .. } => {
+            assert_eq!(
+                *entry_index,
+                EntryIndex::new(1),
+                "Should scroll to entry 1 (previous match)"
+            );
+        }
+        other => panic!("Expected ScrollPosition::AtEntry, got {:?}", other),
+    }
+}
