@@ -79,6 +79,11 @@ impl FileTailer {
     /// Returns `InputError::FileDeleted` if the file has been deleted.
     /// Returns `InputError::Io` for other I/O errors.
     pub fn read_new_lines(&mut self) -> Result<Vec<String>, InputError> {
+        // Check if file still exists before attempting to read
+        if !self.path.exists() {
+            return Err(InputError::FileDeleted);
+        }
+
         // Seek to last known position
         self.file.seek(SeekFrom::Start(self.position))?;
 
