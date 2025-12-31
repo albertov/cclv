@@ -73,6 +73,24 @@ pub enum ContentSection {
     CodeBlock(Vec<Line<'static>>),
 }
 
+/// Parse markdown content into sections (prose and code blocks).
+///
+/// Splits entry content to enable independent wrap behavior:
+/// - Fenced code blocks (```) become CodeBlock sections
+/// - Indented code blocks (4 spaces/tab after blank line) become CodeBlock sections
+/// - All other content becomes Prose sections
+/// - Adjacent prose lines are grouped into single Prose section
+///
+/// # Arguments
+/// * `content` - Raw markdown text to parse
+///
+/// # Returns
+/// Vector of content sections maintaining original order
+#[allow(dead_code)] // Used in future implementation
+pub fn parse_entry_sections(_content: &str) -> Vec<ContentSection> {
+    todo!("parse_entry_sections")
+}
+
 // ===== ConversationView Widget =====
 
 /// Virtualized conversation view widget.
@@ -7266,5 +7284,253 @@ fn test() { println!("Code blocks always NoWrap"); }
             "Debug output should contain variant name: {}",
             debug_output
         );
+    }
+
+    // ===== parse_entry_sections Tests =====
+
+    #[test]
+    fn parse_entry_sections_returns_prose_for_plain_text() {
+        let content = "Hello world\nThis is plain text";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 1, "Should have exactly one section");
+        match &sections[0] {
+            ContentSection::Prose(lines) => {
+                assert_eq!(lines.len(), 2, "Should have 2 lines");
+                assert_eq!(lines[0].to_string(), "Hello world");
+                assert_eq!(lines[1].to_string(), "This is plain text");
+            }
+            ContentSection::CodeBlock(_) => panic!("Expected Prose, got CodeBlock"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_fenced_code_block() {
+        let content = "```rust\nfn main() {}\n```";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 1, "Should have exactly one section");
+        match &sections[0] {
+            ContentSection::CodeBlock(lines) => {
+                assert_eq!(lines.len(), 1, "Should have 1 line (fence markers stripped)");
+                assert_eq!(lines[0].to_string(), "fn main() {}");
+            }
+            ContentSection::Prose(_) => panic!("Expected CodeBlock, got Prose"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_mixed_prose_and_fenced_code() {
+        let content = "Hello\n```rust\nfn main() {}\n```\nGoodbye";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 3, "Should have 3 sections");
+
+        match &sections[0] {
+            ContentSection::Prose(lines) => {
+                assert_eq!(lines.len(), 1);
+                assert_eq!(lines[0].to_string(), "Hello");
+            }
+            ContentSection::CodeBlock(_) => panic!("Expected Prose, got CodeBlock at index 0"),
+        }
+
+        match &sections[1] {
+            ContentSection::CodeBlock(lines) => {
+                assert_eq!(lines.len(), 1);
+                assert_eq!(lines[0].to_string(), "fn main() {}");
+            }
+            ContentSection::Prose(_) => panic!("Expected CodeBlock, got Prose at index 1"),
+        }
+
+        match &sections[2] {
+            ContentSection::Prose(lines) => {
+                assert_eq!(lines.len(), 1);
+                assert_eq!(lines[0].to_string(), "Goodbye");
+            }
+            ContentSection::CodeBlock(_) => panic!("Expected Prose, got CodeBlock at index 2"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_indented_code_block() {
+        let content = "Regular text\n\n    indented code\n    more indented";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 2, "Should have 2 sections");
+
+        match &sections[0] {
+            ContentSection::Prose(lines) => {
+                assert_eq!(lines.len(), 2); // "Regular text" and blank line
+            }
+            ContentSection::CodeBlock(_) => panic!("Expected Prose, got CodeBlock at index 0"),
+        }
+
+        match &sections[1] {
+            ContentSection::CodeBlock(lines) => {
+                assert_eq!(lines.len(), 2);
+                // Indentation should be preserved or stripped consistently
+                assert!(lines[0].to_string().contains("indented code"));
+                assert!(lines[1].to_string().contains("more indented"));
+            }
+            ContentSection::Prose(_) => panic!("Expected CodeBlock, got Prose at index 1"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_tab_indented_code_block() {
+        let content = "Regular text\n\n\ttab indented code\n\tmore tab indented";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 2, "Should have 2 sections");
+
+        match &sections[1] {
+            ContentSection::CodeBlock(lines) => {
+                assert_eq!(lines.len(), 2);
+                assert!(lines[0].to_string().contains("tab indented"));
+            }
+            ContentSection::Prose(_) => panic!("Expected CodeBlock, got Prose at index 1"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_indented_code_requires_blank_line() {
+        // Without preceding blank line, indented text is NOT a code block
+        let content = "Regular text\n    indented but not code";
+
+        let sections = parse_entry_sections(content);
+
+        // Should be all prose since no blank line precedes indent
+        assert_eq!(sections.len(), 1, "Should have 1 section (all prose)");
+        match &sections[0] {
+            ContentSection::Prose(lines) => {
+                assert_eq!(lines.len(), 2);
+            }
+            ContentSection::CodeBlock(_) => panic!("Expected Prose (no blank line before indent)"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_preserves_empty_lines_in_prose() {
+        let content = "Line 1\n\nLine 3";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 1);
+        match &sections[0] {
+            ContentSection::Prose(lines) => {
+                assert_eq!(lines.len(), 3);
+                assert_eq!(lines[0].to_string(), "Line 1");
+                assert_eq!(lines[1].to_string(), ""); // Empty line preserved
+                assert_eq!(lines[2].to_string(), "Line 3");
+            }
+            ContentSection::CodeBlock(_) => panic!("Expected Prose"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_multiple_code_blocks() {
+        let content = "Text 1\n```\ncode 1\n```\nText 2\n```\ncode 2\n```\nText 3";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(
+            sections.len(),
+            5,
+            "Should have 5 sections (prose-code-prose-code-prose)"
+        );
+
+        // Verify alternating pattern
+        assert!(matches!(&sections[0], ContentSection::Prose(_)));
+        assert!(matches!(&sections[1], ContentSection::CodeBlock(_)));
+        assert!(matches!(&sections[2], ContentSection::Prose(_)));
+        assert!(matches!(&sections[3], ContentSection::CodeBlock(_)));
+        assert!(matches!(&sections[4], ContentSection::Prose(_)));
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_empty_input() {
+        let content = "";
+
+        let sections = parse_entry_sections(content);
+
+        // Empty input should return empty vector or single empty prose section
+        // Implementation can choose; let's test for either
+        assert!(
+            sections.is_empty()
+                || (sections.len() == 1
+                    && matches!(&sections[0], ContentSection::Prose(lines) if lines.is_empty())),
+            "Empty input should return empty vec or single empty prose section"
+        );
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_only_code_block() {
+        let content = "```python\nprint('hello')\n```";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 1);
+        match &sections[0] {
+            ContentSection::CodeBlock(lines) => {
+                assert_eq!(lines.len(), 1);
+                assert_eq!(lines[0].to_string(), "print('hello')");
+            }
+            ContentSection::Prose(_) => panic!("Expected CodeBlock"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_groups_adjacent_prose() {
+        let content = "Line 1\nLine 2\nLine 3";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 1, "Adjacent prose should be grouped");
+        match &sections[0] {
+            ContentSection::Prose(lines) => {
+                assert_eq!(lines.len(), 3);
+            }
+            ContentSection::CodeBlock(_) => panic!("Expected Prose"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_code_block_with_language_tag() {
+        let content = "```rust\nlet x = 42;\n```";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 1);
+        match &sections[0] {
+            ContentSection::CodeBlock(lines) => {
+                assert_eq!(lines.len(), 1);
+                assert_eq!(lines[0].to_string(), "let x = 42;");
+            }
+            ContentSection::Prose(_) => panic!("Expected CodeBlock"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_sections_handles_empty_code_block() {
+        let content = "```\n```";
+
+        let sections = parse_entry_sections(content);
+
+        assert_eq!(sections.len(), 1);
+        match &sections[0] {
+            ContentSection::CodeBlock(lines) => {
+                assert!(
+                    lines.is_empty()
+                        || lines.len() == 1 && lines[0].to_string().is_empty(),
+                    "Empty code block should have no lines or one empty line"
+                );
+            }
+            ContentSection::Prose(_) => panic!("Expected CodeBlock"),
+        }
     }
 }
