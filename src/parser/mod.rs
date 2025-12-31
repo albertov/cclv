@@ -25,7 +25,8 @@ struct RawLogEntry {
     parent_uuid: Option<String>,
     #[serde(default, rename = "agentId")]
     agent_id: Option<String>,
-    timestamp: String,
+    #[serde(default)]
+    timestamp: Option<String>,
     #[serde(default)]
     cwd: Option<String>,
     #[serde(default, rename = "gitBranch")]
@@ -210,15 +211,14 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
         })
         .transpose()?;
 
-    // Parse timestamp
-    let timestamp: DateTime<Utc> =
-        raw_entry
-            .timestamp
-            .parse()
-            .map_err(|_| ParseError::InvalidTimestamp {
-                line: line_number,
-                raw: raw_entry.timestamp.clone(),
-            })?;
+    // Parse timestamp (optional - use epoch if missing)
+    let timestamp: DateTime<Utc> = match raw_entry.timestamp {
+        Some(ts) => ts.parse().map_err(|_| ParseError::InvalidTimestamp {
+            line: line_number,
+            raw: ts.clone(),
+        })?,
+        None => DateTime::UNIX_EPOCH,
+    };
 
     // Parse message
     let message = parse_message(raw_entry.message)?;
@@ -513,21 +513,17 @@ mod tests {
 
     #[test]
     fn parse_entry_missing_timestamp() {
+        // Updated: timestamp is now optional, missing timestamp should parse successfully
         let raw = r#"{"type":"user","message":{"role":"user","content":"Test"},"session_id":"s1","uuid":"u1"}"#;
         let result = parse_entry(raw, 8);
 
-        assert!(result.is_err(), "Should reject missing timestamp");
-        match result.unwrap_err() {
-            ParseError::InvalidJson { line, message } => {
-                assert_eq!(line, 8);
-                assert!(
-                    message.contains("timestamp") || message.contains("missing field"),
-                    "Error should mention timestamp or missing field, got: {}",
-                    message
-                );
-            }
-            _ => panic!("Expected InvalidJson error for missing required field"),
-        }
+        assert!(
+            result.is_ok(),
+            "Should accept missing timestamp (now optional)"
+        );
+        let entry = result.unwrap();
+        // Should use epoch fallback when timestamp is missing
+        assert_eq!(entry.timestamp(), DateTime::UNIX_EPOCH);
     }
 
     #[test]
