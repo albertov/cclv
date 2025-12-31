@@ -312,11 +312,56 @@ pub fn handle_mouse_click(
 /// - No scroll when focus is FocusPane::Stats or FocusPane::Search
 /// - Delegates to scroll_handler for actual scroll logic
 pub fn handle_mouse_scroll(
-    _state: AppState,
-    _is_scroll_up: bool,
+    mut state: AppState,
+    is_scroll_up: bool,
     _viewport_height: usize,
 ) -> AppState {
-    todo!("handle_mouse_scroll")
+    use crate::state::FocusPane;
+
+    // Early return for non-scrollable panes
+    match state.focus {
+        FocusPane::Stats | FocusPane::Search => return state,
+        _ => {}
+    }
+
+    // Calculate max scroll offset based on which pane is focused
+    let max_entries = match state.focus {
+        FocusPane::Main => state.session().main_agent().len().saturating_sub(1),
+        FocusPane::Subagent => {
+            // Get the currently selected subagent's entry count
+            if let Some(tab_index) = state.selected_tab {
+                let subagent_ids = state.session().subagent_ids_ordered();
+                if let Some(&agent_id) = subagent_ids.get(tab_index) {
+                    if let Some(conv) = state.session().subagents().get(agent_id) {
+                        conv.len().saturating_sub(1)
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        }
+        _ => 0,
+    };
+
+    // Get mutable reference to the appropriate scroll state
+    let scroll_state = match state.focus {
+        FocusPane::Main => &mut state.main_scroll,
+        FocusPane::Subagent => &mut state.subagent_scroll,
+        _ => return state, // Already handled above
+    };
+
+    // Apply scroll action based on direction
+    if is_scroll_up {
+        scroll_state.scroll_up(1);
+    } else {
+        scroll_state.scroll_down(1, max_entries);
+    }
+
+    state
 }
 
 // ===== Tests =====

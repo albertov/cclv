@@ -522,11 +522,52 @@ where
 
     /// Handle a single mouse event
     ///
-    /// Handles left-click on tab bar to switch tabs and on entries to expand/collapse
+    /// Handles left-click on tab bar to switch tabs, on entries to expand/collapse,
+    /// and scroll wheel events to scroll the focused pane
     fn handle_mouse(&mut self, mouse: MouseEvent) {
-        // Only handle left mouse button down events
-        if !matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
-            return;
+        // Handle scroll events
+        match mouse.kind {
+            MouseEventKind::ScrollUp => {
+                // Calculate viewport height from terminal size
+                let viewport_height = self
+                    .terminal
+                    .size()
+                    .map(|rect| rect.height as usize)
+                    .unwrap_or(20)
+                    .saturating_sub(5); // Reserve space for header/footer
+
+                let new_state = crate::state::mouse_handler::handle_mouse_scroll(
+                    self.app_state.clone(),
+                    true, // is_scroll_up
+                    viewport_height,
+                );
+                self.app_state = new_state;
+                return;
+            }
+            MouseEventKind::ScrollDown => {
+                // Calculate viewport height from terminal size
+                let viewport_height = self
+                    .terminal
+                    .size()
+                    .map(|rect| rect.height as usize)
+                    .unwrap_or(20)
+                    .saturating_sub(5); // Reserve space for header/footer
+
+                let new_state = crate::state::mouse_handler::handle_mouse_scroll(
+                    self.app_state.clone(),
+                    false, // is_scroll_up
+                    viewport_height,
+                );
+                self.app_state = new_state;
+                return;
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                // Handle left clicks - continue to click handling below
+            }
+            _ => {
+                // Ignore other mouse events
+                return;
+            }
         }
 
         // Handle tab clicks if we have a tab area
