@@ -693,3 +693,50 @@ fn diagnostic_scroll_rendering_with_many_entries() {
         );
     }
 }
+
+/// Bug reproduction: cclv-07v.12.21.2
+/// Entry indices (FR-061) are not visible in rendered output.
+/// Each entry should show its 1-based index in a dim column before content.
+///
+/// EXPECTED: "  1 │ Entry content..." with visible index column
+/// ACTUAL: "Entry content..." with no index visible
+#[test]
+#[ignore = "cclv-07v.12.21.2: entry indices (FR-061) not rendered in conversation view"]
+fn bug_entry_indices_not_visible_in_rendered_output() {
+    // Create a simple entry
+    let entry = create_test_log_entry(
+        "msg-1",
+        Role::User,
+        MessageContent::Text("First message content".to_string()),
+        EntryType::User,
+    );
+
+    let conversation = create_test_conversation(vec![entry]);
+    let scroll_state = ScrollState::default();
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(60, 10);
+    terminal
+        .draw(|frame| {
+            let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+                .global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+
+    // FR-061 requires visible entry indices.
+    // The first entry should show index "1" in the rendered output.
+    // Format should be like "  1 │" or "   1│" before the content.
+    let has_index_column = output.contains("1│") || output.contains("1 │");
+
+    // BUG: This assertion will FAIL because no index column is rendered.
+    assert!(
+        has_index_column,
+        "Entry index should be visible (FR-061).\n\
+         Expected format like '  1 │ First message content'\n\
+         But no index column found in output:\n{}",
+        output
+    );
+}
