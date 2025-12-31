@@ -4,14 +4,16 @@
 //! management for the main event loop. These functions are testable without
 //! needing actual I/O.
 
-use crate::model::ParseError;
+use crate::model::{ConversationEntry, ParseError};
 use crate::parser;
 
-/// Process new JSONL lines into log entries.
+/// Process new JSONL lines into conversation entries (valid or malformed).
 ///
 /// This is a pure function that:
-/// - Parses each line into a LogEntry
-/// - Collects successful parses and errors separately
+/// - Attempts to parse each line into a LogEntry
+/// - On success, returns ConversationEntry::Valid
+/// - On failure, returns ConversationEntry::Malformed
+/// - ALL lines produce an entry (graceful degradation)
 ///
 /// # Arguments
 ///
@@ -20,8 +22,26 @@ use crate::parser;
 ///
 /// # Returns
 ///
-/// Tuple of (successfully parsed entries, parse errors)
+/// Vector of ConversationEntry (both valid and malformed entries)
 pub fn process_lines(
+    lines: Vec<String>,
+    starting_line_number: usize,
+) -> Vec<ConversationEntry> {
+    lines
+        .into_iter()
+        .enumerate()
+        .map(|(index, line)| {
+            let line_number = starting_line_number + index;
+            parser::parse_entry_graceful(&line, line_number).into()
+        })
+        .collect()
+}
+
+/// Legacy function for backwards compatibility.
+/// Returns (valid entries, errors) tuple.
+/// New code should use process_lines() instead.
+#[deprecated(note = "Use process_lines() which returns ConversationEntry instead")]
+pub fn process_lines_legacy(
     lines: Vec<String>,
     starting_line_number: usize,
 ) -> (Vec<crate::model::LogEntry>, Vec<ParseError>) {
@@ -59,13 +79,16 @@ mod tests {
             r#"{"type":"user","message":{"role":"user","content":"Hello"},"sessionId":"session-1","uuid":"uuid-1","timestamp":"2025-12-25T10:00:00Z"}"#.to_string(),
         ];
 
-        let (entries, errors) = process_lines(lines, 1);
+        let entries = process_lines(lines, 1);
 
-        assert_eq!(errors.len(), 0, "Should have no parse errors");
         assert_eq!(entries.len(), 1, "Should have parsed one entry");
+        assert!(
+            entries[0].is_valid(),
+            "Entry should be valid for well-formed JSON"
+        );
 
         for entry in entries {
-            session.add_entry(entry);
+            session.add_conversation_entry(entry);
         }
         assert_eq!(
             session.main_agent().len(),
@@ -82,32 +105,41 @@ mod tests {
             r#"{"type":"assistant","message":{"role":"assistant","content":"Second"},"sessionId":"session-1","uuid":"uuid-2","timestamp":"2025-12-25T10:00:01Z"}"#.to_string(),
         ];
 
-        let (entries, errors) = process_lines(lines, 1);
+        let entries = process_lines(lines, 1);
 
-        assert_eq!(errors.len(), 0);
         assert_eq!(entries.len(), 2);
+        assert!(entries[0].is_valid());
+        assert!(entries[1].is_valid());
 
         for entry in entries {
-            session.add_entry(entry);
+            session.add_conversation_entry(entry);
         }
         assert_eq!(session.main_agent().len(), 2);
     }
 
     #[test]
-    fn process_lines_returns_error_for_malformed_json() {
+    fn process_lines_creates_malformed_entry_for_bad_json() {
         let lines = vec![
             r#"{"type":"user","malformed"#.to_string(),
         ];
 
-        let (entries, errors) = process_lines(lines, 42);
+        let entries = process_lines(lines, 42);
 
-        assert_eq!(entries.len(), 0, "Should have no valid entries");
-        assert_eq!(errors.len(), 1, "Should have one parse error");
-        match &errors[0] {
-            ParseError::InvalidJson { line, .. } => {
-                assert_eq!(*line, 42, "Should preserve line number in error");
-            }
-            _ => panic!("Expected InvalidJson error"),
+        assert_eq!(entries.len(), 1, "Should have one entry (malformed)");
+        assert!(
+            entries[0].is_malformed(),
+            "Entry should be malformed for bad JSON"
+        );
+
+        // Verify the malformed entry has correct line number
+        if let Some(malformed) = entries[0].as_malformed() {
+            assert_eq!(
+                malformed.line_number(),
+                42,
+                "Should preserve line number in malformed entry"
+            );
+        } else {
+            panic!("Expected malformed entry");
         }
     }
 
@@ -120,18 +152,20 @@ mod tests {
             r#"{"type":"user","message":{"role":"user","content":"Also good"},"sessionId":"session-1","uuid":"uuid-2","timestamp":"2025-12-25T10:00:01Z"}"#.to_string(),
         ];
 
-        let (entries, errors) = process_lines(lines, 1);
+        let entries = process_lines(lines, 1);
 
-        assert_eq!(errors.len(), 1, "Should have one parse error");
-        assert_eq!(entries.len(), 2, "Should have 2 valid entries");
+        assert_eq!(entries.len(), 3, "Should have 3 entries total");
+        assert!(entries[0].is_valid(), "First entry should be valid");
+        assert!(entries[1].is_malformed(), "Second entry should be malformed");
+        assert!(entries[2].is_valid(), "Third entry should be valid");
 
         for entry in entries {
-            session.add_entry(entry);
+            session.add_conversation_entry(entry);
         }
         assert_eq!(
             session.main_agent().len(),
-            2,
-            "Should have added 2 valid entries despite error"
+            3,
+            "Should have added all 3 entries (2 valid, 1 malformed)"
         );
     }
 
@@ -142,26 +176,25 @@ mod tests {
             r#"{"type":"user","message":{"role":"user","content":"Test"},"sessionId":"session-1","uuid":"uuid-1","agentId":"agent-123","timestamp":"2025-12-25T10:00:00Z"}"#.to_string(),
         ];
 
-        let (entries, errors) = process_lines(lines, 1);
+        let entries = process_lines(lines, 1);
 
-        assert_eq!(errors.len(), 0);
         assert_eq!(entries.len(), 1);
+        assert!(entries[0].is_valid());
 
         for entry in entries {
-            session.add_entry(entry);
+            session.add_conversation_entry(entry);
         }
         assert_eq!(session.main_agent().len(), 0, "Should not add to main agent");
         assert_eq!(session.subagents().len(), 1, "Should create subagent");
     }
 
     #[test]
-    fn process_lines_returns_empty_errors_for_empty_input() {
+    fn process_lines_returns_empty_for_empty_input() {
         let lines = vec![];
 
-        let (entries, errors) = process_lines(lines, 1);
+        let entries = process_lines(lines, 1);
 
         assert_eq!(entries.len(), 0);
-        assert_eq!(errors.len(), 0);
     }
 
     #[test]
@@ -171,21 +204,31 @@ mod tests {
             r#"{"malformed2"#.to_string(),
         ];
 
-        let (entries, errors) = process_lines(lines, 100);
+        let entries = process_lines(lines, 100);
 
-        assert_eq!(entries.len(), 0);
-        assert_eq!(errors.len(), 2);
-        match &errors[0] {
-            ParseError::InvalidJson { line, .. } => {
-                assert_eq!(*line, 100, "First error should be at line 100");
-            }
-            _ => panic!("Expected InvalidJson error"),
+        assert_eq!(entries.len(), 2, "Should have 2 malformed entries");
+        assert!(entries[0].is_malformed());
+        assert!(entries[1].is_malformed());
+
+        // Check line numbers
+        if let Some(malformed1) = entries[0].as_malformed() {
+            assert_eq!(
+                malformed1.line_number(),
+                100,
+                "First error should be at line 100"
+            );
+        } else {
+            panic!("Expected malformed entry");
         }
-        match &errors[1] {
-            ParseError::InvalidJson { line, .. } => {
-                assert_eq!(*line, 101, "Second error should be at line 101");
-            }
-            _ => panic!("Expected InvalidJson error"),
+
+        if let Some(malformed2) = entries[1].as_malformed() {
+            assert_eq!(
+                malformed2.line_number(),
+                101,
+                "Second error should be at line 101"
+            );
+        } else {
+            panic!("Expected malformed entry");
         }
     }
 }

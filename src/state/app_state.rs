@@ -42,13 +42,13 @@ impl AppState {
         }
     }
 
-    /// Add multiple log entries to the session.
+    /// Add multiple conversation entries (valid or malformed) to the session.
     ///
     /// This is the proper way for the shell layer to add entries
     /// without directly mutating the core session state.
-    pub fn add_entries(&mut self, entries: Vec<crate::model::LogEntry>) {
+    pub fn add_entries(&mut self, entries: Vec<crate::model::ConversationEntry>) {
         for entry in entries {
-            self.session.add_entry(entry);
+            self.session.add_conversation_entry(entry);
         }
     }
 

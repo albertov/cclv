@@ -3,7 +3,7 @@
 //! Session is the aggregate root containing main agent and subagents.
 //! All types use smart constructors - raw constructors never exported.
 
-use crate::model::{AgentId, LogEntry, ModelInfo, SessionId};
+use crate::model::{AgentId, ConversationEntry, LogEntry, MalformedEntry, ModelInfo, SessionId};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
@@ -45,6 +45,30 @@ impl Session {
         }
     }
 
+    /// Add a conversation entry (valid or malformed) to the appropriate agent.
+    ///
+    /// Routes based on session_id() in the entry:
+    /// - If session_id matches and has agent_id -> route to subagent
+    /// - Otherwise -> route to main agent
+    pub fn add_conversation_entry(&mut self, conv_entry: ConversationEntry) {
+        // Extract agent_id from the entry (if it's valid)
+        let agent_id = match &conv_entry {
+            ConversationEntry::Valid(log_entry) => log_entry.agent_id().cloned(),
+            ConversationEntry::Malformed(_) => None,
+        };
+
+        if let Some(agent_id) = agent_id {
+            // Route to subagent (create if doesn't exist)
+            self.subagents
+                .entry(agent_id.clone())
+                .or_insert_with(|| AgentConversation::new(Some(agent_id.clone())))
+                .add_conversation_entry(conv_entry);
+        } else {
+            // Route to main agent
+            self.main_agent.add_conversation_entry(conv_entry);
+        }
+    }
+
     /// Get subagent IDs in order of first appearance (by timestamp).
     pub fn subagent_ids_ordered(&self) -> Vec<&AgentId> {
         let mut agents: Vec<_> = self.subagents.iter().collect();
@@ -73,7 +97,7 @@ impl Session {
 #[derive(Debug, Clone)]
 pub struct AgentConversation {
     agent_id: Option<AgentId>,
-    entries: Vec<LogEntry>,
+    entries: Vec<ConversationEntry>,
     model: Option<ModelInfo>,
 }
 
@@ -88,14 +112,41 @@ impl AgentConversation {
         }
     }
 
-    /// Add an entry to this conversation.
+    /// Add a valid log entry to this conversation.
     /// Updates model if entry.message().model() is Some.
+    /// Wraps the LogEntry in ConversationEntry::Valid.
     pub fn add_entry(&mut self, entry: LogEntry) {
-        // Update model if present in entry
-        if let Some(model) = entry.message().model() {
-            self.model = Some(model.clone());
+        // Update model if this is an assistant message with model metadata
+        if matches!(entry.message().role(), super::Role::Assistant) {
+            if let Some(model) = entry.message().model() {
+                self.model = Some(model.clone());
+            }
         }
-        self.entries.push(entry);
+
+        // Wrap in ConversationEntry and append
+        self.entries.push(ConversationEntry::Valid(Box::new(entry)));
+    }
+
+    /// Add a malformed entry to this conversation.
+    /// Malformed entries don't update the model.
+    pub fn add_malformed(&mut self, malformed: MalformedEntry) {
+        self.entries.push(ConversationEntry::Malformed(malformed));
+    }
+
+    /// Add a conversation entry directly (valid or malformed).
+    /// Updates model if it's a Valid entry with a model.
+    pub fn add_conversation_entry(&mut self, conv_entry: ConversationEntry) {
+        // Update model if this is a valid assistant message with model metadata
+        if let ConversationEntry::Valid(ref log_entry) = conv_entry {
+            if matches!(log_entry.message().role(), super::Role::Assistant) {
+                if let Some(model) = log_entry.message().model() {
+                    self.model = Some(model.clone());
+                }
+            }
+        }
+
+        // Append the entry
+        self.entries.push(conv_entry);
     }
 
     // ===== Accessors (read-only) =====
@@ -104,7 +155,7 @@ impl AgentConversation {
         self.agent_id.as_ref()
     }
 
-    pub fn entries(&self) -> &[LogEntry] {
+    pub fn entries(&self) -> &[ConversationEntry] {
         &self.entries
     }
 
@@ -113,7 +164,9 @@ impl AgentConversation {
     }
 
     pub fn first_timestamp(&self) -> Option<DateTime<Utc>> {
-        self.entries.first().map(|e| e.timestamp())
+        self.entries
+            .first()
+            .and_then(|e| e.timestamp())
     }
 
     pub fn len(&self) -> usize {
@@ -130,7 +183,7 @@ impl AgentConversation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{EntryType, EntryUuid, Message, MessageContent, Role};
+    use crate::model::{EntryMetadata, EntryType, EntryUuid, Message, MessageContent, Role};
 
     // ===== Test Helpers =====
 
@@ -218,7 +271,10 @@ mod tests {
         conv.add_entry(entry);
 
         assert_eq!(conv.entries().len(), 1);
-        assert_eq!(conv.entries()[0].uuid().as_str(), "entry-1");
+        assert_eq!(
+            conv.entries()[0].as_valid().unwrap().uuid().as_str(),
+            "entry-1"
+        );
     }
 
     #[test]
@@ -251,8 +307,14 @@ mod tests {
         conv.add_entry(entry2);
 
         assert_eq!(conv.entries().len(), 2);
-        assert_eq!(conv.entries()[0].uuid().as_str(), "entry-1");
-        assert_eq!(conv.entries()[1].uuid().as_str(), "entry-2");
+        assert_eq!(
+            conv.entries()[0].as_valid().unwrap().uuid().as_str(),
+            "entry-1"
+        );
+        assert_eq!(
+            conv.entries()[1].as_valid().unwrap().uuid().as_str(),
+            "entry-2"
+        );
     }
 
     // ===== AgentConversation Accessor Tests =====
@@ -468,5 +530,100 @@ mod tests {
         assert_eq!(ids.len(), 2);
         assert_eq!(ids[0].as_str(), "agent-2");  // t=5
         assert_eq!(ids[1].as_str(), "agent-1");  // t=10
+    }
+
+    // ===== AgentConversation::add_malformed Tests =====
+
+    #[test]
+    fn agent_conversation_add_malformed_appends_malformed_entry() {
+        let mut conv = AgentConversation::new(None);
+        let malformed = MalformedEntry::new(
+            42,
+            "bad json",
+            "Parse error: unexpected token",
+            Some(make_session_id("session-1")),
+        );
+
+        conv.add_malformed(malformed);
+
+        assert_eq!(conv.entries().len(), 1);
+        assert!(conv.entries()[0].is_malformed());
+        assert_eq!(conv.entries()[0].as_malformed().unwrap().line_number(), 42);
+    }
+
+    #[test]
+    fn agent_conversation_add_malformed_does_not_update_model() {
+        let mut conv = AgentConversation::new(None);
+        let malformed = MalformedEntry::new(10, "bad", "error", None);
+
+        conv.add_malformed(malformed);
+
+        assert!(conv.model().is_none(), "Malformed entry should not set model");
+    }
+
+    // ===== AgentConversation::add_conversation_entry Tests =====
+
+    #[test]
+    fn agent_conversation_add_conversation_entry_handles_valid() {
+        let mut conv = AgentConversation::new(None);
+        let entry = make_main_agent_entry();
+        let conv_entry = ConversationEntry::Valid(Box::new(entry));
+
+        conv.add_conversation_entry(conv_entry);
+
+        assert_eq!(conv.entries().len(), 1);
+        assert!(conv.entries()[0].is_valid());
+    }
+
+    #[test]
+    fn agent_conversation_add_conversation_entry_handles_malformed() {
+        let mut conv = AgentConversation::new(None);
+        let malformed = MalformedEntry::new(10, "bad", "error", None);
+        let conv_entry = ConversationEntry::Malformed(malformed);
+
+        conv.add_conversation_entry(conv_entry);
+
+        assert_eq!(conv.entries().len(), 1);
+        assert!(conv.entries()[0].is_malformed());
+    }
+
+    #[test]
+    fn agent_conversation_maintains_insertion_order_with_mixed_entries() {
+        let mut conv = AgentConversation::new(None);
+
+        // Add valid entry
+        let entry1 = LogEntry::new(
+            make_entry_uuid("entry-1"),
+            None,
+            make_session_id("s1"),
+            None,
+            make_timestamp(),
+            EntryType::User,
+            make_message(),
+            EntryMetadata::default(),
+        );
+        conv.add_entry(entry1);
+
+        // Add malformed entry
+        let malformed = MalformedEntry::new(42, "bad", "error", None);
+        conv.add_malformed(malformed);
+
+        // Add another valid entry
+        let entry2 = LogEntry::new(
+            make_entry_uuid("entry-2"),
+            None,
+            make_session_id("s1"),
+            None,
+            make_timestamp_offset(5),
+            EntryType::Assistant,
+            make_message(),
+            EntryMetadata::default(),
+        );
+        conv.add_entry(entry2);
+
+        assert_eq!(conv.entries().len(), 3);
+        assert!(conv.entries()[0].is_valid());
+        assert!(conv.entries()[1].is_malformed());
+        assert!(conv.entries()[2].is_valid());
     }
 }

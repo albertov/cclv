@@ -5,6 +5,7 @@
 //! and malformed entries in a single ordered sequence.
 
 use crate::model::{LogEntry, MalformedEntry, SessionId};
+use crate::parser::ParseResult;
 use chrono::{DateTime, Utc};
 
 /// A single entry in an agent conversation.
@@ -65,6 +66,15 @@ impl ConversationEntry {
         match self {
             ConversationEntry::Valid(_) => None,
             ConversationEntry::Malformed(malformed) => Some(malformed),
+        }
+    }
+}
+
+impl From<ParseResult> for ConversationEntry {
+    fn from(result: ParseResult) -> Self {
+        match result {
+            ParseResult::Valid(entry) => ConversationEntry::Valid(entry),
+            ParseResult::Malformed(malformed) => ConversationEntry::Malformed(malformed),
         }
     }
 }

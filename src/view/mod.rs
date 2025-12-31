@@ -70,19 +70,25 @@ impl TuiApp<CrosstermBackend<Stdout>> {
 
         // Load initial content from input source
         let initial_lines = input_source.poll()?;
-        let (entries, errors) = integration::process_lines(initial_lines, 1);
+        let entries = integration::process_lines(initial_lines, 1);
 
-        // Log any parse errors
-        for error in errors {
-            warn!("Parse error during initial load: {}", error);
+        // Log any malformed entries
+        for entry in &entries {
+            if let Some(malformed) = entry.as_malformed() {
+                warn!(
+                    "Parse error at line {}: {}",
+                    malformed.line_number(),
+                    malformed.error_message()
+                );
+            }
         }
 
         let mut session = crate::model::Session::new(session_id);
-        for entry in &entries {
-            session.add_entry(entry.clone());
+        let line_counter = entries.len();
+        for entry in entries {
+            session.add_conversation_entry(entry);
         }
 
-        let line_counter = entries.len();
         let app_state = AppState::new(session);
 
         Ok(Self {
@@ -132,11 +138,17 @@ where
         if !new_lines.is_empty() {
             debug!("Processing {} new lines", new_lines.len());
             let starting_line = self.line_counter + 1;
-            let (entries, errors) = integration::process_lines(new_lines, starting_line);
+            let entries = integration::process_lines(new_lines, starting_line);
 
-            // Log parse errors
-            for error in errors {
-                warn!("Parse error at line: {}", error);
+            // Log malformed entries
+            for entry in &entries {
+                if let Some(malformed) = entry.as_malformed() {
+                    warn!(
+                        "Parse error at line {}: {}",
+                        malformed.line_number(),
+                        malformed.error_message()
+                    );
+                }
             }
 
             // Update line counter BEFORE adding entries
@@ -455,13 +467,16 @@ mod tests {
     }
 
     // Helper function to create a test LogEntry
-    fn create_test_entry(content: &str) -> crate::model::LogEntry {
-        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role, SessionId};
+    fn create_test_entry(content: &str) -> crate::model::ConversationEntry {
+        use crate::model::{
+            ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
         use chrono::Utc;
 
         let message = Message::new(Role::User, MessageContent::Text(content.to_string()));
 
-        LogEntry::new(
+        let log_entry = LogEntry::new(
             EntryUuid::new("test-uuid").unwrap(),
             None,
             SessionId::new("test-session").unwrap(),
@@ -470,6 +485,8 @@ mod tests {
             EntryType::User,
             message,
             EntryMetadata::default(),
-        )
+        );
+
+        ConversationEntry::Valid(Box::new(log_entry))
     }
 }
