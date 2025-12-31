@@ -3,8 +3,6 @@
 //! This test parses the entire tests/fixtures/cc-session-log.jsonl file
 //! to verify compatibility with actual Claude Code JSONL format.
 
-#![allow(unused_imports, dead_code)]
-
 use cclv::parser::{parse_entry_graceful, ParseResult};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -20,13 +18,37 @@ struct ParseStats {
 impl ParseStats {
     /// Success rate as a percentage (0.0 to 100.0).
     fn success_rate(&self) -> f64 {
-        todo!("success_rate")
+        if self.total_lines == 0 {
+            0.0
+        } else {
+            (self.successful as f64 / self.total_lines as f64) * 100.0
+        }
     }
 }
 
 /// Parse entire fixture file and return statistics.
-fn parse_fixture_file(_path: &str) -> std::io::Result<ParseStats> {
-    todo!("parse_fixture_file")
+fn parse_fixture_file(path: &str) -> std::io::Result<ParseStats> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+
+    let mut stats = ParseStats::default();
+
+    for (line_number, line_result) in reader.lines().enumerate() {
+        let line = line_result?;
+        stats.total_lines += 1;
+
+        // Parse with graceful error handling
+        match parse_entry_graceful(&line, line_number + 1) {
+            ParseResult::Valid(_) => {
+                stats.successful += 1;
+            }
+            ParseResult::Malformed(_) => {
+                stats.malformed += 1;
+            }
+        }
+    }
+
+    Ok(stats)
 }
 
 #[test]
