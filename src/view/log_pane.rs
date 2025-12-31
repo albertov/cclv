@@ -4,8 +4,9 @@ use crate::state::LogPaneEntry;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::Style,
-    widgets::Widget,
+    style::{Color, Style},
+    text::Line,
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 use std::collections::VecDeque;
 
@@ -18,7 +19,6 @@ use std::collections::VecDeque;
 /// - Color-coded level (ERROR=Red, WARN=Yellow, INFO=Cyan, DEBUG=Gray, TRACE=DarkGray)
 /// - Message text
 /// - Border showing "Logs" or "Logs [N new]" for unread count
-#[allow(dead_code)]
 pub struct LogPaneView<'a> {
     /// Reference to log entries (oldest to newest)
     entries: &'a VecDeque<LogPaneEntry>,
@@ -39,18 +39,82 @@ impl<'a> LogPaneView<'a> {
     /// * `scroll_offset` - Vertical scroll position (0 = showing newest)
     /// * `focused` - Whether this pane has focus (Yellow border if focused, White otherwise)
     pub fn new(
-        _entries: &'a VecDeque<LogPaneEntry>,
-        _unread_count: usize,
-        _scroll_offset: usize,
-        _focused: bool,
+        entries: &'a VecDeque<LogPaneEntry>,
+        unread_count: usize,
+        scroll_offset: usize,
+        focused: bool,
     ) -> Self {
-        todo!("LogPaneView::new")
+        Self {
+            entries,
+            unread_count,
+            scroll_offset,
+            focused,
+        }
     }
 }
 
 impl<'a> Widget for LogPaneView<'a> {
-    fn render(self, _area: Rect, _buf: &mut Buffer) {
-        todo!("LogPaneView::render")
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        // Build title with unread indicator
+        let title = if self.unread_count > 0 {
+            format!(" Logs [{} new] ", self.unread_count)
+        } else {
+            " Logs ".to_string()
+        };
+
+        // Border color based on focus
+        let border_color = if self.focused {
+            Color::Yellow
+        } else {
+            Color::White
+        };
+
+        // Create block with border
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color));
+
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        // Build lines for log entries (newest first)
+        let mut lines = Vec::new();
+        let available_height = inner.height as usize;
+
+        // Get entries to display (newest first, accounting for scroll offset)
+        let entries_vec: Vec<_> = self.entries.iter().collect();
+        let total_entries = entries_vec.len();
+
+        if total_entries > 0 {
+            // Calculate which entries to show
+            // scroll_offset=0 means showing newest entries
+            // scroll_offset=N means we've scrolled up by N entries from bottom
+            let start_idx = total_entries.saturating_sub(available_height + self.scroll_offset);
+            let end_idx = total_entries.saturating_sub(self.scroll_offset);
+
+            for entry in entries_vec[start_idx..end_idx].iter().rev() {
+                let timestamp = format_timestamp(&entry.timestamp);
+                let level_str = level_to_string(entry.level);
+                let level_style = style_for_level(entry.level);
+
+                // Format: [LEVEL] HH:MM:SS | message
+                // Use owned Strings in Spans to avoid lifetime issues
+                let line = Line::from(vec![
+                    ratatui::text::Span::styled(level_str, level_style),
+                    ratatui::text::Span::raw(" ".to_string()),
+                    ratatui::text::Span::raw(timestamp),
+                    ratatui::text::Span::raw(" | ".to_string()),
+                    ratatui::text::Span::raw(entry.message.clone()),
+                ]);
+
+                lines.push(line);
+            }
+        }
+
+        // Render paragraph
+        let paragraph = Paragraph::new(lines);
+        paragraph.render(inner, buf);
     }
 }
 
@@ -62,17 +126,47 @@ impl<'a> Widget for LogPaneView<'a> {
 /// - INFO: Cyan
 /// - DEBUG: Gray (DarkGray)
 /// - TRACE: DarkGray (dimmed further)
-#[allow(dead_code)]
-fn style_for_level(_level: tracing::Level) -> Style {
-    todo!("style_for_level")
+fn style_for_level(level: tracing::Level) -> Style {
+    use tracing::Level;
+
+    let color = match level {
+        Level::ERROR => Color::Red,
+        Level::WARN => Color::Yellow,
+        Level::INFO => Color::Cyan,
+        Level::DEBUG => Color::DarkGray,
+        Level::TRACE => Color::DarkGray,
+    };
+
+    Style::default().fg(color)
 }
 
 /// Format timestamp as HH:MM:SS.
 ///
 /// Extracts time portion from a UTC datetime.
-#[allow(dead_code)]
-fn format_timestamp(_timestamp: &chrono::DateTime<chrono::Utc>) -> String {
-    todo!("format_timestamp")
+fn format_timestamp(timestamp: &chrono::DateTime<chrono::Utc>) -> String {
+    timestamp.format("%H:%M:%S").to_string()
+}
+
+/// Convert log level to 5-character string.
+///
+/// Returns level name right-padded to 5 characters:
+/// - ERROR
+/// - WARN
+/// - INFO
+/// - DEBUG
+/// - TRACE
+fn level_to_string(level: tracing::Level) -> String {
+    use tracing::Level;
+
+    let name = match level {
+        Level::ERROR => "ERROR",
+        Level::WARN => "WARN",
+        Level::INFO => "INFO",
+        Level::DEBUG => "DEBUG",
+        Level::TRACE => "TRACE",
+    };
+
+    format!("{:5}", name)
 }
 
 #[cfg(test)]
@@ -224,11 +318,9 @@ mod tests {
             for x in area.left()..area.right() {
                 let cell = &buffer[(x, y)];
                 let symbol = cell.symbol();
-                if symbol.contains('E') || symbol.contains('R') {
-                    if cell.fg == Color::Red {
-                        found_red_level = true;
-                        break;
-                    }
+                if (symbol.contains('E') || symbol.contains('R')) && cell.fg == Color::Red {
+                    found_red_level = true;
+                    break;
                 }
             }
         }
