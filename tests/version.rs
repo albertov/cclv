@@ -6,6 +6,7 @@ use std::process::Command;
 fn binary_prints_version() {
     // EXPECT: Binary runs and prints version "0.1.0" to stdout
     let output = Command::new(env!("CARGO_BIN_EXE_cclv"))
+        .arg("--version")
         .output()
         .expect("Failed to execute binary");
 
