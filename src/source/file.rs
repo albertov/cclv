@@ -438,9 +438,9 @@ mod tests {
     }
 
     #[test]
-    fn file_deletion_detected() {
+    fn file_deletion_detected_via_poll() {
         let temp_dir = std::env::temp_dir();
-        let test_file = temp_dir.join("test_file_deletion.jsonl");
+        let test_file = temp_dir.join("test_file_deletion_poll.jsonl");
 
         fs::write(&test_file, "{\"line\": 1}\n").unwrap();
 
@@ -461,6 +461,32 @@ mod tests {
         assert!(
             matches!(result, Err(InputError::FileDeleted)),
             "Expected FileDeleted error, got: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn file_deletion_detected_via_read() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_file_deletion_read.jsonl");
+
+        fs::write(&test_file, "{\"line\": 1}\n").unwrap();
+
+        let mut tailer = FileTailer::new(&test_file).unwrap();
+
+        // Read initial content successfully
+        let lines = tailer.read_new_lines().unwrap();
+        assert_eq!(lines.len(), 1);
+
+        // Delete the file
+        fs::remove_file(&test_file).unwrap();
+
+        // Attempt to read after deletion should detect deletion
+        let result = tailer.read_new_lines();
+
+        assert!(
+            matches!(result, Err(InputError::FileDeleted)),
+            "Expected FileDeleted error when reading from deleted file, got: {:?}",
             result
         );
     }
