@@ -1521,15 +1521,22 @@ mod tests {
 
         // Focus on Main pane and set horizontal offset
         app.app_state.focus = FocusPane::Main;
-        app.app_state.main_scroll.horizontal_offset = 10;
+        if let Some(view) = app.app_state.main_conversation_view_mut() {
+            view.set_horizontal_offset(10);
+        }
 
         // Press 'h' to scroll left
         let key = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE);
         let should_quit = app.handle_key(key);
 
         assert!(!should_quit, "'h' should not trigger quit");
+        let offset = app
+            .app_state
+            .main_conversation_view()
+            .map(|v| v.horizontal_offset())
+            .unwrap_or(0);
         assert_eq!(
-            app.app_state.main_scroll.horizontal_offset, 9,
+            offset, 9,
             "'h' should call scroll_handler with ScrollLeft action"
         );
     }
@@ -1540,15 +1547,22 @@ mod tests {
 
         // Focus on Main pane
         app.app_state.focus = FocusPane::Main;
-        app.app_state.main_scroll.horizontal_offset = 0;
+        if let Some(view) = app.app_state.main_conversation_view_mut() {
+            view.set_horizontal_offset(0);
+        }
 
         // Press 'l' to scroll right
         let key = KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE);
         let should_quit = app.handle_key(key);
 
         assert!(!should_quit, "'l' should not trigger quit");
+        let offset = app
+            .app_state
+            .main_conversation_view()
+            .map(|v| v.horizontal_offset())
+            .unwrap_or(0);
         assert_eq!(
-            app.app_state.main_scroll.horizontal_offset, 1,
+            offset, 1,
             "'l' should call scroll_handler with ScrollRight action"
         );
     }

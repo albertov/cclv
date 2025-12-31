@@ -235,14 +235,14 @@ impl AppState {
     pub fn main_conversation_view(
         &self,
     ) -> Option<&crate::view_state::conversation::ConversationViewState> {
-        self.log_view.get_session(0).map(|s| s.main())
+        self.log_view.current_session().map(|s| s.main())
     }
 
     /// Get mutable main conversation view-state.
     pub fn main_conversation_view_mut(
         &mut self,
     ) -> Option<&mut crate::view_state::conversation::ConversationViewState> {
-        self.log_view.get_session_mut(0).map(|s| s.main_mut())
+        self.log_view.current_session_mut().map(|s| s.main_mut())
     }
 
     /// Get subagent conversation view-state by tab index.

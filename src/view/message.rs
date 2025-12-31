@@ -1947,6 +1947,7 @@ pub fn render_conversation_view(
     let visible_entries = &all_entries[start_idx..end_idx];
 
     // Determine scroll indicators and horizontal offset (FR-040)
+    // Dead code: Still using ScrollState until this function is removed
     let horizontal_offset = scroll.horizontal_offset;
     let title_with_indicators = if global_wrap == WrapMode::NoWrap {
         // Need to check if any visible entry has long lines
@@ -2248,7 +2249,7 @@ pub fn render_conversation_view_with_search(
     let visible_entries = &domain_entries[start_idx..end_idx];
 
     // Determine scroll indicators and horizontal offset (FR-040)
-    let horizontal_offset = scroll.horizontal_offset;
+    let horizontal_offset = view_state.horizontal_offset() as usize;
     let title_with_indicators = if global_wrap == WrapMode::NoWrap {
         // Collect all lines temporarily to check for scroll indicators
         let mut all_lines = Vec::new();

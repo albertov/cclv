@@ -577,7 +577,10 @@ fn us4_scenario8_horizontal_scroll() {
 
     // IF YES: Session loaded
     let initial_state = harness.state();
-    let initial_h_offset = initial_state.main_scroll.horizontal_offset;
+    let initial_h_offset = initial_state
+        .main_conversation_view()
+        .map(|v| v.horizontal_offset())
+        .unwrap_or(0);
 
     // Verify initial offset is 0
     assert_eq!(initial_h_offset, 0, "Horizontal offset should start at 0");
@@ -589,7 +592,10 @@ fn us4_scenario8_horizontal_scroll() {
 
     // VERIFY: Horizontal offset increased (scrolled right)
     let state_after_right = harness.state();
-    let offset_after_right = state_after_right.main_scroll.horizontal_offset;
+    let offset_after_right = state_after_right
+        .main_conversation_view()
+        .map(|v| v.horizontal_offset())
+        .unwrap_or(0);
 
     assert!(
         offset_after_right > initial_h_offset,
@@ -604,7 +610,10 @@ fn us4_scenario8_horizontal_scroll() {
 
     // VERIFY: Horizontal offset decreased (scrolled left)
     let state_after_left = harness.state();
-    let offset_after_left = state_after_left.main_scroll.horizontal_offset;
+    let offset_after_left = state_after_left
+        .main_conversation_view()
+        .map(|v| v.horizontal_offset())
+        .unwrap_or(0);
 
     assert!(
         offset_after_left < offset_after_right,
@@ -620,7 +629,10 @@ fn us4_scenario8_horizontal_scroll() {
     harness.send_key(KeyCode::Left);
 
     let state_after_many_left = harness.state();
-    let final_h_offset = state_after_many_left.main_scroll.horizontal_offset;
+    let final_h_offset = state_after_many_left
+        .main_conversation_view()
+        .map(|v| v.horizontal_offset())
+        .unwrap_or(0);
 
     assert_eq!(final_h_offset, 0, "Horizontal offset should not go below 0");
 

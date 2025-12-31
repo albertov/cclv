@@ -31,28 +31,8 @@ pub fn handle_scroll_action(
         _ => {}
     }
 
-    // Handle horizontal scrolling early (doesn't need conversation view-state)
-    match action {
-        KeyAction::ScrollLeft => {
-            match state.focus {
-                FocusPane::Main => state.main_scroll.scroll_left(1),
-                FocusPane::Subagent => state.subagent_scroll.scroll_left(1),
-                _ => {} // Already handled above
-            }
-            return state;
-        }
-        KeyAction::ScrollRight => {
-            match state.focus {
-                FocusPane::Main => state.main_scroll.scroll_right(1),
-                FocusPane::Subagent => state.subagent_scroll.scroll_right(1),
-                _ => {} // Already handled above
-            }
-            return state;
-        }
-        _ => {} // Continue to vertical scrolling
-    }
-
     // Get mutable reference to the appropriate conversation view-state
+    // (needed for both horizontal and vertical scrolling)
     let conversation = match state.focus {
         FocusPane::Main => {
             if let Some(session) = state.log_view_mut().current_session_mut() {
@@ -83,6 +63,19 @@ pub fn handle_scroll_action(
         }
         _ => return state, // Already handled above
     };
+
+    // Handle horizontal scrolling
+    match action {
+        KeyAction::ScrollLeft => {
+            conversation.scroll_left(1);
+            return state;
+        }
+        KeyAction::ScrollRight => {
+            conversation.scroll_right(1);
+            return state;
+        }
+        _ => {} // Continue to vertical scrolling
+    }
 
     // Get current scroll position
     let current_scroll = conversation.scroll().clone();
@@ -161,7 +154,7 @@ pub fn handle_scroll_action(
             // Jump to bottom
             ScrollPosition::Bottom
         }
-        // Non-scroll actions are no-ops (horizontal scrolling handled earlier)
+        // Non-scroll actions are no-ops
         _ => return state,
     };
 
