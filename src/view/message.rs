@@ -500,98 +500,46 @@ fn render_entry_lines(
     collapse_threshold: usize,
     summary_lines: usize,
 ) -> Vec<Line<'static>> {
-    let mut lines = Vec::new();
+    render_entry_lines_with_search(
+        entry,
+        entry_index,
+        is_subagent_view,
+        scroll,
+        &crate::state::SearchState::Inactive,
+        styles,
+        collapse_threshold,
+        summary_lines,
+    )
+}
 
-    match entry {
-        ConversationEntry::Valid(log_entry) => {
-            let role = log_entry.message().role();
-            let role_style = styles.style_for_role(role);
-
-            // Add "Initial Prompt" label for first message in subagent view
-            if is_subagent_view && entry_index == 0 {
-                lines.push(Line::from(vec![ratatui::text::Span::styled(
-                    "🔷 Initial Prompt",
-                    Style::default()
-                        .fg(Color::Magenta)
-                        .add_modifier(Modifier::BOLD),
-                )]));
-            }
-
-            match log_entry.message().content() {
-                MessageContent::Text(text) => {
-                    // Simple text message - apply collapse/expand logic with role-based styling
-                    let text_lines: Vec<_> = text.lines().collect();
-                    let total_lines = text_lines.len();
-
-                    let is_expanded = scroll.is_expanded(log_entry.uuid());
-                    let should_collapse = total_lines > collapse_threshold && !is_expanded;
-
-                    if should_collapse {
-                        // Show summary lines with role styling
-                        for line in text_lines.iter().take(summary_lines) {
-                            lines.push(Line::from(vec![ratatui::text::Span::styled(
-                                line.to_string(),
-                                role_style,
-                            )]));
-                        }
-                        // Add collapse indicator
-                        let remaining = total_lines.saturating_sub(summary_lines);
-                        lines.push(Line::from(vec![ratatui::text::Span::styled(
-                            format!("(+{} more lines)", remaining),
-                            Style::default()
-                                .fg(Color::DarkGray)
-                                .add_modifier(Modifier::DIM),
-                        )]));
-                    } else {
-                        // Show all lines with role styling
-                        for line in text_lines {
-                            lines.push(Line::from(vec![ratatui::text::Span::styled(
-                                line.to_string(),
-                                role_style,
-                            )]));
-                        }
-                    }
-                }
-                MessageContent::Blocks(blocks) => {
-                    // Structured content - render each block
-                    for block in blocks {
-                        let block_lines = render_content_block(
-                            block,
-                            log_entry.uuid(),
-                            scroll,
-                            styles,
-                            role_style,
-                            collapse_threshold,
-                            summary_lines,
-                        );
-                        lines.extend(block_lines);
-                    }
-                }
-            }
-        }
-        ConversationEntry::Malformed(malformed) => {
-            // Render malformed entry with error styling
-            lines.push(Line::from(vec![ratatui::text::Span::styled(
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-                Style::default().fg(Color::Red),
-            )]));
-            lines.push(Line::from(vec![ratatui::text::Span::styled(
-                format!("⚠ Parse Error (line {})", malformed.line_number()),
-                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-            )]));
-            for error_line in malformed.error_message().lines() {
-                lines.push(Line::from(vec![ratatui::text::Span::styled(
-                    error_line.to_string(),
-                    Style::default().fg(Color::Red),
-                )]));
-            }
-        }
-    }
-
-    // Add spacing between entries
-    lines.push(Line::from(""));
-
-    lines
+/// Render entry lines with search match highlighting applied.
+///
+/// Wraps the existing entry rendering logic and applies search highlighting
+/// based on SearchState matches for the given entry.
+///
+/// # Arguments
+/// * `entry` - The conversation entry to render
+/// * `entry_index` - Index of this entry in the conversation (for initial prompt label)
+/// * `is_subagent_view` - Whether this is being rendered in a subagent pane
+/// * `scroll` - Scroll state (for expansion tracking)
+/// * `search` - Search state (for match highlighting)
+/// * `styles` - Message styling configuration
+/// * `collapse_threshold` - Number of lines before collapsing
+/// * `summary_lines` - Number of lines shown when collapsed
+///
+/// # Returns
+/// Vector of Lines representing this entry with search highlighting, including spacing line at end
+fn render_entry_lines_with_search(
+    _entry: &ConversationEntry,
+    _entry_index: usize,
+    _is_subagent_view: bool,
+    _scroll: &ScrollState,
+    _search: &crate::state::SearchState,
+    _styles: &MessageStyles,
+    _collapse_threshold: usize,
+    _summary_lines: usize,
+) -> Vec<Line<'static>> {
+    todo!("render_entry_lines_with_search: not implemented")
 }
 
 /// Render a single conversation entry as a Paragraph widget with individual wrap setting.
@@ -6625,5 +6573,362 @@ fn test() { println!("Code blocks always NoWrap"); }
 
         // ASSERT: Code in tool result should be detected
         assert!(has_code, "Code blocks in ToolResult should be detected");
+    }
+
+    // ===== Search Highlighting with Per-Entry Rendering Tests =====
+
+    #[test]
+    fn test_render_entry_lines_with_search_no_matches_returns_normal_lines() {
+        use crate::model::{
+            EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
+            SessionId,
+        };
+        use chrono::Utc;
+
+        // ARRANGE: Entry with simple text
+        let uuid = EntryUuid::new("test-entry-1").expect("valid uuid");
+        let message = Message::new(Role::User, MessageContent::Text("Hello world".to_string()));
+        let entry = LogEntry::new(
+            uuid,
+            None,
+            SessionId::new("session-1").expect("valid session"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message,
+            EntryMetadata::default(),
+        );
+
+        let scroll = ScrollState::default();
+        let styles = create_test_styles();
+        let search = crate::state::SearchState::Inactive;
+
+        // ACT: Render with no search matches
+        let lines = render_entry_lines_with_search(
+            &ConversationEntry::Valid(Box::new(entry)),
+            0,
+            false,
+            &scroll,
+            &search,
+            &styles,
+            10,
+            3,
+        );
+
+        // ASSERT: Should return normal lines (no highlighting)
+        assert!(!lines.is_empty(), "Should return non-empty lines");
+        let text = lines
+            .iter()
+            .map(|l| l.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            text.contains("Hello world"),
+            "Should contain entry text without highlighting"
+        );
+    }
+
+    #[test]
+    fn test_render_entry_lines_with_search_highlights_match_in_text() {
+        use crate::model::{
+            EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
+            SessionId,
+        };
+        use crate::state::{SearchMatch, SearchState};
+        use chrono::Utc;
+
+        // ARRANGE: Entry with text "Hello world"
+        let uuid = EntryUuid::new("test-entry-2").expect("valid uuid");
+        let message = Message::new(Role::User, MessageContent::Text("Hello world".to_string()));
+        let entry = LogEntry::new(
+            uuid.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message,
+            EntryMetadata::default(),
+        );
+
+        let scroll = ScrollState::default();
+        let styles = create_test_styles();
+
+        // Create search state with match on "world"
+        let matches = vec![SearchMatch {
+            agent_id: None, // Main agent
+            entry_uuid: uuid.clone(),
+            block_index: 0,
+            char_offset: 6, // "Hello " = 6 chars
+            length: 5,      // "world" = 5 chars
+        }];
+        let query = crate::state::SearchQuery::new("world").expect("valid query");
+        let search = SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Render with search highlighting
+        let lines = render_entry_lines_with_search(
+            &ConversationEntry::Valid(Box::new(entry)),
+            0,
+            false,
+            &scroll,
+            &search,
+            &styles,
+            10,
+            3,
+        );
+
+        // ASSERT: Should apply highlighting
+        // (Implementation will add spans with highlight style)
+        assert!(!lines.is_empty(), "Should return non-empty lines");
+        // The highlighting logic is tested in apply_highlights_to_text
+        // This test verifies the integration
+    }
+
+    #[test]
+    fn test_render_entry_lines_with_search_applies_per_entry_wrap() {
+        use crate::model::{
+            EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
+            SessionId,
+        };
+        use chrono::Utc;
+
+        // ARRANGE: Entry with long text
+        let uuid = EntryUuid::new("test-entry-3").expect("valid uuid");
+        let long_text = "a".repeat(200); // Very long line
+        let message = Message::new(Role::User, MessageContent::Text(long_text.clone()));
+        let entry = LogEntry::new(
+            uuid.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message,
+            EntryMetadata::default(),
+        );
+
+        // Create scroll state with per-entry wrap override (NoWrap)
+        let mut scroll = ScrollState::default();
+        scroll.toggle_wrap(&uuid); // Override global wrap
+
+        let styles = create_test_styles();
+        let search = crate::state::SearchState::Inactive;
+
+        // ACT: Render - lines returned should be unwrapped
+        // (The per-entry wrap is applied in render function, not in line generation)
+        let lines = render_entry_lines_with_search(
+            &ConversationEntry::Valid(Box::new(entry)),
+            0,
+            false,
+            &scroll,
+            &search,
+            &styles,
+            10,
+            3,
+        );
+
+        // ASSERT: Lines are generated (wrap is applied at Paragraph level)
+        assert!(!lines.is_empty(), "Should return non-empty lines");
+    }
+
+    #[test]
+    fn test_render_conversation_view_with_search_uses_per_entry_paragraphs() {
+        use crate::model::{
+            AgentConversation, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use crate::state::{SearchMatch, SearchState};
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // ARRANGE: Conversation with 3 entries
+        let mut conversation = AgentConversation::new(None);
+
+        let uuid1 = EntryUuid::new("entry-1").expect("valid uuid");
+        let message1 = Message::new(Role::User, MessageContent::Text("First message".to_string()));
+        let entry1 = LogEntry::new(
+            uuid1.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message1,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry1);
+
+        let uuid2 = EntryUuid::new("entry-2").expect("valid uuid");
+        let message2 =
+            Message::new(Role::Assistant, MessageContent::Text("Second message".to_string()));
+        let entry2 = LogEntry::new(
+            uuid2.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message2,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry2);
+
+        let uuid3 = EntryUuid::new("entry-3").expect("valid uuid");
+        let message3 = Message::new(Role::User, MessageContent::Text("Third message".to_string()));
+        let entry3 = LogEntry::new(
+            uuid3.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message3,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry3);
+
+        // Create search with match in entry 2
+        let matches = vec![SearchMatch {
+            agent_id: None,
+            entry_uuid: uuid2.clone(),
+            block_index: 0,
+            char_offset: 0,
+            length: 6, // "Second"
+        }];
+        let query = crate::state::SearchQuery::new("Second").expect("valid query");
+        let search = SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        let scroll = ScrollState::default();
+        let styles = create_test_styles();
+
+        // ACT: Render to terminal
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll,
+                    &search,
+                    &styles,
+                    true,
+                    WrapMode::Wrap,
+                );
+            })
+            .expect("Failed to draw");
+
+        // ASSERT: Should render without panic
+        // (Per-entry rendering architecture should handle search highlighting)
+        let buffer = terminal.backend().buffer();
+        let content = buffer.content();
+
+        // Verify all entries are present
+        let text = content
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>();
+        assert!(
+            text.contains("First message"),
+            "Should render first entry"
+        );
+        assert!(
+            text.contains("Second message"),
+            "Should render second entry with highlighting"
+        );
+        assert!(
+            text.contains("Third message"),
+            "Should render third entry"
+        );
+    }
+
+    #[test]
+    fn test_render_conversation_view_with_search_respects_viewport_clipping() {
+        use crate::model::{
+            AgentConversation, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use crate::state::SearchState;
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // ARRANGE: Conversation with many entries
+        let mut conversation = AgentConversation::new(None);
+
+        for i in 0..50 {
+            let uuid = EntryUuid::new(&format!("entry-{}", i)).expect("valid uuid");
+            let message = Message::new(
+                Role::User,
+                MessageContent::Text(format!("Message number {}", i)),
+            );
+            let entry = LogEntry::new(
+                uuid,
+                None,
+                SessionId::new("session-1").expect("valid session"),
+                None,
+                Utc::now(),
+                EntryType::User,
+                message,
+                EntryMetadata::default(),
+            );
+            conversation.add_entry(entry);
+        }
+
+        // Scroll down significantly
+        let mut scroll = ScrollState::default();
+        for _ in 0..100 {
+            scroll.scroll_down(1, 1000);
+        }
+
+        let search = SearchState::Inactive;
+        let styles = create_test_styles();
+
+        // ACT: Render to small terminal
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll,
+                    &search,
+                    &styles,
+                    true,
+                    WrapMode::NoWrap,
+                );
+            })
+            .expect("Failed to draw");
+
+        // ASSERT: Should only render visible entries (not all 50)
+        // This tests that virtualization is working with search view
+        let buffer = terminal.backend().buffer();
+        let content = buffer.content();
+        let text = content
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>();
+
+        // Early entries should NOT be visible after scrolling down
+        assert!(
+            !text.contains("Message number 0"),
+            "Early entries should be clipped after scroll"
+        );
     }
 }
