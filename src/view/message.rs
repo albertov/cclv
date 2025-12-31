@@ -457,17 +457,33 @@ fn render_entry_lines(
 /// # Returns
 /// A ratatui Paragraph widget ready to render
 #[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 fn render_entry_paragraph(
-    _entry: &ConversationEntry,
-    _entry_index: usize,
-    _is_subagent_view: bool,
-    _scroll: &ScrollState,
-    _styles: &MessageStyles,
-    _collapse_threshold: usize,
-    _summary_lines: usize,
-    _wrap_mode: WrapMode,
+    entry: &ConversationEntry,
+    entry_index: usize,
+    is_subagent_view: bool,
+    scroll: &ScrollState,
+    styles: &MessageStyles,
+    collapse_threshold: usize,
+    summary_lines: usize,
+    wrap_mode: WrapMode,
 ) -> Paragraph<'static> {
-    todo!("render_entry_paragraph")
+    // Get lines from existing helper function
+    let lines = render_entry_lines(
+        entry,
+        entry_index,
+        is_subagent_view,
+        scroll,
+        styles,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    // Create paragraph with appropriate wrap setting
+    match wrap_mode {
+        WrapMode::Wrap => Paragraph::new(lines).wrap(Wrap { trim: false }),
+        WrapMode::NoWrap => Paragraph::new(lines),
+    }
 }
 
 /// Render a conversation view for either main agent or subagent.
