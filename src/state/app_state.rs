@@ -3,10 +3,9 @@
 //! AppState is the root state type containing all UI state.
 //! All state transitions are pure functions following Elm architecture.
 
-use crate::model::{EntryUuid, Session, StatsFilter};
+use crate::model::{Session, StatsFilter};
 use crate::state::SearchState;
 use crate::view_state::log::LogViewState;
-use std::collections::HashSet;
 
 // ===== InputMode =====
 
@@ -127,7 +126,7 @@ pub struct AppState {
     pub auto_scroll: bool,
 
     /// Global line-wrapping mode for all panes.
-    /// Individual messages can override via `ScrollState::wrap_overrides` (FR-048).
+    /// Individual messages can override via `EntryView.wrap_override` (FR-048).
     /// Default is `Wrap` when config is unset (FR-039).
     pub global_wrap: WrapMode,
 
@@ -242,6 +241,16 @@ impl AppState {
         let agent_ids: Vec<_> = self.session.subagents().keys().cloned().collect();
         let agent_id = agent_ids.get(tab_index)?;
         Some(session.subagent(agent_id))
+    }
+
+    /// Get mutable subagent conversation view-state by tab index.
+    ///
+    /// Returns None if tab_index is out of range or session doesn't exist.
+    pub fn subagent_conversation_view_mut(&mut self, tab_index: usize) -> Option<&mut crate::view_state::conversation::ConversationViewState> {
+        let session = self.log_view.get_session_mut(0)?;
+        let agent_ids: Vec<_> = self.session.subagents().keys().cloned().collect();
+        let agent_id = agent_ids.get(tab_index).cloned()?;
+        Some(session.subagent_mut(&agent_id))
     }
 
     /// Populate log_view from existing session entries (test helper).
@@ -442,7 +451,7 @@ pub enum FocusPane {
 ///
 /// - **Prose text**: Follows this global setting (toggleable with `W` key)
 /// - **Code blocks**: NEVER wrap, always use horizontal scroll (FR-053)
-/// - **Per-item override**: Individual messages can override via `ScrollState::wrap_overrides` (FR-048)
+/// - **Per-item override**: Individual messages can override via `EntryView.wrap_override` (FR-048)
 ///
 /// # Default (FR-039)
 ///
@@ -524,12 +533,6 @@ pub struct ScrollState {
     /// `None` means no specific message has focus (pane-level focus only).
     /// Used for keyboard navigation within the conversation.
     pub focused_message: Option<usize>,
-
-    /// Set of message UUIDs with per-item wrap mode override.
-    /// Presence in this set inverts the global wrap setting for that message.
-    /// Toggled via `toggle_wrap` with `w` key (FR-048, FR-050).
-    /// EPHEMERAL: Not persisted across sessions (FR-049).
-    pub wrap_overrides: HashSet<EntryUuid>,
 }
 
 impl ScrollState {
@@ -553,28 +556,6 @@ impl ScrollState {
     /// Get the focused message index.
     pub fn focused_message(&self) -> Option<usize> {
         self.focused_message
-    }
-
-    /// Toggle wrap override for a specific message (FR-050: w key)
-    pub fn toggle_wrap(&mut self, uuid: &EntryUuid) {
-        if self.wrap_overrides.contains(uuid) {
-            self.wrap_overrides.remove(uuid);
-        } else {
-            self.wrap_overrides.insert(uuid.clone());
-        }
-    }
-
-    /// Get effective wrap mode for a message (FR-048)
-    /// Per-item override inverts the global setting
-    pub fn effective_wrap(&self, uuid: &EntryUuid, global: WrapMode) -> WrapMode {
-        if self.wrap_overrides.contains(uuid) {
-            match global {
-                WrapMode::Wrap => WrapMode::NoWrap,
-                WrapMode::NoWrap => WrapMode::Wrap,
-            }
-        } else {
-            global
-        }
     }
 }
 

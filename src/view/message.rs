@@ -618,10 +618,12 @@ impl<'a> ConversationView<'a> {
         match entry {
             ConversationEntry::Valid(log_entry) => {
 
-                // Get effective wrap mode (per-entry override may invert global)
+                // Get effective wrap mode from view-state (per-entry override)
                 let effective_wrap = self
-                    .scroll_state
-                    .effective_wrap(log_entry.uuid(), global_wrap);
+                    .view_state
+                    .get(crate::view_state::types::EntryIndex::new(entry_index))
+                    .map(|e| e.effective_wrap(global_wrap))
+                    .unwrap_or(global_wrap);
 
                 match log_entry.message().content() {
                     MessageContent::Text(text) => {
@@ -2016,11 +2018,8 @@ pub fn render_conversation_view(
 
         // Get per-entry effective wrap mode
         // FR-053: Per-entry wrap setting influences section-level rendering
-        let effective_wrap = if let ConversationEntry::Valid(log_entry) = entry {
-            scroll.effective_wrap(log_entry.uuid(), global_wrap)
-        } else {
-            global_wrap
-        };
+        // NOTE: Dead code - using global_wrap only (no per-entry overrides)
+        let effective_wrap = global_wrap;
 
         // Calculate lines to skip for clipping
         let lines_to_skip = if layout.y_offset == 0 {
@@ -2318,14 +2317,15 @@ pub fn render_conversation_view_with_search(
         let entry = &visible_entries[layout_idx];
         let actual_entry_index = start_idx + layout_idx;
 
-        // Get per-entry effective wrap mode
+        // Get per-entry effective wrap mode from view-state
         // FR-053: Code blocks never wrap, always use horizontal scroll
         let effective_wrap = if has_code_blocks(&extract_entry_text(entry)) {
             WrapMode::NoWrap
-        } else if let ConversationEntry::Valid(log_entry) = entry {
-            scroll.effective_wrap(log_entry.uuid(), global_wrap)
         } else {
-            global_wrap
+            view_state
+                .get(crate::view_state::types::EntryIndex::new(actual_entry_index))
+                .map(|e| e.effective_wrap(global_wrap))
+                .unwrap_or(global_wrap)
         };
 
         // Get entry lines with search highlighting (section-based rendering)

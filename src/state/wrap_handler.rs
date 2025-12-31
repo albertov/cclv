@@ -1,70 +1,73 @@
 //! Line wrap toggle keyboard action handler.
 //!
 //! Pure functions that transform AppState in response to wrap toggle actions.
-//! Focus-aware: dispatches actions to the correct scroll state based on current focus.
+//! Focus-aware: dispatches actions to the correct conversation view based on current focus.
 
-use crate::state::{AppState, FocusPane};
+use crate::state::{AppState, FocusPane, WrapMode};
 
 /// Handle a line wrap toggle keyboard action for the focused message.
 ///
-/// Looks up the currently focused message's UUID and toggles its wrap override
-/// in the appropriate scroll state (main or subagent).
+/// Toggles the wrap override for the focused entry in the conversation view-state.
+/// Toggle semantics: if no override, set opposite of global; if override exists, clear it.
 ///
 /// # Arguments
 /// * `state` - Current application state to transform
 ///
 /// Returns a new AppState with the wrap toggle applied (or unchanged if no message focused).
 pub fn handle_toggle_wrap(mut state: AppState) -> AppState {
-    // First, get the UUID of the focused entry (reading phase)
-    let focused_uuid = match state.focus {
+    // Stub height calculator - will be properly wired when rendering is migrated
+    let stub_calculator = |_entry: &crate::model::ConversationEntry, _expanded: bool, _wrap: WrapMode| {
+        crate::view_state::types::LineHeight::new(10).unwrap()
+    };
+
+    match state.focus {
         FocusPane::Main => {
-            // Get focused message index from main scroll state
-            if let Some(focused_index) = state.main_scroll.focused_message() {
-                state
-                    .session()
-                    .main_agent()
-                    .entries()
-                    .get(focused_index)
-                    .and_then(|e| e.as_valid())
-                    .map(|log| log.uuid().clone())
-            } else {
-                None
+            let global = state.global_wrap;
+            let params = crate::view_state::layout_params::LayoutParams::new(80, global);
+
+            if let Some(view) = state.main_conversation_view_mut() {
+                if let Some(index) = view.focused_message() {
+                    // Get current override to determine toggle behavior
+                    let current_override = view.get(index).and_then(|e| e.wrap_override());
+
+                    // Toggle logic: if override exists, clear it; else set to opposite of global
+                    let new_override = match current_override {
+                        Some(_) => None, // Clear override (returns to global)
+                        None => Some(match global {
+                            WrapMode::Wrap => WrapMode::NoWrap,
+                            WrapMode::NoWrap => WrapMode::Wrap,
+                        }),
+                    };
+
+                    view.set_wrap_override(index, new_override, params, stub_calculator);
+                }
             }
         }
         FocusPane::Subagent => {
-            // Get focused message index from subagent scroll state
-            if let Some(focused_index) = state.subagent_scroll.focused_message() {
-                // Get the currently selected subagent's entries
-                if let Some(tab_index) = state.selected_tab {
-                    let subagent_ids = state.session().subagent_ids_ordered();
-                    if let Some(&agent_id) = subagent_ids.get(tab_index) {
-                        state.session().subagents().get(agent_id).and_then(|conv| {
-                            conv.entries()
-                                .get(focused_index)
-                                .and_then(|e| e.as_valid())
-                                .map(|log| log.uuid().clone())
-                        })
-                    } else {
-                        None
+            if let Some(tab_index) = state.selected_tab {
+                let global = state.global_wrap;
+                let params = crate::view_state::layout_params::LayoutParams::new(80, global);
+
+                if let Some(view) = state.subagent_conversation_view_mut(tab_index) {
+                    if let Some(index) = view.focused_message() {
+                        // Get current override to determine toggle behavior
+                        let current_override = view.get(index).and_then(|e| e.wrap_override());
+
+                        // Toggle logic: if override exists, clear it; else set to opposite of global
+                        let new_override = match current_override {
+                            Some(_) => None, // Clear override (returns to global)
+                            None => Some(match global {
+                                WrapMode::Wrap => WrapMode::NoWrap,
+                                WrapMode::NoWrap => WrapMode::Wrap,
+                            }),
+                        };
+
+                        view.set_wrap_override(index, new_override, params, stub_calculator);
                     }
-                } else {
-                    None
                 }
-            } else {
-                None
             }
         }
-        _ => None, // No-op for Stats/Search panes
-    };
-
-    // Then, toggle wrap for the UUID (mutation phase)
-    if let Some(uuid) = focused_uuid {
-        let scroll_state = match state.focus {
-            FocusPane::Main => &mut state.main_scroll,
-            FocusPane::Subagent => &mut state.subagent_scroll,
-            _ => return state, // Unreachable due to focused_uuid pattern, but defensive
-        };
-        scroll_state.toggle_wrap(&uuid);
+        _ => {} // No-op for Stats/Search panes
     }
 
     state
