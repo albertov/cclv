@@ -108,14 +108,14 @@ impl HeightIndex {
         sum.max(0) as usize // Handle potential negative sums from set operations
     }
 
-    /// Binary search for the first index where `prefix_sum(index) >= value`.
+    /// Binary search for the first index where `prefix_sum(index) > value`.
     ///
     /// Returns the index of the entry containing the given vertical offset.
     ///
     /// # Returns
     ///
-    /// - `Some(index)` if there exists an index where `prefix_sum(index) >= value`
-    /// - `None` if `value > total()` or the index is empty
+    /// - `Some(index)` if there exists an index where `prefix_sum(index) > value`
+    /// - `None` if `value >= total()` or the index is empty
     ///
     /// # Examples
     ///
