@@ -815,4 +815,199 @@ mod tests {
         assert!(text.contains("CustomTool"));
         assert!(text.contains("7"));
     }
+
+    // ===== StatsPanel filtered display tests =====
+
+    #[test]
+    fn stats_panel_displays_global_filter_total_tokens() {
+        use crate::model::{AgentId, TokenUsage};
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        let mut subagent_usage = HashMap::new();
+        subagent_usage.insert(
+            AgentId::new("agent-1").unwrap(),
+            TokenUsage {
+                input_tokens: 400,
+                output_tokens: 200,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+        );
+
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1000,
+                output_tokens: 500,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage {
+                input_tokens: 600,
+                output_tokens: 300,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            subagent_usage,
+            tool_counts: HashMap::new(),
+            subagent_count: 1,
+            entry_count: 10,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Should display total usage (1000 + 500 = 1500)
+        assert!(
+            content.contains("1,000"),
+            "Expected input tokens '1,000' for Global filter, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("500"),
+            "Expected output tokens '500' for Global filter, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("1,500"),
+            "Expected total tokens '1,500' for Global filter, got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_displays_main_agent_filter_main_tokens() {
+        use crate::model::{AgentId, TokenUsage};
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        let mut subagent_usage = HashMap::new();
+        subagent_usage.insert(
+            AgentId::new("agent-1").unwrap(),
+            TokenUsage {
+                input_tokens: 400,
+                output_tokens: 200,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+        );
+
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1000,
+                output_tokens: 500,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage {
+                input_tokens: 600,
+                output_tokens: 300,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            subagent_usage,
+            tool_counts: HashMap::new(),
+            subagent_count: 1,
+            entry_count: 10,
+        };
+
+        let filter = StatsFilter::MainAgent;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Should display main agent usage only (600 + 300 = 900)
+        assert!(
+            content.contains("600"),
+            "Expected input tokens '600' for MainAgent filter, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("300"),
+            "Expected output tokens '300' for MainAgent filter, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("900"),
+            "Expected total tokens '900' for MainAgent filter, got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_displays_subagent_filter_subagent_tokens() {
+        use crate::model::{AgentId, TokenUsage};
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        let agent1 = AgentId::new("agent-1").unwrap();
+        let mut subagent_usage = HashMap::new();
+        subagent_usage.insert(
+            agent1.clone(),
+            TokenUsage {
+                input_tokens: 400,
+                output_tokens: 200,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+        );
+
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1000,
+                output_tokens: 500,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage {
+                input_tokens: 600,
+                output_tokens: 300,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            subagent_usage,
+            tool_counts: HashMap::new(),
+            subagent_count: 1,
+            entry_count: 10,
+        };
+
+        let filter = StatsFilter::Subagent(agent1);
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Should display subagent usage only (400 + 200 = 600)
+        assert!(
+            content.contains("400"),
+            "Expected input tokens '400' for Subagent filter, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("200"),
+            "Expected output tokens '200' for Subagent filter, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("600"),
+            "Expected total tokens '600' for Subagent filter, got:\n{}",
+            content
+        );
+    }
 }
