@@ -1,6 +1,6 @@
 ---
 source: src/tests/view_snapshots.rs
-expression: after_scroll.clone()
+expression: before_scroll.clone()
 ---
 ┌Conversations─────────────────────────────────────────────────────────────────────────────────────┐
 │ Main         ┌ Keyboard Shortcuts ────────────────────────────────────────────────┐              │

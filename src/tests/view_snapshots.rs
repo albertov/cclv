@@ -3015,7 +3015,6 @@ fn bug_help_popup_not_triggered_by_question_mark() {
 /// 3. Press 'j' multiple times to scroll
 /// 4. Observe: Conversation behind the popup scrolls, popup stays in place
 #[test]
-#[ignore = "cclv-5ur.66: help popup does not capture scroll events"]
 fn bug_help_popup_scroll_passthrough() {
     use crate::config::keybindings::KeyBindings;
     use crate::source::{FileSource, InputSource, StdinSource};
@@ -3086,6 +3085,96 @@ fn bug_help_popup_scroll_passthrough() {
          Actual: Conversation behind popup has scrolled\n\n\
          Verified by manual testing in tmux pane 3.\n\
          Bead: cclv-5ur.66"
+    );
+}
+
+/// Bug reproduction: Mouse scroll events pass through help popup
+///
+/// EXPECTED: Mouse scroll should be blocked when help popup is visible
+/// ACTUAL: Mouse scroll events change the underlying conversation scroll position
+///
+/// This is the MOUSE SCROLL variant of bug_help_popup_scroll_passthrough (which tests keyboard)
+/// Both keyboard (j/k) and mouse scroll should be blocked when help is visible.
+///
+/// Steps to reproduce manually:
+/// 1. cargo run -- tests/fixtures/help_popup_scroll_repro.jsonl
+/// 2. Press '?' to open help popup
+/// 3. Mouse scroll up/down
+/// 4. Observe: Conversation behind the popup scrolls, popup stays in place
+#[test]
+fn bug_help_popup_mouse_scroll_passthrough() {
+    use crate::config::keybindings::KeyBindings;
+    use crate::source::{FileSource, InputSource, StdinSource};
+    use crate::state::AppState;
+    use crate::view::TuiApp;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+    use std::path::PathBuf;
+
+    // Load minimal fixture with enough entries to scroll
+    let mut file_source =
+        FileSource::new(PathBuf::from("tests/fixtures/help_popup_scroll_repro.jsonl"))
+            .expect("Should load fixture");
+    let log_entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = log_entries.len();
+
+    let entries: Vec<ConversationEntry> = log_entries
+        .into_iter()
+        .map(|e| ConversationEntry::Valid(Box::new(e)))
+        .collect();
+
+    // Create app with small height to force scrolling
+    // 15 rows: 3 for tabs, 11 for content, 1 for status - entries won't all fit
+    let backend = TestBackend::new(100, 15);
+    let terminal = Terminal::new(backend).unwrap();
+    let mut app_state = AppState::new();
+    app_state.add_entries(entries);
+    let key_bindings = KeyBindings::default();
+    let input_source = InputSource::Stdin(StdinSource::from_reader(&b""[..]));
+
+    let mut app = TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Initial render
+    app.render_test().expect("Initial render should succeed");
+
+    // Open help popup
+    let open_help = KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE);
+    app.handle_key_test(open_help);
+    app.render_test().expect("Render after opening help should succeed");
+
+    // Verify help is visible
+    assert!(
+        app.app_state().help_visible,
+        "Help popup should be visible after pressing '?'"
+    );
+
+    // Capture state BEFORE mouse scrolling
+    let before_scroll = buffer_to_string(app.terminal().backend().buffer());
+    insta::assert_snapshot!("bug_help_popup_mouse_scroll_before", before_scroll.clone());
+
+    // Send multiple mouse scroll events (ScrollDown)
+    for _ in 0..5 {
+        let mouse_scroll = MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: 50,
+            row: 10,
+            modifiers: KeyModifiers::NONE,
+        };
+        app.handle_mouse_test(mouse_scroll);
+    }
+    app.render_test().expect("Render after mouse scrolling should succeed");
+
+    // Capture state AFTER mouse scrolling
+    let after_scroll = buffer_to_string(app.terminal().backend().buffer());
+    insta::assert_snapshot!("bug_help_popup_mouse_scroll_after", after_scroll.clone());
+
+    // BUG ASSERTION: Output should be IDENTICAL - help popup should block mouse scroll
+    assert_eq!(
+        before_scroll, after_scroll,
+        "BUG: Help popup does NOT block mouse scroll events.\n\
+         When help popup is visible, mouse scroll events should be blocked.\n\n\
+         Expected: Output identical before and after mouse scroll\n\
+         Actual: Conversation behind popup has scrolled\n\n\
+         Related to keyboard scroll bug in cclv-5ur.66"
     );
 }
 

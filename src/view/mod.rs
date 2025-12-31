@@ -304,6 +304,20 @@ where
             None => return false, // Unknown key, ignore
         };
 
+        // Special case: Block most events when help popup is visible (cclv-5ur.66)
+        // Only allow: Help toggle ('?'), Quit (q/Ctrl+C), and Esc (already handled above)
+        if self.app_state.help_visible {
+            match action {
+                KeyAction::Help | KeyAction::Quit => {
+                    // Allow these actions to proceed
+                }
+                _ => {
+                    // Block all other actions (scroll, navigation, etc.)
+                    return false;
+                }
+            }
+        }
+
         // Dispatch action
         match action {
             // Quit
@@ -603,6 +617,20 @@ where
     /// Handles left-click on tab bar to switch tabs, on entries to expand/collapse,
     /// and scroll wheel events to scroll the focused pane
     fn handle_mouse(&mut self, mouse: MouseEvent) {
+        // Block scroll events when help popup is visible (cclv-5ur.66)
+        // Mouse clicks are allowed to pass through for closing help or other interactions
+        if self.app_state.help_visible {
+            match mouse.kind {
+                MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {
+                    // Block scroll events when help is visible
+                    return;
+                }
+                _ => {
+                    // Allow other mouse events (clicks, etc.)
+                }
+            }
+        }
+
         // Handle scroll events
         match mouse.kind {
             MouseEventKind::ScrollUp => {
