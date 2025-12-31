@@ -38,7 +38,28 @@ impl InputSource {
     ///
     /// Returns `InputError` for I/O errors or file deletion.
     pub fn poll(&mut self) -> Result<Vec<String>, InputError> {
-        todo!("InputSource::poll")
+        match self {
+            InputSource::File(tailer) => {
+                // Check for file changes
+                let has_changes = tailer.poll_changes()?;
+
+                // If changes detected, read new lines
+                if has_changes {
+                    tailer.read_new_lines()
+                } else {
+                    // No changes - check if there's initial content to read
+                    tailer.read_new_lines()
+                }
+            }
+            InputSource::Stdin(stdin) => {
+                // Drain all available lines from channel
+                let mut lines = Vec::new();
+                while let Some(line) = stdin.poll()? {
+                    lines.push(line);
+                }
+                Ok(lines)
+            }
+        }
     }
 
     /// Check if the source is still live (can receive more data).
@@ -47,7 +68,10 @@ impl InputSource {
     /// - File: always true (can tail indefinitely)
     /// - Stdin: true until EOF is reached
     pub fn is_live(&self) -> bool {
-        todo!("InputSource::is_live")
+        match self {
+            InputSource::File(_) => true, // File sources can always receive more data
+            InputSource::Stdin(stdin) => !stdin.is_complete(), // Live until EOF
+        }
     }
 }
 
@@ -67,8 +91,19 @@ impl InputSource {
 /// Returns `InputError::NoInput` if no file is provided and stdin is not piped.
 /// Returns `InputError::FileNotFound` if file path is provided but doesn't exist.
 /// Returns `InputError::Io` for other I/O errors.
-pub fn detect_input_source(_file: Option<PathBuf>) -> Result<InputSource, InputError> {
-    todo!("detect_input_source")
+pub fn detect_input_source(file: Option<PathBuf>) -> Result<InputSource, InputError> {
+    match file {
+        Some(path) => {
+            // File path provided - open with FileTailer
+            let tailer = FileTailer::new(path)?;
+            Ok(InputSource::File(tailer))
+        }
+        None => {
+            // No file - try stdin
+            let stdin_source = StdinSource::new()?;
+            Ok(InputSource::Stdin(stdin_source))
+        }
+    }
 }
 
 #[cfg(test)]
