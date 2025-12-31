@@ -104,13 +104,16 @@ impl TuiApp<CrosstermBackend<Stdout>> {
             }
         }
 
+        // Build model session for initial entries
         let mut session = crate::model::Session::new(session_id);
-        let line_counter = entries.len();
-        for entry in entries {
-            session.add_conversation_entry(entry);
+        for entry in &entries {
+            session.add_conversation_entry(entry.clone());
         }
+        let line_counter = entries.len();
 
-        let app_state = AppState::new(session);
+        // Create AppState and populate from session
+        let mut app_state = AppState::new();
+        app_state.populate_log_view_from_model_session(&session);
         let key_bindings = KeyBindings::default();
 
         Ok(Self {
@@ -419,8 +422,8 @@ where
             KeyAction::FilterSubagent => {
                 // Filter to current subagent tab if selected
                 if let Some(tab_index) = self.app_state.selected_tab {
-                    let subagent_ids = self.app_state.session().subagent_ids_ordered();
-                    if let Some(&agent_id) = subagent_ids.get(tab_index) {
+                    let subagent_ids: Vec<_> = self.app_state.session_view().subagent_ids().cloned().collect();
+                    if let Some(agent_id) = subagent_ids.get(tab_index) {
                         self.app_state.stats_filter =
                             crate::model::StatsFilter::Subagent(agent_id.clone());
                     }
@@ -484,7 +487,8 @@ where
                 // Execute search to populate matches
                 use crate::state::{execute_search, SearchState};
                 if let SearchState::Active { query, .. } = &self.app_state.search {
-                    let matches = execute_search(self.app_state.session(), query);
+                    let session_view = self.app_state.log_view().get_session(0).expect("Session 0 must exist");
+                    let matches = execute_search(session_view, query);
                     self.app_state.search = SearchState::Active {
                         query: query.clone(),
                         matches,
@@ -807,7 +811,8 @@ mod tests {
 
         let session_id = SessionId::new("test-session").unwrap();
         let session = crate::model::Session::new(session_id);
-        let app_state = AppState::new(session);
+        let mut app_state = AppState::new();
+        app_state.populate_log_view_from_model_session(&session);
         let key_bindings = KeyBindings::default();
 
         TuiApp {
@@ -1288,7 +1293,7 @@ mod tests {
 
         // Verify session hasn't been updated yet (batched)
         assert_eq!(
-            app.app_state.session().main_agent().len(),
+            app.app_state.session_view().main().len(),
             0,
             "Entries should not be added to session until flush"
         );
@@ -1315,7 +1320,7 @@ mod tests {
             "Buffer should be empty after flush"
         );
         assert_eq!(
-            app.app_state.session().main_agent().len(),
+            app.app_state.session_view().main().len(),
             50,
             "All entries should be in session after flush"
         );

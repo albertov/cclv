@@ -5,6 +5,7 @@ use crate::model::{
     ContentBlock, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
     Session, SessionId,
 };
+use crate::state::AppState;
 use chrono::Utc;
 
 // ===== SearchQuery::new Tests =====
@@ -218,8 +219,11 @@ fn execute_search_finds_match_in_main_agent_text() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "This is an error message"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].agent_id, None);
@@ -234,8 +238,11 @@ fn execute_search_is_case_insensitive() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "ERROR in uppercase"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].char_offset, 0);
@@ -250,8 +257,11 @@ fn execute_search_finds_multiple_matches_in_single_entry() {
         "error at start and error at end",
     ));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].char_offset, 0);
@@ -264,8 +274,11 @@ fn execute_search_finds_matches_across_multiple_entries() {
     session.add_entry(make_text_entry("entry-1", None, "first error"));
     session.add_entry(make_text_entry("entry-2", None, "second error"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].entry_uuid.as_str(), "entry-1");
@@ -282,8 +295,11 @@ fn execute_search_finds_match_in_subagent() {
         "subagent error",
     ));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].agent_id, Some(agent_id));
@@ -302,8 +318,11 @@ fn execute_search_finds_matches_in_main_and_subagent() {
         "sub error",
     ));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].agent_id, None);
@@ -326,8 +345,11 @@ fn execute_search_searches_all_text_blocks_in_blocks_content() {
     ];
     session.add_entry(make_blocks_entry("entry-1", None, blocks));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].block_index, 0);
@@ -341,8 +363,11 @@ fn execute_search_returns_empty_when_no_matches() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "no matching text"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 0);
 }
@@ -351,8 +376,11 @@ fn execute_search_returns_empty_when_no_matches() {
 fn execute_search_returns_empty_for_empty_session() {
     let session = Session::new(make_session_id("session-1"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 0);
 }
@@ -362,8 +390,11 @@ fn execute_search_handles_overlapping_matches() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "aaa"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("aa").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     // Should find "aa" at position 0 and position 1 (overlapping)
     assert_eq!(matches.len(), 2);
@@ -376,8 +407,11 @@ fn execute_search_stores_correct_match_length() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "find this pattern"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("pattern").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].length, 7); // "pattern" is 7 chars
@@ -391,8 +425,11 @@ fn execute_search_searches_thinking_blocks() {
     }];
     session.add_entry(make_blocks_entry("entry-1", None, blocks));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].block_index, 0);
@@ -410,8 +447,11 @@ fn execute_search_searches_tool_result_blocks() {
     }];
     session.add_entry(make_blocks_entry("entry-1", None, blocks));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].block_index, 0);
@@ -598,8 +638,11 @@ fn execute_search_handles_emoji_in_content_before_match() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "🦀 error"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     // char_offset should be 5 (byte offset after "🦀 ")
@@ -617,8 +660,11 @@ fn execute_search_finds_emoji_in_content() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "Rust 🦀 rocks"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("🦀").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     // Emoji starts at byte 5 (after "Rust ")
@@ -633,8 +679,11 @@ fn execute_search_handles_multibyte_unicode_characters() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "Hello 日本語 world"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("world").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     // "Hello " = 6 bytes, "日本語" = 9 bytes (3 chars × 3 bytes), " " = 1 byte
@@ -652,8 +701,11 @@ fn execute_search_finds_japanese_text() {
         "Searching for 日本語 here",
     ));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("日本語").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].char_offset, 14, "Japanese at byte 14");
@@ -665,8 +717,11 @@ fn execute_search_multiple_emojis_in_text() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "🔥🦀🚀 test 🎉"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("test").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     // 🔥 = 4 bytes, 🦀 = 4 bytes, 🚀 = 4 bytes, space = 1 byte
@@ -680,8 +735,11 @@ fn execute_search_emoji_case_insensitive_ascii_only() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "ERROR 🔥 here"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("error").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].char_offset, 0);
@@ -694,8 +752,11 @@ fn execute_search_overlapping_matches_with_unicode() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "ääää"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("ää").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     // Should find overlapping matches at byte positions
     assert_eq!(matches.len(), 3);
@@ -711,8 +772,11 @@ fn execute_search_unicode_at_match_boundary() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "test🦀 more test🦀"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("test").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].char_offset, 0);
@@ -726,8 +790,11 @@ fn execute_search_stores_correct_match_length_for_unicode_query() {
     let mut session = Session::new(make_session_id("session-1"));
     session.add_entry(make_text_entry("entry-1", None, "Find the 🚀 emoji"));
 
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+
     let query = SearchQuery::new("🚀").expect("valid query");
-    let matches = execute_search(&session, &query);
+    let matches = execute_search(state.session_view(), &query);
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].length, 4, "Rocket emoji is 4 bytes, not 1 char");

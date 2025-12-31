@@ -582,9 +582,8 @@ fn snapshot_message_with_search_highlighting() {
             render_conversation_view_with_search(
                 frame,
                 frame.area(),
-                &conversation,
-                &scroll_state,
                 &view_state,
+                &scroll_state,
                 &search,
                 &styles,
                 false,
@@ -805,7 +804,8 @@ fn bug_initial_screen_blank_until_keypress() {
     // Create app
     let backend = TestBackend::new(80, 40);
     let terminal = Terminal::new(backend).unwrap();
-    let app_state = AppState::new(session);
+    let mut app_state = AppState::new();
+    app_state.populate_log_view_from_model_session(&session);
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
     let input_source =
         cclv::source::InputSource::Stdin(cclv::source::StdinSource::from_reader(&b""[..]));
@@ -867,7 +867,8 @@ fn bug_excessive_blank_lines_in_entry_rendering() {
     // Create app and render
     let backend = TestBackend::new(80, 40);
     let terminal = Terminal::new(backend).unwrap();
-    let app_state = AppState::new(session);
+    let mut app_state = AppState::new();
+    app_state.populate_log_view_from_model_session(&session);
 
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
     let input_source =
@@ -959,13 +960,13 @@ fn bug_page_down_twice_causes_blank_viewport() {
     // Create TuiApp like the real app
     let backend = TestBackend::new(100, 46); // Match tmux viewport
     let terminal = Terminal::new(backend).unwrap();
-    let mut app_state = AppState::new(session);
+    let mut app_state = AppState::new();
 
     // CRITICAL: Populate log_view from session entries (dual-write pattern)
     // The tests build Session first, then create AppState, so log_view is empty.
     // In production, entries are added via AppState::add_entries() which does dual-write.
     // Here we sync log_view from the already-populated Session.
-    app_state.populate_log_view_from_session();
+    app_state.populate_log_view_from_model_session(&session);
 
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
     let input_source =
@@ -1062,10 +1063,10 @@ fn us1_page_down_to_bottom_always_shows_content() {
     // Create TuiApp
     let backend = TestBackend::new(100, 46);
     let terminal = Terminal::new(backend).unwrap();
-    let mut app_state = AppState::new(session);
+    let mut app_state = AppState::new();
 
     // CRITICAL: Populate log_view from session entries (dual-write pattern)
-    app_state.populate_log_view_from_session();
+    app_state.populate_log_view_from_model_session(&session);
 
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
     let input_source =
@@ -1156,10 +1157,10 @@ fn us1_home_key_shows_first_entries_from_bottom() {
     // Create TuiApp
     let backend = TestBackend::new(100, 46);
     let terminal = Terminal::new(backend).unwrap();
-    let mut app_state = AppState::new(session);
+    let mut app_state = AppState::new();
 
     // CRITICAL: Populate log_view from session entries (dual-write pattern)
-    app_state.populate_log_view_from_session();
+    app_state.populate_log_view_from_model_session(&session);
 
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
     let input_source =
@@ -1231,7 +1232,8 @@ fn us1_end_key_shows_last_entries_with_content() {
     // Create TuiApp
     let backend = TestBackend::new(100, 46);
     let terminal = Terminal::new(backend).unwrap();
-    let app_state = AppState::new(session);
+    let mut app_state = AppState::new();
+    app_state.populate_log_view_from_model_session(&session);
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
     let input_source =
         cclv::source::InputSource::Stdin(cclv::source::StdinSource::from_reader(&b""[..]));
@@ -1302,10 +1304,10 @@ fn us1_rapid_scroll_updates_within_60fps() {
     // Create TuiApp
     let backend = TestBackend::new(100, 46);
     let terminal = Terminal::new(backend).unwrap();
-    let mut app_state = AppState::new(session);
+    let mut app_state = AppState::new();
 
     // CRITICAL: Populate log_view from session entries (dual-write pattern)
-    app_state.populate_log_view_from_session();
+    app_state.populate_log_view_from_model_session(&session);
 
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
     let input_source =

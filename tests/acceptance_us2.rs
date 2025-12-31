@@ -30,7 +30,7 @@ fn us2_scenario1_load_navigate() {
 
     // IF YES: Session loaded successfully
     let state = harness.state();
-    let entry_count = state.session().main_agent().entries().len();
+    let entry_count = state.session_view().main().entries().len();
 
     assert!(
         entry_count > 0,
@@ -92,7 +92,7 @@ fn us2_scenario2_switch_subagent_tabs() {
 
     // IF YES: Session loaded with subagent data
     let state = harness.state();
-    let subagent_count = state.session().subagents().len();
+    let subagent_count = state.session_view().subagents().len();
 
     assert!(
         subagent_count > 0,
@@ -276,7 +276,7 @@ fn us2_scenario5_collapse_default() {
 
     // IF YES: Session loaded with long message
     let state = harness.state();
-    let entries = state.session().main_agent().entries();
+    let entries = state.session_view().main().entries();
 
     assert!(
         !entries.is_empty(),
@@ -334,7 +334,7 @@ fn us2_scenario6_expand_message() {
     // IF YES: Session loaded
     let first_entry_uuid = {
         let initial_state = harness.state();
-        let entries = initial_state.session().main_agent().entries();
+        let entries = initial_state.session_view().main().entries();
         let uuid = entries[0].uuid().expect("Valid entry should have UUID");
 
         // VERIFY: Message starts collapsed
@@ -390,7 +390,7 @@ fn us2_scenario7_collapse_message() {
 
     // IF YES: Session loaded
     let first_entry_uuid = {
-        let entries = harness.state().session().main_agent().entries();
+        let entries = harness.state().session_view().main().entries();
         entries[0]
             .uuid()
             .expect("Valid entry should have UUID")

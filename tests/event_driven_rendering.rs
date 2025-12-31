@@ -23,7 +23,8 @@ fn create_test_app() -> TuiApp<TestBackend> {
 
     let session_id = cclv::model::SessionId::new("test-session").unwrap();
     let session = cclv::model::Session::new(session_id);
-    let app_state = AppState::new(session);
+    let mut app_state = AppState::new();
+    app_state.populate_log_view_from_model_session(&session);
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
 
     TuiApp::new_for_test(terminal, app_state, input_source, 0, key_bindings)
@@ -66,7 +67,7 @@ fn test_pending_entries_flushed_on_event() {
 
     // After render, entries should be in the session
     // (This tests that flush happens on render, not on timer)
-    let main_entries = app.app_state().session().main_agent().len();
+    let main_entries = app.app_state().session_view().main().len();
 
     // Initially should be 0 since we haven't added entries yet
     assert_eq!(main_entries, 0, "Initially no entries in session");

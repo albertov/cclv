@@ -33,7 +33,7 @@ fn us1_scenario1_realtime_display() {
     );
 
     let state = harness.state();
-    let entry_count = state.session().main_agent().entries().len();
+    let entry_count = state.session_view().main().entries().len();
     assert!(
         entry_count > 0,
         "Should display conversation entries from active log"
@@ -75,7 +75,7 @@ fn us1_scenario2_stdin_input() {
     // IF YES: Successfully parsed and displayed
     let state = harness.state();
     assert!(
-        !state.session().main_agent().is_empty(),
+        !state.session_view().main().is_empty(),
         "Should display session from stdin input"
     );
 
@@ -119,7 +119,7 @@ fn us1_scenario3_subagent_tab_appears() {
 
     // IF YES: Session loaded with entries
     let state = harness.state();
-    let entry_count = state.session().main_agent().entries().len();
+    let entry_count = state.session_view().main().entries().len();
 
     assert!(entry_count > 0, "Should have loaded entries from fixture");
 
@@ -157,7 +157,7 @@ fn us1_scenario4_tool_calls_display() {
 
     // IF YES: Session has tool call entries
     let state = harness.state();
-    let entries = state.session().main_agent().entries();
+    let entries = state.session_view().main().entries();
 
     // Verify we have some entries (fixture has tool calls)
     assert!(!entries.is_empty(), "Should have entries with tool calls");
@@ -265,7 +265,7 @@ fn us1_scenario6_auto_scroll_on_new() {
     );
 
     // VERIFY: We have content loaded
-    let has_content = !state.session().main_agent().is_empty();
+    let has_content = !state.session_view().main().is_empty();
     assert!(has_content, "Should have loaded entries from fixture");
 
     // VERIFY: In auto-scroll mode, scroll position should be at or near bottom

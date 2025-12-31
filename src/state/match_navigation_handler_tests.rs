@@ -40,7 +40,8 @@ fn make_search_match(agent_id: Option<AgentId>, uuid: &str) -> crate::state::Sea
 #[test]
 fn next_match_when_inactive_does_nothing() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.search = SearchState::Inactive;
     state.focus = FocusPane::Main;
 
@@ -56,7 +57,8 @@ fn next_match_when_inactive_does_nothing() {
 #[test]
 fn next_match_when_typing_does_nothing() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.search = SearchState::Typing {
         query: "test".to_string(),
         cursor: 2,
@@ -77,7 +79,8 @@ fn next_match_when_typing_does_nothing() {
 #[test]
 fn next_match_increments_current_match() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -103,7 +106,8 @@ fn next_match_increments_current_match() {
 #[test]
 fn next_match_wraps_from_last_to_first() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -129,7 +133,8 @@ fn next_match_wraps_from_last_to_first() {
 #[test]
 fn next_match_with_single_match_stays_at_zero() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -151,7 +156,8 @@ fn next_match_with_single_match_stays_at_zero() {
 #[test]
 fn next_match_switches_to_main_pane_when_match_in_main_agent() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -194,7 +200,8 @@ fn next_match_switches_to_subagent_pane_when_match_in_subagent() {
     );
     session.add_entry(entry);
 
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -241,7 +248,8 @@ fn next_match_selects_correct_subagent_tab() {
         session.add_entry(entry);
     }
 
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -259,7 +267,7 @@ fn next_match_selects_correct_subagent_tab() {
     // Agent order in Session::subagents() is deterministic (BTreeMap/sorted)
     // We need to find which tab index agent2 is at
     let expected_tab = result
-        .session()
+        .session_view()
         .subagents()
         .keys()
         .enumerate()
@@ -279,7 +287,8 @@ fn next_match_selects_correct_subagent_tab() {
 #[test]
 fn prev_match_when_inactive_does_nothing() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.search = SearchState::Inactive;
     state.focus = FocusPane::Main;
 
@@ -295,7 +304,8 @@ fn prev_match_when_inactive_does_nothing() {
 #[test]
 fn prev_match_when_typing_does_nothing() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.search = SearchState::Typing {
         query: "test".to_string(),
         cursor: 2,
@@ -316,7 +326,8 @@ fn prev_match_when_typing_does_nothing() {
 #[test]
 fn prev_match_decrements_current_match() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -342,7 +353,8 @@ fn prev_match_decrements_current_match() {
 #[test]
 fn prev_match_wraps_from_first_to_last() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -368,7 +380,8 @@ fn prev_match_wraps_from_first_to_last() {
 #[test]
 fn prev_match_with_single_match_stays_at_zero() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -390,7 +403,8 @@ fn prev_match_with_single_match_stays_at_zero() {
 #[test]
 fn prev_match_switches_to_main_pane_when_match_in_main_agent() {
     let session = make_test_session();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {
@@ -433,7 +447,8 @@ fn prev_match_switches_to_subagent_pane_when_match_in_subagent() {
     );
     session.add_entry(entry);
 
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let query = SearchQuery::new("test").expect("valid query");
 
     state.search = SearchState::Active {

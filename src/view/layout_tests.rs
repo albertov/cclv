@@ -140,7 +140,8 @@ fn calculate_constraints_without_subagents_returns_100_0_split() {
 fn render_layout_creates_three_areas_with_subagents() {
     let mut terminal = create_test_terminal();
     let session = create_session_with_subagents();
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {
@@ -175,7 +176,8 @@ fn render_layout_creates_three_areas_with_subagents() {
 fn render_layout_hides_subagent_pane_when_no_subagents() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {
@@ -205,7 +207,8 @@ fn render_layout_hides_subagent_pane_when_no_subagents() {
 fn render_layout_includes_status_bar() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {
@@ -231,7 +234,8 @@ fn render_layout_includes_status_bar() {
 fn render_layout_shows_live_indicator_when_live_mode() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.live_mode = true;
 
     terminal
@@ -259,7 +263,8 @@ fn render_layout_shows_live_indicator_when_live_mode() {
 fn render_layout_displays_tab_bar_in_subagent_pane() {
     let mut terminal = create_test_terminal();
     let session = create_session_with_multiple_subagents();
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {
@@ -292,7 +297,8 @@ fn render_layout_displays_tab_bar_in_subagent_pane() {
 fn render_layout_uses_selected_tab_to_display_correct_subagent() {
     let mut terminal = create_test_terminal();
     let session = create_session_with_multiple_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.selected_tab = Some(1); // Select second subagent
 
     terminal
@@ -351,7 +357,8 @@ fn render_header_displays_model_name_for_main_agent() {
     );
     session.add_entry(entry);
 
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {
@@ -377,7 +384,8 @@ fn render_header_displays_model_name_for_main_agent() {
 fn render_header_shows_live_indicator_when_live_mode_and_auto_scroll() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.live_mode = true;
     state.auto_scroll = true;
 
@@ -404,7 +412,8 @@ fn render_header_shows_live_indicator_when_live_mode_and_auto_scroll() {
 fn render_header_hides_live_indicator_when_live_mode_false() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.live_mode = false;
     state.auto_scroll = true;
 
@@ -441,7 +450,8 @@ fn render_header_hides_live_indicator_when_live_mode_false() {
 fn render_header_hides_live_indicator_when_auto_scroll_false() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.live_mode = true;
     state.auto_scroll = false; // User scrolled away
 
@@ -464,7 +474,8 @@ fn render_header_hides_live_indicator_when_auto_scroll_false() {
 fn render_header_shows_main_agent_label() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {
@@ -485,7 +496,8 @@ fn render_header_shows_main_agent_label() {
 fn render_header_shows_subagent_id_when_subagent_focused() {
     let mut terminal = create_test_terminal();
     let session = create_session_with_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.focus = FocusPane::Subagent;
     state.selected_tab = Some(0); // First subagent
 
@@ -510,7 +522,8 @@ fn render_header_shows_subagent_id_when_subagent_focused() {
 fn render_layout_hides_stats_panel_when_stats_visible_false() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.stats_visible = false;
 
     terminal
@@ -537,7 +550,8 @@ fn render_layout_hides_stats_panel_when_stats_visible_false() {
 fn render_layout_shows_stats_panel_when_stats_visible_true() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.stats_visible = true;
 
     terminal
@@ -572,7 +586,8 @@ fn render_layout_highlights_stats_border_when_focused() {
 
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.stats_visible = true;
     state.focus = FocusPane::Stats;
 
@@ -616,7 +631,8 @@ fn render_layout_highlights_stats_border_when_focused() {
 fn render_layout_stats_panel_does_not_highlight_when_not_focused() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.stats_visible = true;
     state.focus = FocusPane::Main; // Focus on main, not stats
 
@@ -648,7 +664,8 @@ fn render_layout_stats_panel_does_not_highlight_when_not_focused() {
 fn render_layout_allocates_stats_panel_height_approximately_10_lines() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.stats_visible = true;
 
     terminal
@@ -688,7 +705,8 @@ fn render_layout_reduces_content_area_when_stats_visible() {
     let session = create_session_with_subagents();
 
     // First measure with stats hidden
-    let mut state_hidden = AppState::new(session.clone());
+    let mut state_hidden = AppState::new();
+    state_hidden.populate_log_view_from_model_session(&session);
     state_hidden.stats_visible = false;
 
     terminal
@@ -701,7 +719,8 @@ fn render_layout_reduces_content_area_when_stats_visible() {
     let content_hidden = buffer_to_string(&buffer_hidden);
 
     // Then measure with stats visible
-    let mut state_visible = AppState::new(session);
+    let mut state_visible = AppState::new();
+    state_visible.populate_log_view_from_model_session(&session);
     state_visible.stats_visible = true;
 
     terminal
@@ -827,7 +846,8 @@ fn build_keyboard_hints_truncates_for_narrow_terminal() {
 fn render_status_bar_displays_keyboard_hints() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {
@@ -861,7 +881,8 @@ fn render_status_bar_hints_change_based_on_focus() {
     let session = create_session_with_subagents();
 
     // Test Main pane focus
-    let mut state_main = AppState::new(session.clone());
+    let mut state_main = AppState::new();
+    state_main.populate_log_view_from_model_session(&session);
     state_main.focus = FocusPane::Main;
 
     terminal
@@ -880,7 +901,8 @@ fn render_status_bar_hints_change_based_on_focus() {
         .collect();
 
     // Test Subagent pane focus
-    let mut state_subagent = AppState::new(session);
+    let mut state_subagent = AppState::new();
+    state_subagent.populate_log_view_from_model_session(&session);
     state_subagent.focus = FocusPane::Subagent;
 
     terminal
@@ -911,7 +933,8 @@ fn render_status_bar_hints_change_based_on_focus() {
 fn render_status_bar_displays_wrap_on_indicator_when_wrap_enabled() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.global_wrap = WrapMode::Wrap;
 
     terminal
@@ -941,7 +964,8 @@ fn render_status_bar_displays_wrap_on_indicator_when_wrap_enabled() {
 fn render_status_bar_displays_wrap_off_indicator_when_wrap_disabled() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.global_wrap = WrapMode::NoWrap;
 
     terminal
@@ -973,7 +997,8 @@ fn render_status_bar_wrap_indicator_changes_with_toggle() {
     let session = create_session_no_subagents();
 
     // Render with wrap enabled
-    let mut state_wrap_on = AppState::new(session.clone());
+    let mut state_wrap_on = AppState::new();
+    state_wrap_on.populate_log_view_from_model_session(&session);
     state_wrap_on.global_wrap = WrapMode::Wrap;
 
     terminal
@@ -992,7 +1017,8 @@ fn render_status_bar_wrap_indicator_changes_with_toggle() {
         .collect();
 
     // Render with wrap disabled
-    let mut state_wrap_off = AppState::new(session);
+    let mut state_wrap_off = AppState::new();
+    state_wrap_off.populate_log_view_from_model_session(&session);
     state_wrap_off.global_wrap = WrapMode::NoWrap;
 
     terminal
@@ -1049,12 +1075,13 @@ fn render_layout_uses_search_highlighting_when_search_active() {
     );
     session.add_entry(entry);
 
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     // Activate search for "world"
     use crate::state::search::{execute_search, SearchQuery};
     let query = SearchQuery::new("world").unwrap();
-    let matches = execute_search(state.session(), &query);
+    let matches = execute_search(state.session_view(), &query);
     state.search = SearchState::Active {
         query,
         matches,
@@ -1113,7 +1140,8 @@ fn render_layout_no_search_highlighting_when_search_inactive() {
     );
     session.add_entry(entry);
 
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     // search remains SearchState::Inactive (default)
 
     terminal
@@ -1158,7 +1186,8 @@ fn buffer_to_string(buffer: &ratatui::buffer::Buffer) -> String {
 fn status_bar_shows_gray_live_indicator_when_static_mode() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.input_mode = InputMode::Static;
 
     terminal
@@ -1185,7 +1214,8 @@ fn status_bar_shows_gray_live_indicator_when_static_mode() {
 fn status_bar_shows_gray_live_indicator_when_eof_mode() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.input_mode = InputMode::Eof;
 
     terminal
@@ -1211,7 +1241,8 @@ fn status_bar_shows_gray_live_indicator_when_eof_mode() {
 fn status_bar_shows_green_live_indicator_when_streaming_mode_blink_on() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     state.input_mode = InputMode::Streaming;
 
     terminal
@@ -1278,7 +1309,8 @@ fn render_header_shows_session_metadata_when_available() {
     );
     session.add_entry(entry);
 
-    let app_state = AppState::new(session);
+    let mut app_state = AppState::new();
+    app_state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {
@@ -1306,7 +1338,8 @@ fn render_header_shows_session_metadata_when_available() {
 fn render_header_shows_fallback_when_no_system_metadata() {
     let mut terminal = create_test_terminal();
     let session = create_session_no_subagents();
-    let app_state = AppState::new(session);
+    let mut app_state = AppState::new();
+    app_state.populate_log_view_from_model_session(&session);
 
     terminal
         .draw(|frame| {

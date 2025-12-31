@@ -3,7 +3,7 @@
 //! AppState is the root state type containing all UI state.
 //! All state transitions are pure functions following Elm architecture.
 
-use crate::model::{Session, StatsFilter};
+use crate::model::StatsFilter;
 use crate::state::SearchState;
 use crate::view_state::log::LogViewState;
 
@@ -72,13 +72,9 @@ pub enum InputMode {
 /// - **FR-039**: Toggleable line-wrapping with configurable default
 #[derive(Debug, Clone)]
 pub struct AppState {
-    /// The session data containing all parsed log entries and statistics.
-    /// This is the domain model; all other fields are UI state.
-    session: Session,
-
     /// View-state layer for rendering log entries.
-    /// This becomes the primary source of truth for entry layout and display.
-    /// Dual-write pattern during migration (cclv-5ur.6.x tasks).
+    /// Source of truth for entry layout and display.
+    /// Migration complete: session field removed, view-state is primary.
     log_view: LogViewState,
 
     /// Which pane currently has keyboard focus.
@@ -142,9 +138,8 @@ pub struct AppState {
 
 impl AppState {
     /// Create new AppState with default UI state.
-    pub fn new(session: Session) -> Self {
+    pub fn new() -> Self {
         Self {
-            session,
             log_view: LogViewState::new(),
             focus: FocusPane::Main,
             main_scroll: ScrollState::default(),
@@ -197,17 +192,22 @@ impl AppState {
                 crate::model::ConversationEntry::Malformed(_) => None,
             };
 
-            // Write to log_view (new path - source of truth)
-            self.log_view.add_entry(entry.clone(), agent_id);
-
-            // Write to session (old path - compatibility during migration)
-            self.session.add_conversation_entry(entry);
+            // Write to log_view (source of truth)
+            self.log_view.add_entry(entry, agent_id);
         }
     }
 
-    /// Get immutable reference to the session.
-    pub fn session(&self) -> &Session {
-        &self.session
+    /// Get immutable reference to session view-state.
+    ///
+    /// Assumes single session (current limitation).
+    /// Panics if no sessions exist (shouldn't happen in normal operation).
+    pub fn session_view(&self) -> &crate::view_state::session::SessionViewState {
+        self.log_view.get_session(0).expect("No session view-state - this is a bug")
+    }
+
+    /// Get mutable reference to session view-state.
+    pub fn session_view_mut(&mut self) -> &mut crate::view_state::session::SessionViewState {
+        self.log_view.get_session_mut(0).expect("No session view-state - this is a bug")
     }
 
     /// Get immutable reference to log_view (view-state layer).
@@ -238,7 +238,7 @@ impl AppState {
     /// Returns None if tab_index is out of range or session doesn't exist.
     pub fn subagent_conversation_view(&mut self, tab_index: usize) -> Option<&crate::view_state::conversation::ConversationViewState> {
         let session = self.log_view.get_session_mut(0)?;
-        let agent_ids: Vec<_> = self.session.subagents().keys().cloned().collect();
+        let agent_ids: Vec<_> = session.subagent_ids().cloned().collect();
         let agent_id = agent_ids.get(tab_index)?;
         Some(session.subagent(agent_id))
     }
@@ -248,34 +248,30 @@ impl AppState {
     /// Returns None if tab_index is out of range or session doesn't exist.
     pub fn subagent_conversation_view_mut(&mut self, tab_index: usize) -> Option<&mut crate::view_state::conversation::ConversationViewState> {
         let session = self.log_view.get_session_mut(0)?;
-        let agent_ids: Vec<_> = self.session.subagents().keys().cloned().collect();
+        let agent_ids: Vec<_> = session.subagent_ids().cloned().collect();
         let agent_id = agent_ids.get(tab_index).cloned()?;
         Some(session.subagent_mut(&agent_id))
     }
 
-    /// Populate log_view from existing session entries (test helper).
+    /// Populate log_view from existing model Session entries (test helper).
     ///
-    /// This is needed for tests that build Session first, then create AppState.
-    /// In production, entries arrive via add_entries() which does dual-write.
-    /// In tests, Session is already populated, so we need to sync log_view.
-    ///
-    /// NOTE: This only writes to log_view, NOT to session (no duplication).
+    /// This is needed for tests that build model::Session first, then create AppState.
+    /// In production, entries arrive via add_entries().
+    /// In tests, model::Session is already populated, so we need to sync log_view.
     ///
     /// # Warning
     /// This is a test-only helper. Do not use in production code.
     #[doc(hidden)]
-    pub fn populate_log_view_from_session(&mut self) {
+    pub fn populate_log_view_from_model_session(&mut self, session: &crate::model::Session) {
         // Main agent entries
-        let main_entries: Vec<_> = self.session.main_agent().entries().to_vec();
-        for entry in main_entries {
-            self.log_view.add_entry(entry, None);
+        for entry in session.main_agent().entries() {
+            self.log_view.add_entry(entry.clone(), None);
         }
 
         // Subagent entries
-        for (agent_id, conversation) in self.session.subagents() {
-            let entries: Vec<_> = conversation.entries().to_vec();
-            for entry in entries {
-                self.log_view.add_entry(entry, Some(agent_id.clone()));
+        for (agent_id, conversation) in session.subagents() {
+            for entry in conversation.entries() {
+                self.log_view.add_entry(entry.clone(), Some(agent_id.clone()));
             }
         }
     }
@@ -323,7 +319,9 @@ impl AppState {
             return;
         }
 
-        let num_subagents = self.session.subagents().len();
+        let num_subagents = self.log_view.get_session(0)
+            .map(|s| s.subagent_ids().count())
+            .unwrap_or(0);
 
         // No-op if no subagents exist
         if num_subagents == 0 {
@@ -351,7 +349,9 @@ impl AppState {
             return;
         }
 
-        let num_subagents = self.session.subagents().len();
+        let num_subagents = self.log_view.get_session(0)
+            .map(|s| s.subagent_ids().count())
+            .unwrap_or(0);
 
         // No-op if no subagents exist
         if num_subagents == 0 {
@@ -375,7 +375,9 @@ impl AppState {
             return;
         }
 
-        let num_subagents = self.session.subagents().len();
+        let num_subagents = self.log_view.get_session(0)
+            .map(|s| s.subagent_ids().count())
+            .unwrap_or(0);
 
         // No-op if no subagents exist
         if num_subagents == 0 {

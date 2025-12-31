@@ -49,7 +49,9 @@ fn create_app_state_with_tabs(agent_ids: Vec<&str>) -> AppState {
         session.add_conversation_entry(make_subagent_entry(id));
     }
 
-    AppState::new(session)
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
+    state
 }
 
 // ===== detect_tab_click Tests =====
@@ -396,7 +398,8 @@ fn detect_entry_click_detects_main_pane_first_entry() {
     );
     session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
 
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     // Main pane at (0, 0) with width 40, height 20
     // Click on first entry (inside border: y=1)
@@ -452,7 +455,8 @@ fn detect_entry_click_accounts_for_border() {
     );
     session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
 
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let main_area = Rect::new(0, 0, 40, 20);
 
     // Click on border (y=0) should return NoEntry
@@ -505,7 +509,8 @@ fn detect_entry_click_maps_different_y_positions_to_different_entries() {
         session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
     }
 
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     // Main pane at (0, 0) with width 40, height 20
     // Inner area: (1, 1) to (39, 19) - 18 lines tall
@@ -560,7 +565,8 @@ fn detect_entry_click_with_single_entry_always_returns_index_0() {
     );
     session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
 
-    let state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
     let main_area = Rect::new(0, 0, 40, 20);
 
     // Any click within inner area should hit entry 0

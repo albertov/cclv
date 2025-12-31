@@ -110,9 +110,8 @@ pub fn prev_match(mut state: AppState) -> AppState {
 /// Returns None if agent_id is not found in subagents.
 fn find_tab_for_agent(state: &AppState, agent_id: &AgentId) -> Option<usize> {
     state
-        .session()
-        .subagents()
-        .keys()
+        .session_view()
+        .subagent_ids()
         .enumerate()
         .find(|(_, aid)| *aid == agent_id)
         .map(|(idx, _)| idx)

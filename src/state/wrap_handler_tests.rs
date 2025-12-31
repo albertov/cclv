@@ -14,7 +14,8 @@ use chrono::Utc;
 #[test]
 fn handle_toggle_wrap_returns_unchanged_state_when_no_focused_message() {
     let session = Session::new(SessionId::new("test-session").unwrap());
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     // Focus on Main pane but no focused message in view-state
     state.focus = FocusPane::Main;
@@ -32,7 +33,8 @@ fn handle_toggle_wrap_returns_unchanged_state_when_no_focused_message() {
 #[test]
 fn handle_toggle_wrap_adds_override_on_first_toggle() {
     let session = Session::new(SessionId::new("test-session").unwrap());
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     // Add an entry to main pane
     let message = Message::new(Role::User, MessageContent::Text("test message".to_string()));
@@ -80,7 +82,8 @@ fn handle_toggle_wrap_adds_override_on_first_toggle() {
 #[test]
 fn handle_toggle_wrap_clears_override_on_second_toggle() {
     let session = Session::new(SessionId::new("test-session").unwrap());
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
+    state.populate_log_view_from_model_session(&session);
 
     // Add an entry to main pane
     let message = Message::new(Role::User, MessageContent::Text("test message".to_string()));

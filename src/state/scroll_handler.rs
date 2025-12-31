@@ -65,9 +65,8 @@ pub fn handle_scroll_action(
             // Get the currently selected subagent's conversation
             if let Some(tab_index) = state.selected_tab {
                 // Get agent ID and clone to avoid borrow conflicts
-                let agent_id = state.session().subagent_ids_ordered()
-                    .get(tab_index)
-                    .map(|id| (*id).clone());
+                let agent_ids: Vec<_> = state.session_view().subagent_ids().cloned().collect();
+                let agent_id = agent_ids.get(tab_index).cloned();
 
                 if let Some(agent_id) = agent_id {
                     if let Some(session) = state.log_view_mut().current_session_mut() {

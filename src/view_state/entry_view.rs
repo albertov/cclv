@@ -88,6 +88,14 @@ impl EntryView {
         &self.entry
     }
 
+    /// Get the entry UUID (if valid entry).
+    pub fn uuid(&self) -> Option<&crate::model::EntryUuid> {
+        match &self.entry {
+            ConversationEntry::Valid(log_entry) => Some(log_entry.uuid()),
+            ConversationEntry::Malformed(_) => None,
+        }
+    }
+
     /// Get reference to the layout.
     pub fn layout(&self) -> &EntryLayout {
         &self.layout

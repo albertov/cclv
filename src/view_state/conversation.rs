@@ -110,9 +110,40 @@ impl ConversationViewState {
         self.entries.get(index.get())
     }
 
+    /// Get slice of all entries.
+    /// Used by mouse_handler to calculate entry clicks.
+    pub fn entries(&self) -> &[EntryView] {
+        &self.entries
+    }
+
     /// Iterate over all entries.
     pub fn iter(&self) -> impl Iterator<Item = &EntryView> {
         self.entries.iter()
+    }
+
+    /// Get model ID from first system:init entry.
+    pub fn model_id(&self) -> Option<&str> {
+        self.system_metadata().and_then(|m| m.model.as_deref())
+    }
+
+    /// Get model display name from first system:init entry.
+    /// For now, just returns the raw model ID.
+    /// TODO: Map to display names like "Claude Opus 4.5" when we have ModelInfo.
+    pub fn model_name(&self) -> Option<&str> {
+        self.model_id()
+    }
+
+    /// Get system metadata from first system:init entry.
+    pub fn system_metadata(&self) -> Option<&crate::model::SystemMetadata> {
+        self.entries
+            .iter()
+            .filter_map(|e| match e.entry() {
+                crate::model::ConversationEntry::Valid(log_entry) => {
+                    log_entry.as_ref().system_metadata()
+                }
+                _ => None,
+            })
+            .next()
     }
 
     /// Current scroll position.

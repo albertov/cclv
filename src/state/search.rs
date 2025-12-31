@@ -106,7 +106,7 @@
 //! // current_match = (current_match + 1) % matches.len()
 //! ```
 
-use crate::model::{AgentId, EntryUuid, Session};
+use crate::model::{AgentId, EntryUuid};
 
 // ===== SearchState =====
 
@@ -193,86 +193,86 @@ pub fn agent_ids_with_matches(matches: &[SearchMatch]) -> std::collections::Hash
 
 // ===== Search Execution =====
 
-/// Execute a search across all conversations in a session.
+/// Execute a search across all conversations in a session view-state.
 ///
-/// Searches all text content in main agent and all subagents.
+/// Searches all text content in main agent and all subagents (initialized + pending).
 /// Performs case-insensitive substring matching.
 /// Returns all matches with full location information.
-///
-/// # Why domain Session, not view-state?
-///
-/// This function uses the domain `Session` type (not `LogViewState`) because:
-/// - Search must find matches in ALL entries, including pending/uninitialized subagents
-/// - View-state only contains initialized subagent conversations
-/// - Domain model is the source of truth for comprehensive data access
-pub fn execute_search(session: &Session, query: &SearchQuery) -> Vec<SearchMatch> {
+pub fn execute_search(session_view: &crate::view_state::session::SessionViewState, query: &SearchQuery) -> Vec<SearchMatch> {
     let mut matches = Vec::new();
     let query_lower = query.as_str().to_lowercase();
 
-    // Search main agent
-    search_conversation(session.main_agent(), None, &query_lower, &mut matches);
+    // Search main agent entries
+    for entry_view in session_view.main().iter() {
+        if let Some(log_entry) = entry_view.entry().as_valid() {
+            search_entry(log_entry, None, &query_lower, &mut matches);
+        }
+    }
 
-    // Search all subagents
-    for (agent_id, conversation) in session.subagents() {
-        search_conversation(
-            conversation,
-            Some(agent_id.clone()),
-            &query_lower,
-            &mut matches,
-        );
+    // Search initialized subagent entries
+    for (agent_id, conversation_view) in session_view.initialized_subagents() {
+        for entry_view in conversation_view.iter() {
+            if let Some(log_entry) = entry_view.entry().as_valid() {
+                search_entry(log_entry, Some(agent_id.clone()), &query_lower, &mut matches);
+            }
+        }
+    }
+
+    // Search pending subagent entries (not yet lazily initialized)
+    for (agent_id, entries) in session_view.pending_subagents() {
+        for entry in entries {
+            if let Some(log_entry) = entry.as_valid() {
+                search_entry(log_entry, Some(agent_id.clone()), &query_lower, &mut matches);
+            }
+        }
     }
 
     matches
 }
 
-/// Search a single conversation (main or subagent) for matches.
-fn search_conversation(
-    conversation: &crate::model::AgentConversation,
+/// Search a single log entry for matches.
+fn search_entry(
+    log_entry: &crate::model::LogEntry,
     agent_id: Option<AgentId>,
     query_lower: &str,
     matches: &mut Vec<SearchMatch>,
 ) {
     use crate::model::{ContentBlock, MessageContent};
 
-    for entry in conversation.entries() {
-        // Only search valid entries
-        if let Some(log_entry) = entry.as_valid() {
-            let message = log_entry.message();
-            let entry_uuid = log_entry.uuid().clone();
+    let message = log_entry.message();
+    let entry_uuid = log_entry.uuid().clone();
 
-            match message.content() {
-                MessageContent::Text(text) => {
-                    // Search in simple text content
+    match message.content() {
+        MessageContent::Text(text) => {
+            // Search in simple text content
+            find_matches_in_text(
+                text,
+                &entry_uuid,
+                agent_id.clone(),
+                0, // block_index for Text is always 0
+                query_lower,
+                matches,
+            );
+        }
+        MessageContent::Blocks(blocks) => {
+            // Search in each block
+            for (block_index, block) in blocks.iter().enumerate() {
+                let text = match block {
+                    ContentBlock::Text { text } => Some(text.as_str()),
+                    ContentBlock::Thinking { thinking } => Some(thinking.as_str()),
+                    ContentBlock::ToolResult { content, .. } => Some(content.as_str()),
+                    ContentBlock::ToolUse(_) => None, // Don't search tool use blocks
+                };
+
+                if let Some(text) = text {
                     find_matches_in_text(
                         text,
                         &entry_uuid,
                         agent_id.clone(),
-                        0, // block_index for Text is always 0
+                        block_index,
                         query_lower,
                         matches,
                     );
-                }
-                MessageContent::Blocks(blocks) => {
-                    // Search in each block
-                    for (block_index, block) in blocks.iter().enumerate() {
-                        let text = match block {
-                            ContentBlock::Text { text } => Some(text.as_str()),
-                            ContentBlock::Thinking { thinking } => Some(thinking.as_str()),
-                            ContentBlock::ToolResult { content, .. } => Some(content.as_str()),
-                            ContentBlock::ToolUse(_) => None, // Don't search tool use blocks
-                        };
-
-                        if let Some(text) = text {
-                            find_matches_in_text(
-                                text,
-                                &entry_uuid,
-                                agent_id.clone(),
-                                block_index,
-                                query_lower,
-                                matches,
-                            );
-                        }
-                    }
                 }
             }
         }

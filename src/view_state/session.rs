@@ -55,6 +55,11 @@ impl SessionViewState {
         &mut self.main
     }
 
+    /// Reference to subagents map.
+    pub fn subagents(&self) -> &HashMap<AgentId, ConversationViewState> {
+        &self.subagents
+    }
+
     /// Get subagent view-state, creating lazily if needed.
     pub fn subagent(&mut self, id: &AgentId) -> &ConversationViewState {
         if !self.subagents.contains_key(id) {
@@ -90,6 +95,32 @@ impl SessionViewState {
     /// List all known subagent IDs (initialized or pending).
     pub fn subagent_ids(&self) -> impl Iterator<Item = &AgentId> {
         self.subagents.keys().chain(self.pending_subagent_entries.keys())
+    }
+
+    /// Check if there are any subagents (initialized or pending).
+    pub fn has_subagents(&self) -> bool {
+        !self.subagents.is_empty() || !self.pending_subagent_entries.is_empty()
+    }
+
+    /// Get system metadata from main conversation.
+    pub fn system_metadata(&self) -> Option<&crate::model::SystemMetadata> {
+        self.main.system_metadata()
+    }
+
+    /// Iterate all initialized subagent conversations.
+    ///
+    /// Returns iterator over (AgentId, ConversationViewState) pairs for
+    /// subagents that have been lazily initialized.
+    pub fn initialized_subagents(&self) -> impl Iterator<Item = (&AgentId, &ConversationViewState)> {
+        self.subagents.iter()
+    }
+
+    /// Iterate all pending subagent entries.
+    ///
+    /// Returns iterator over (AgentId, Vec<ConversationEntry>) pairs for
+    /// subagents that have entries but haven't been lazily initialized yet.
+    pub fn pending_subagents(&self) -> impl Iterator<Item = (&AgentId, &Vec<ConversationEntry>)> {
+        self.pending_subagent_entries.iter()
     }
 
     /// Add entry to main conversation.

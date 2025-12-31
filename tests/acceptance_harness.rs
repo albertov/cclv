@@ -97,9 +97,9 @@ impl AcceptanceTestHarness {
         }
 
         // Create app state
-        let mut app_state = AppState::new(session);
+        let mut app_state = AppState::new();
         // Populate log_view from existing session entries (needed for tests)
-        app_state.populate_log_view_from_session();
+        app_state.populate_log_view_from_model_session(&session);
         let key_bindings = KeyBindings::default();
 
         // Create dummy stdin source (won't be used for testing, but required by TuiApp)

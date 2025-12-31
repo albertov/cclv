@@ -10,25 +10,25 @@ use crossterm::event::KeyCode;
 
 // ===== Test Helpers =====
 
-/// Build SessionStats from a Session by iterating all entries.
+/// Build SessionStats from SessionViewState by iterating all entries.
 /// Matches the approach used in view/layout.rs until stats are integrated into Session.
-fn build_session_stats(session: &cclv::model::Session) -> cclv::model::SessionStats {
+fn build_session_stats(session_view: &cclv::view_state::session::SessionViewState) -> cclv::model::SessionStats {
     use cclv::model::{ConversationEntry, SessionStats};
 
     let mut stats = SessionStats::default();
 
     // Process main agent entries
-    for entry in session.main_agent().entries() {
-        if let ConversationEntry::Valid(log_entry) = entry {
-            stats.record_entry(log_entry);
+    for entry_view in session_view.main().entries() {
+        if let ConversationEntry::Valid(log_entry) = entry_view.entry() {
+            stats.record_entry(&**log_entry);
         }
     }
 
     // Process subagent entries
-    for conversation in session.subagents().values() {
-        for entry in conversation.entries() {
-            if let ConversationEntry::Valid(log_entry) = entry {
-                stats.record_entry(log_entry);
+    for conversation_view in session_view.subagents().values() {
+        for entry_view in conversation_view.entries() {
+            if let ConversationEntry::Valid(log_entry) = entry_view.entry() {
+                stats.record_entry(&**log_entry);
             }
         }
     }
@@ -157,7 +157,7 @@ fn us3_scenario2_filter_main_agent() {
 
     // VERIFY: Stats calculations use the filter correctly
     // The SessionStats.filtered_usage() method should return main agent usage only
-    let session = state_after_filter.session();
+    let session = state_after_filter.session_view();
     let stats = build_session_stats(session);
     let main_usage = stats.filtered_usage(&cclv::model::StatsFilter::MainAgent);
     let global_usage = stats.filtered_usage(&cclv::model::StatsFilter::Global);
@@ -194,7 +194,7 @@ fn us3_scenario3_tool_breakdown() {
 
     // IF YES: Session loaded with tool calls
     let state = harness.state();
-    let stats = build_session_stats(state.session());
+    let stats = build_session_stats(state.session_view());
 
     // Verify fixture has tool calls recorded
     let tool_counts = stats.filtered_tool_counts(&cclv::model::StatsFilter::Global);
@@ -256,7 +256,7 @@ fn us3_scenario4_filter_subagent() {
 
     // IF YES: Session loaded with subagents
     let initial_state = harness.state();
-    let subagent_count = initial_state.session().subagents().len();
+    let subagent_count = initial_state.session_view().subagents().len();
 
     assert!(
         subagent_count > 0,
@@ -287,7 +287,7 @@ fn us3_scenario4_filter_subagent() {
     match &state_after_filter.stats_filter {
         cclv::model::StatsFilter::Subagent(agent_id) => {
             // Verify the agent_id corresponds to the selected tab
-            let subagent_ids = state_after_filter.session().subagent_ids_ordered();
+            let subagent_ids: Vec<_> = state_after_filter.session_view().subagent_ids().collect();
             let tab_index = state_after_filter
                 .selected_tab
                 .expect("Tab should be selected");
@@ -304,7 +304,7 @@ fn us3_scenario4_filter_subagent() {
     }
 
     // VERIFY: Filtered stats show only this subagent's data
-    let stats = build_session_stats(state_after_filter.session());
+    let stats = build_session_stats(state_after_filter.session_view());
     let subagent_usage = stats.filtered_usage(&state_after_filter.stats_filter);
     let global_usage = stats.filtered_usage(&cclv::model::StatsFilter::Global);
 

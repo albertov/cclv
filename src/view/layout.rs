@@ -20,7 +20,7 @@ use std::collections::HashSet;
 /// Returns None if there are no subagents or if the layout doesn't show tabs.
 /// This calculation must match the layout logic in render_layout().
 pub fn calculate_tab_area(frame_area: Rect, state: &AppState) -> Option<Rect> {
-    let has_subagents = !state.session().subagents().is_empty();
+    let has_subagents = state.session_view().has_subagents();
     if !has_subagents {
         return None;
     }
@@ -88,7 +88,7 @@ pub fn calculate_tab_area(frame_area: Rect, state: &AppState) -> Option<Rect> {
 /// Returns (main_area, subagent_area) where subagent_area is None if no subagents exist.
 /// This calculation must match the layout logic in render_layout().
 pub fn calculate_pane_areas(frame_area: Rect, state: &AppState) -> (Rect, Option<Rect>) {
-    let has_subagents = !state.session().subagents().is_empty();
+    let has_subagents = state.session_view().has_subagents();
 
     // Determine if search input is visible
     let search_visible = matches!(
@@ -149,7 +149,7 @@ pub fn calculate_pane_areas(frame_area: Rect, state: &AppState) -> (Rect, Option
 ///
 /// When session has no subagents, right pane is hidden and left pane takes full width.
 pub fn render_layout(frame: &mut Frame, state: &AppState) {
-    let has_subagents = !state.session().subagents().is_empty();
+    let has_subagents = state.session_view().has_subagents();
 
     // Create message styles for consistent coloring across panes
     let styles = MessageStyles::new();
@@ -260,9 +260,8 @@ fn render_main_pane(frame: &mut Frame, area: Rect, state: &AppState, styles: &Me
     message::render_conversation_view_with_search(
         frame,
         area,
-        state.session().main_agent(),
-        &state.main_scroll,
         view_state,
+        &state.main_scroll,
         &state.search,
         styles,
         state.focus == FocusPane::Main,
@@ -288,7 +287,7 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
     let content_area = chunks[1];
 
     // Get ordered subagent IDs and render tab bar
-    let agent_ids = state.session().subagent_ids_ordered();
+    let agent_ids: Vec<_> = state.session_view().subagent_ids().collect();
 
     // Extract agent IDs with matches from search state
     let tabs_with_matches: HashSet<AgentId> = match &state.search {
@@ -305,27 +304,23 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
     );
 
     // Determine which conversation to display based on selected_tab
-    let selected_conversation = if let Some(idx) = state.selected_tab {
-        // Get the conversation at the selected index
+    let selected_conversation_view = if let Some(idx) = state.selected_tab {
+        // Get the conversation at the selected index (read-only access)
         agent_ids
             .get(idx)
-            .and_then(|agent_id| state.session().subagents().get(agent_id))
+            .and_then(|&agent_id| state.session_view().get_subagent(agent_id))
     } else {
-        // No selection - show first subagent as default
-        state.session().subagents().values().next()
+        // No selection - show first subagent as default (read-only access)
+        agent_ids.first().and_then(|&agent_id| state.session_view().get_subagent(agent_id))
     };
 
-    // Render the selected conversation
-    // TODO(cclv-5ur): Wire up subagent view-state once we have read-only access
-    // For now, use empty view-state (all entries collapsed by default)
-    if let Some(conversation) = selected_conversation {
-        let view_state = crate::view_state::conversation::ConversationViewState::empty();
+    // Render the selected conversation using its view-state
+    if let Some(conversation_view) = selected_conversation_view {
         message::render_conversation_view_with_search(
             frame,
             content_area,
-            conversation,
+            conversation_view,
             &state.subagent_scroll,
-            &view_state,
             &state.search,
             styles,
             state.focus == FocusPane::Subagent,
@@ -340,12 +335,14 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
 /// Border is highlighted when FocusPane::Stats is active.
 fn render_stats_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     // Build session statistics by iterating through entries
-    // NOTE: Uses domain Session (not view-state) to access ALL entries including pending subagents
-    // TODO: This should be cached in Session once stats are integrated
-    let stats = build_session_stats(state.session());
+    // Uses SessionViewState which contains all entries including pending subagents
+    // TODO: This should be cached in SessionViewState once stats are integrated
+    let session_view = state.log_view().get_session(0).expect("Session 0 must exist");
+    let stats = build_session_stats(session_view);
 
     // Get model ID for pricing calculation
-    let model_id = state.session().main_agent().model().map(|m| m.id());
+    // TODO: Model ID should be in SessionViewState metadata
+    let model_id = state.session_view().main().model_id();
 
     // Use default pricing configuration
     let pricing = PricingConfig::default();
@@ -362,28 +359,33 @@ fn render_stats_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(panel, area);
 }
 
-/// Build SessionStats by iterating through all session entries from the domain model.
+/// Build SessionStats by iterating through all entries in SessionViewState.
 /// This is temporary - stats should eventually be maintained in SessionViewState during ingestion.
-///
-/// Note: We access session data via app_state.session() (domain model) rather than view-state
-/// because we need all entries including uninit subagents. View-state layer only maintains
-/// initialized subagent conversations.
-fn build_session_stats(session: &crate::model::Session) -> crate::model::SessionStats {
-    use crate::model::{ConversationEntry, SessionStats};
+fn build_session_stats(session_view: &crate::view_state::session::SessionViewState) -> crate::model::SessionStats {
+    use crate::model::SessionStats;
 
     let mut stats = SessionStats::default();
 
     // Process main agent entries
-    for entry in session.main_agent().entries() {
-        if let ConversationEntry::Valid(log_entry) = entry {
+    for entry_view in session_view.main().iter() {
+        if let Some(log_entry) = entry_view.entry().as_valid() {
             stats.record_entry(log_entry);
         }
     }
 
-    // Process subagent entries
-    for conversation in session.subagents().values() {
-        for entry in conversation.entries() {
-            if let ConversationEntry::Valid(log_entry) = entry {
+    // Process initialized subagent entries
+    for (_agent_id, conversation_view) in session_view.initialized_subagents() {
+        for entry_view in conversation_view.iter() {
+            if let Some(log_entry) = entry_view.entry().as_valid() {
+                stats.record_entry(log_entry);
+            }
+        }
+    }
+
+    // Process pending subagent entries (not yet lazily initialized)
+    for (_agent_id, entries) in session_view.pending_subagents() {
+        for entry in entries {
+            if let Some(log_entry) = entry.as_valid() {
                 stats.record_entry(log_entry);
             }
         }
@@ -483,29 +485,28 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
 /// - Agent identifier based on focused pane (Main Agent vs subagent ID)
 fn render_header(frame: &mut Frame, area: Rect, state: &AppState) {
     // Determine which conversation to show (main or selected subagent)
-    let (agent_label, conversation) = match state.focus {
+    let (agent_label, conversation_view) = match state.focus {
         FocusPane::Subagent => {
-            // Get selected subagent conversation
-            let agent_ids = state.session().subagent_ids_ordered();
+            // Get selected subagent conversation (read-only access)
+            let agent_ids: Vec<_> = state.session_view().subagent_ids().collect();
             let selected_idx = state.selected_tab.unwrap_or(0);
 
-            if let Some(agent_id) = agent_ids.get(selected_idx) {
-                if let Some(conv) = state.session().subagents().get(agent_id) {
+            if let Some(&agent_id) = agent_ids.get(selected_idx) {
+                if let Some(conv) = state.session_view().get_subagent(agent_id) {
                     (format!("Subagent {}", agent_id.as_str()), conv)
                 } else {
-                    ("Main Agent".to_string(), state.session().main_agent())
+                    ("Main Agent".to_string(), state.session_view().main())
                 }
             } else {
-                ("Main Agent".to_string(), state.session().main_agent())
+                ("Main Agent".to_string(), state.session_view().main())
             }
         }
-        _ => ("Main Agent".to_string(), state.session().main_agent()),
+        _ => ("Main Agent".to_string(), state.session_view().main()),
     };
 
-    // Get model name from conversation
-    let model_name = conversation
-        .model()
-        .map(|m| m.display_name())
+    // Get model name from conversation view-state
+    let model_name = conversation_view
+        .model_name()
         .unwrap_or("Unknown");
 
     // Show [LIVE] indicator only when both live_mode and auto_scroll are true
@@ -515,8 +516,8 @@ fn render_header(frame: &mut Frame, area: Rect, state: &AppState) {
         ""
     };
 
-    // Get session metadata from system:init entry
-    let metadata_text = if let Some(sys_meta) = state.session().system_metadata() {
+    // Get session metadata from SessionViewState
+    let metadata_text = if let Some(sys_meta) = state.session_view().system_metadata() {
         let cwd_display = sys_meta
             .cwd
             .as_ref()

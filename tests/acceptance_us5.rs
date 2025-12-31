@@ -104,7 +104,7 @@ fn us5_scenario2_tab_indicators() {
 
     // IF YES: Session loaded with subagents
     let initial_state = harness.state();
-    let num_subagents = initial_state.session().subagents().len();
+    let num_subagents = initial_state.session_view().subagents().len();
     assert!(
         num_subagents > 0,
         "search_with_subagents.jsonl should contain subagents"
@@ -149,7 +149,7 @@ fn us5_scenario2_tab_indicators() {
             for agent_id in &agent_ids_with_matches {
                 assert!(
                     state_after_search
-                        .session()
+                        .session_view()
                         .subagents()
                         .iter()
                         .any(|(id, _)| id == agent_id),
@@ -245,7 +245,7 @@ fn us5_scenario3_navigate_to_match() {
 
                         // Verify the correct tab is selected
                         let expected_tab_index = state_after_n
-                            .session()
+                            .session_view()
                             .subagents()
                             .iter()
                             .position(|(id, _)| id == agent_id)

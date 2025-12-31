@@ -141,9 +141,10 @@ pub fn detect_entry_click(
             {
                 // Check if there are any entries
                 if let Some(tab_index) = state.selected_tab {
-                    let agent_ids = state.session().subagent_ids_ordered();
+                    let session_view = state.session_view();
+                    let agent_ids: Vec<_> = session_view.subagent_ids().cloned().collect();
                     if let Some(agent_id) = agent_ids.get(tab_index) {
-                        if let Some(conversation) = state.session().subagents().get(agent_id) {
+                        if let Some(conversation) = session_view.get_subagent(agent_id) {
                             let entries = conversation.entries();
                             if !entries.is_empty() {
                                 // Calculate which entry was clicked based on Y position
@@ -183,7 +184,7 @@ pub fn detect_entry_click(
             && click_y < inner_y + inner_height
         {
             // Check if there are any entries
-            let entries = state.session().main_agent().entries();
+            let entries = state.session_view().main().entries();
             if !entries.is_empty() {
                 // Calculate which entry was clicked based on Y position
                 let relative_y = click_y.saturating_sub(inner_y);
@@ -246,9 +247,8 @@ pub fn handle_entry_click(mut state: AppState, entry_click: EntryClickResult) ->
             // Toggle expand via selected subagent's ConversationViewState
             if let Some(tab_index) = state.selected_tab {
                 // Convert tab index to agent ID
-                let agent_id_opt = state.session().subagent_ids_ordered()
-                    .get(tab_index)
-                    .map(|id| (*id).clone());
+                let agent_ids: Vec<_> = state.session_view().subagent_ids().cloned().collect();
+                let agent_id_opt = agent_ids.get(tab_index).cloned();
 
                 if let (Some(agent_id), Some(session_view)) = (agent_id_opt, state.log_view_mut().current_session_mut()) {
                     let conv_view = session_view.subagent_mut(&agent_id);
@@ -283,8 +283,8 @@ pub fn handle_mouse_click(
     click_y: u16,
     tab_area: ratatui::layout::Rect,
 ) -> AppState {
-    // Get agent IDs from the session
-    let agent_ids = state.session().subagent_ids_ordered();
+    // Get agent IDs from the session view-state
+    let agent_ids: Vec<_> = state.session_view().subagent_ids().collect();
 
     // Detect which tab was clicked
     let click_result = detect_tab_click(click_x, click_y, tab_area, &agent_ids);

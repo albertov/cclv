@@ -31,9 +31,9 @@ fn create_test_state_with_log_view(main_entries: usize, subagent_entries: usize)
         }
     }
 
-    let mut state = AppState::new(session);
+    let mut state = AppState::new();
     // Populate log_view from session entries (test helper)
-    state.populate_log_view_from_session();
+    state.populate_log_view_from_model_session(&session);
     state
 }
 

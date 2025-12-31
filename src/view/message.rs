@@ -2182,33 +2182,21 @@ pub fn render_conversation_view(
 pub fn render_conversation_view_with_search(
     frame: &mut Frame,
     area: Rect,
-    conversation: &AgentConversation,
-    scroll: &ScrollState,
     view_state: &ConversationViewState,
+    scroll: &ScrollState,
     search: &crate::state::SearchState,
     styles: &MessageStyles,
     focused: bool,
     global_wrap: WrapMode,
 ) {
-    let entry_count = conversation.entries().len();
+    let entry_count = view_state.len();
 
-    // Build title with agent info
-    let title = if let Some(agent_id) = conversation.agent_id() {
-        let model_info = conversation
-            .model()
-            .map(|m| format!(" [{}]", m.display_name()))
-            .unwrap_or_default();
-        format!(
-            "Subagent {}{} ({} entries)",
-            agent_id, model_info, entry_count
-        )
-    } else {
-        let model_info = conversation
-            .model()
-            .map(|m| format!(" [{}]", m.display_name()))
-            .unwrap_or_default();
-        format!("Main Agent{} ({} entries)", model_info, entry_count)
-    };
+    // Build title with model info
+    let model_info = view_state
+        .model_name()
+        .map(|m| format!(" [{}]", m))
+        .unwrap_or_default();
+    let title = format!("Conversation{} ({} entries)", model_info, entry_count);
 
     // Style based on focus
     let border_color = if focused { Color::Cyan } else { Color::Gray };
@@ -2230,23 +2218,26 @@ pub fn render_conversation_view_with_search(
     let viewport_width = area.width.saturating_sub(2) as usize;
     let viewport_height = area.height.saturating_sub(2) as usize;
 
-    // Determine if this is a subagent conversation
-    let is_subagent_view = conversation.agent_id().is_some();
+    // Get all entry views for rendering
+    let all_entries = view_state.entries();
 
-    // Get all entries for rendering
-    let all_entries = conversation.entries();
+    // TODO: Determine subagent vs main from context (need agent_id in view-state)
+    let is_subagent_view = false;
 
     // Create temporary ConversationView to use helper methods
-    // Dead code: use empty view-state (all entries collapsed)
-    let empty_view_state = crate::view_state::conversation::ConversationViewState::empty();
-    let temp_view = ConversationView::new(conversation, &empty_view_state, scroll, styles, focused)
+    // TODO: Remove ConversationView entirely, use view_state methods directly
+    let empty_conv = crate::model::AgentConversation::new(None);
+    let temp_view = ConversationView::new(&empty_conv, view_state, scroll, styles, focused)
         .global_wrap(global_wrap);
+
+    // Extract domain entries from entry views for backward-compat with old rendering code
+    let domain_entries: Vec<_> = all_entries.iter().map(|ev| ev.entry().clone()).collect();
 
     // Calculate visible entry range
     let (start_idx, end_idx) =
         temp_view.calculate_visible_range(viewport_height, viewport_width, global_wrap);
 
-    let visible_entries = &all_entries[start_idx..end_idx];
+    let visible_entries = &domain_entries[start_idx..end_idx];
 
     // Determine scroll indicators and horizontal offset (FR-040)
     let horizontal_offset = scroll.horizontal_offset;
@@ -2300,7 +2291,7 @@ pub fn render_conversation_view_with_search(
 
     // Calculate absolute cumulative_y for first visible entry
     let mut first_entry_absolute_y = 0_usize;
-    for (idx, entry) in all_entries[..start_idx].iter().enumerate() {
+    for (idx, entry) in domain_entries[..start_idx].iter().enumerate() {
         first_entry_absolute_y += temp_view.calculate_entry_height(
             entry,
             idx,

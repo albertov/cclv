@@ -410,7 +410,7 @@ fn us4_scenario6_expand_collapsed_message() {
 
     // IF YES: Session loaded with long message (collapsed by default)
     let initial_state = harness.state();
-    let entries = initial_state.session().main_agent().entries();
+    let entries = initial_state.session_view().main().entries();
     let first_uuid = entries[0]
         .uuid()
         .expect("Valid entry should have UUID")
@@ -450,7 +450,7 @@ fn us4_scenario6_expand_collapsed_message() {
         .expect("Should reload for Space test");
 
     let initial_state2 = harness2.state();
-    let entries2 = initial_state2.session().main_agent().entries();
+    let entries2 = initial_state2.session_view().main().entries();
     let first_uuid2 = entries2[0]
         .uuid()
         .expect("Valid entry should have UUID")
@@ -492,7 +492,7 @@ fn us4_scenario7_collapse_expanded_message() {
 
     // IF YES: Session loaded
     let initial_state = harness.state();
-    let entries = initial_state.session().main_agent().entries();
+    let entries = initial_state.session_view().main().entries();
     let first_uuid = entries[0]
         .uuid()
         .expect("Valid entry should have UUID")
@@ -654,7 +654,7 @@ fn mouse_click_switches_tabs() {
     let initial_state = harness.state();
 
     // Verify we have subagents (tabs exist)
-    let subagent_count = initial_state.session().subagents().len();
+    let subagent_count = initial_state.session_view().subagents().len();
     assert!(
         subagent_count >= 2,
         "Need at least 2 subagents for tab click test, found {}",
