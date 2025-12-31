@@ -17,7 +17,7 @@ pub enum Role {
 // ===== MessageContent =====
 
 /// Content of a message - either simple text or structured blocks
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MessageContent {
     Text(String),
     Blocks(Vec<ContentBlock>),
@@ -26,7 +26,7 @@ pub enum MessageContent {
 // ===== ContentBlock =====
 
 /// Individual content block within a message
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContentBlock {
     Text { text: String },
     ToolUse(ToolCall),
@@ -41,13 +41,10 @@ pub enum ContentBlock {
 // ===== ToolCall =====
 
 /// Represents a tool invocation by the assistant
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolCall {
-    #[allow(dead_code)]
     id: ToolUseId,
-    #[allow(dead_code)]
     name: ToolName,
-    #[allow(dead_code)]
     input: serde_json::Value,
 }
 
@@ -129,9 +126,7 @@ impl ToolName {
 /// A complete message in the conversation
 #[derive(Debug, Clone)]
 pub struct Message {
-    #[allow(dead_code)]
     role: Role,
-    #[allow(dead_code)]
     content: MessageContent,
     // Placeholders until usage.rs types exist
     #[allow(dead_code)]
@@ -182,7 +177,7 @@ impl Message {
                     _ => None,
                 })
                 .collect::<Vec<_>>()
-                .join(""),
+                .join("\n"),
         }
     }
 }
@@ -448,7 +443,7 @@ mod tests {
 
         let msg = Message::new(Role::Assistant, MessageContent::Blocks(blocks));
 
-        assert_eq!(msg.text(), "First Second Third");
+        assert_eq!(msg.text(), "First \nSecond \nThird");
     }
 
     #[test]
@@ -476,7 +471,7 @@ mod tests {
 
         let msg = Message::new(Role::Assistant, MessageContent::Blocks(blocks));
 
-        assert_eq!(msg.text(), "Before After End");
+        assert_eq!(msg.text(), "Before \nAfter \nEnd");
     }
 
     #[test]
