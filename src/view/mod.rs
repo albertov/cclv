@@ -8,6 +8,7 @@ mod search_input;
 #[cfg(test)]
 mod session_separator_tests;
 mod stats;
+mod stats_multi_scope;
 mod styles;
 pub mod tabs;
 
@@ -16,6 +17,7 @@ pub use live_indicator::LiveIndicator;
 pub use message::{extract_entry_text, has_code_blocks, ConversationView};
 pub use search_input::SearchInput;
 pub use stats::StatsPanel;
+pub use stats_multi_scope::MultiScopeStatsPanel;
 pub use styles::{ColorConfig, MessageStyles};
 
 use crate::config::keybindings::KeyBindings;
@@ -431,7 +433,10 @@ where
                 if self.app_state.auto_scroll {
                     let size = self.terminal.size().ok().unwrap_or_else(|| {
                         let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
-                        ratatui::layout::Size { width: w, height: h }
+                        ratatui::layout::Size {
+                            width: w,
+                            height: h,
+                        }
                     });
                     let viewport = crate::view_state::types::ViewportDimensions::new(
                         size.width,
@@ -447,7 +452,10 @@ where
             KeyAction::ScrollToLatest => {
                 let size = self.terminal.size().ok().unwrap_or_else(|| {
                     let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
-                    ratatui::layout::Size { width: w, height: h }
+                    ratatui::layout::Size {
+                        width: w,
+                        height: h,
+                    }
                 });
                 let viewport = crate::view_state::types::ViewportDimensions::new(
                     size.width,
@@ -500,7 +508,10 @@ where
                 // Calculate viewport dimensions from terminal size
                 let size = self.terminal.size().ok().unwrap_or_else(|| {
                     let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
-                    ratatui::layout::Size { width: w, height: h }
+                    ratatui::layout::Size {
+                        width: w,
+                        height: h,
+                    }
                 });
                 let viewport = crate::view_state::types::ViewportDimensions::new(
                     size.width,
@@ -509,11 +520,8 @@ where
 
                 // Clone app_state, apply scroll action, then replace
                 // This is safe because AppState is cheap to clone (Rc internals)
-                let new_state = scroll_handler::handle_scroll_action(
-                    self.app_state.clone(),
-                    action,
-                    viewport,
-                );
+                let new_state =
+                    scroll_handler::handle_scroll_action(self.app_state.clone(), action, viewport);
                 self.app_state = new_state;
             }
 
@@ -540,13 +548,17 @@ where
                                     Some(idx) => (idx + 1) % len,
                                     None => 0,
                                 };
-                                view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(next_idx)));
+                                view.set_focused_message(Some(
+                                    crate::view_state::types::EntryIndex::new(next_idx),
+                                ));
                             }
                         }
                     }
                     FocusPane::Subagent => {
                         if let Some(tab_index) = self.app_state.selected_tab {
-                            if let Some(view) = self.app_state.subagent_conversation_view_mut(tab_index) {
+                            if let Some(view) =
+                                self.app_state.subagent_conversation_view_mut(tab_index)
+                            {
                                 let current = view.focused_message().map(|idx| idx.get());
                                 let len = view.len();
                                 if len > 0 {
@@ -554,7 +566,9 @@ where
                                         Some(idx) => (idx + 1) % len,
                                         None => 0,
                                     };
-                                    view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(next_idx)));
+                                    view.set_focused_message(Some(
+                                        crate::view_state::types::EntryIndex::new(next_idx),
+                                    ));
                                 }
                             }
                         }
@@ -571,25 +585,31 @@ where
                             if len > 0 {
                                 let prev_idx = match current {
                                     Some(idx) if idx > 0 => idx - 1,
-                                    Some(_) => len - 1,  // Wrap from 0 to last
-                                    None => len - 1,     // Start at last if no focus
+                                    Some(_) => len - 1, // Wrap from 0 to last
+                                    None => len - 1,    // Start at last if no focus
                                 };
-                                view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(prev_idx)));
+                                view.set_focused_message(Some(
+                                    crate::view_state::types::EntryIndex::new(prev_idx),
+                                ));
                             }
                         }
                     }
                     FocusPane::Subagent => {
                         if let Some(tab_index) = self.app_state.selected_tab {
-                            if let Some(view) = self.app_state.subagent_conversation_view_mut(tab_index) {
+                            if let Some(view) =
+                                self.app_state.subagent_conversation_view_mut(tab_index)
+                            {
                                 let current = view.focused_message().map(|idx| idx.get());
                                 let len = view.len();
                                 if len > 0 {
                                     let prev_idx = match current {
                                         Some(idx) if idx > 0 => idx - 1,
-                                        Some(_) => len - 1,  // Wrap from 0 to last
-                                        None => len - 1,     // Start at last if no focus
+                                        Some(_) => len - 1, // Wrap from 0 to last
+                                        None => len - 1,    // Start at last if no focus
                                     };
-                                    view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(prev_idx)));
+                                    view.set_focused_message(Some(
+                                        crate::view_state::types::EntryIndex::new(prev_idx),
+                                    ));
                                 }
                             }
                         }
@@ -703,7 +723,10 @@ where
                 // Calculate viewport dimensions from terminal size
                 let size = self.terminal.size().ok().unwrap_or_else(|| {
                     let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
-                    ratatui::layout::Size { width: w, height: h }
+                    ratatui::layout::Size {
+                        width: w,
+                        height: h,
+                    }
                 });
                 let viewport = crate::view_state::types::ViewportDimensions::new(
                     size.width,
@@ -722,7 +745,10 @@ where
                 // Calculate viewport dimensions from terminal size
                 let size = self.terminal.size().ok().unwrap_or_else(|| {
                     let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
-                    ratatui::layout::Size { width: w, height: h }
+                    ratatui::layout::Size {
+                        width: w,
+                        height: h,
+                    }
                 });
                 let viewport = crate::view_state::types::ViewportDimensions::new(
                     size.width,
@@ -809,7 +835,10 @@ where
         if had_pending && self.app_state.live_mode && self.app_state.auto_scroll {
             let size = self.terminal.size().ok().unwrap_or_else(|| {
                 let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
-                ratatui::layout::Size { width: w, height: h }
+                ratatui::layout::Size {
+                    width: w,
+                    height: h,
+                }
             });
             let viewport = crate::view_state::types::ViewportDimensions::new(
                 size.width,
@@ -1621,11 +1650,7 @@ mod tests {
             focused_idx.is_some(),
             "Ctrl+j should focus first entry when no entry was focused"
         );
-        assert_eq!(
-            focused_idx.unwrap().get(),
-            0,
-            "Ctrl+j should focus entry 0"
-        );
+        assert_eq!(focused_idx.unwrap().get(), 0, "Ctrl+j should focus entry 0");
     }
 
     #[test]
@@ -1646,9 +1671,8 @@ mod tests {
         // Add entries to subagent pane
         let agent_id = AgentId::new("test-agent").unwrap();
         for i in 0..2 {
-            let message =
-                Message::new(Role::Assistant, MessageContent::Text(format!("sub{}", i)))
-                    .with_usage(TokenUsage::default());
+            let message = Message::new(Role::Assistant, MessageContent::Text(format!("sub{}", i)))
+                .with_usage(TokenUsage::default());
             let entry = LogEntry::new(
                 EntryUuid::new(format!("sub-uuid-{}", i)).unwrap(),
                 None,
