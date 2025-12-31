@@ -18,6 +18,7 @@
 //! - `log`: LogViewState - top-level view-state for entire log
 //! - `cache`: RenderCache - LRU cache for rendered entry output
 //! - `height_index`: HeightIndex - O(log n) prefix sums via Fenwick tree
+//! - `renderer`: Entry rendering with consistent collapse logic
 
 pub mod cache;
 pub mod conversation;
@@ -27,6 +28,7 @@ pub mod hit_test;
 pub mod layout;
 pub mod layout_params;
 pub mod log;
+pub mod renderer;
 pub mod scroll;
 pub mod session;
 pub mod types;
