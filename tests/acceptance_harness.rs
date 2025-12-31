@@ -3,12 +3,12 @@
 //! Provides a high-level API for acceptance testing user stories by wrapping
 //! TuiApp<TestBackend> with convenient methods for simulating user interactions.
 
+use cclv::config::keybindings::KeyBindings;
 use cclv::integration;
 use cclv::model::SessionId;
 use cclv::source::{FileTailer, InputSource};
 use cclv::state::AppState;
 use cclv::view::{TuiApp, TuiError};
-use cclv::config::keybindings::KeyBindings;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
@@ -141,6 +141,7 @@ impl AcceptanceTestHarness {
     ///
     /// # Arguments
     /// * `keys` - Slice of KeyCodes to send in order
+    #[allow(dead_code)]
     pub fn send_keys(&mut self, keys: &[KeyCode]) {
         for key in keys {
             if self.send_key(*key) {
@@ -169,6 +170,7 @@ impl AcceptanceTestHarness {
     ///
     /// # Returns
     /// Reference to the current AppState
+    #[allow(dead_code)]
     pub fn state(&self) -> &AppState {
         self.app.app_state()
     }
