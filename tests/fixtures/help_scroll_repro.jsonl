@@ -1,0 +1,1 @@
+{"type":"assistant","message":{"model":"claude-opus-4-5-20251101","id":"msg_01","type":"message","role":"assistant","content":[{"type":"text","text":"Minimal entry for help popup scroll test."}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}},"session_id":"test-session","uuid":"00000000-0000-0000-0000-000000000001"}

@@ -3483,3 +3483,60 @@ fn bug_token_stats_divider_wrong_calculation() {
     );
 }
 
+// ===== Help Popup Scroll Bug Tests =====
+
+/// Bug reproduction: Help popup contents don't scroll
+///
+/// EXPECTED: When help popup is open and user presses j/↓ or uses mouse scroll,
+///           the help content should scroll down to reveal more content
+/// ACTUAL: Scroll inputs are ignored, content remains static
+///
+/// Steps to reproduce manually:
+/// 1. cargo run -- tests/fixtures/help_scroll_repro.jsonl
+/// 2. Press '?' to open help popup
+/// 3. Press 'j' or scroll down with mouse
+/// 4. Observe: content does not scroll, cannot see content below visible area
+#[test]
+#[ignore = "cclv-5ur.76: help popup contents don't scroll with keyboard/mouse"]
+fn bug_help_popup_no_scroll() {
+    use crate::test_harness::AcceptanceTestHarness;
+    use crossterm::event::KeyCode;
+
+    // Use small height to ensure help content is taller than viewport
+    // Help popup has ~50 lines of content, 20 row terminal ensures truncation
+    let mut harness =
+        AcceptanceTestHarness::from_fixture_with_size("tests/fixtures/help_scroll_repro.jsonl", 80, 20)
+            .expect("Failed to load fixture");
+
+    // Open help popup
+    harness.send_key_with_mods(KeyCode::Char('?'), crossterm::event::KeyModifiers::NONE);
+
+    // Capture state before scroll attempt
+    let before_scroll = harness.render_to_string();
+
+    // Take snapshot of initial help state (shows "Navigation" section at top)
+    insta::assert_snapshot!("bug_help_popup_before_scroll", before_scroll.clone());
+
+    // Attempt to scroll down
+    harness.send_key(KeyCode::Char('j'));
+    harness.send_key(KeyCode::Char('j'));
+    harness.send_key(KeyCode::Char('j'));
+
+    // Capture state after scroll attempt
+    let after_scroll = harness.render_to_string();
+
+    // Take snapshot of state after scroll attempt
+    insta::assert_snapshot!("bug_help_popup_after_scroll", after_scroll.clone());
+
+    // BUG ASSERTION: Content should have scrolled (changed)
+    // This assertion FAILS because help popup doesn't scroll
+    assert_ne!(
+        before_scroll, after_scroll,
+        "BUG: Help popup content did not scroll.\n\
+         Pressing 'j' while help popup is open should scroll the help content.\n\
+         Expected: Content should change (scroll down to show more shortcuts)\n\
+         Actual: Content is identical before and after scroll attempt\n\n\
+         The help popup has more content than fits in viewport but cannot be scrolled."
+    );
+}
+
