@@ -45,57 +45,66 @@ pub struct LogEntry {
 }
 
 impl LogEntry {
-    /// Create a new log entry (stub implementation).
+    /// Create a new log entry.
     pub fn new(
-        _uuid: EntryUuid,
-        _parent_uuid: Option<EntryUuid>,
-        _session_id: SessionId,
-        _agent_id: Option<AgentId>,
-        _timestamp: DateTime<Utc>,
-        _entry_type: EntryType,
-        _message: Message,
-        _metadata: EntryMetadata,
+        uuid: EntryUuid,
+        parent_uuid: Option<EntryUuid>,
+        session_id: SessionId,
+        agent_id: Option<AgentId>,
+        timestamp: DateTime<Utc>,
+        entry_type: EntryType,
+        message: Message,
+        metadata: EntryMetadata,
     ) -> Self {
-        todo!("LogEntry::new")
+        Self {
+            uuid,
+            parent_uuid,
+            session_id,
+            agent_id,
+            timestamp,
+            entry_type,
+            message,
+            metadata,
+        }
     }
 
     // ===== Accessors (read-only) =====
 
     pub fn uuid(&self) -> &EntryUuid {
-        todo!("LogEntry::uuid")
+        &self.uuid
     }
 
     pub fn parent_uuid(&self) -> Option<&EntryUuid> {
-        todo!("LogEntry::parent_uuid")
+        self.parent_uuid.as_ref()
     }
 
     pub fn session_id(&self) -> &SessionId {
-        todo!("LogEntry::session_id")
+        &self.session_id
     }
 
     pub fn agent_id(&self) -> Option<&AgentId> {
-        todo!("LogEntry::agent_id")
+        self.agent_id.as_ref()
     }
 
     pub fn timestamp(&self) -> DateTime<Utc> {
-        todo!("LogEntry::timestamp")
+        self.timestamp
     }
 
     pub fn entry_type(&self) -> EntryType {
-        todo!("LogEntry::entry_type")
+        self.entry_type
     }
 
     pub fn message(&self) -> &Message {
-        todo!("LogEntry::message")
+        &self.message
     }
 
     pub fn metadata(&self) -> &EntryMetadata {
-        todo!("LogEntry::metadata")
+        &self.metadata
     }
 
     /// Returns true if this entry is from a subagent.
     pub fn is_subagent(&self) -> bool {
-        todo!("LogEntry::is_subagent")
+        self.agent_id.is_some()
     }
 }
 
