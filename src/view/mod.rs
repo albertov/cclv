@@ -3,12 +3,14 @@
 mod help;
 mod layout;
 mod message;
+mod search_input;
 mod stats;
 mod styles;
 pub mod tabs;
 
 pub use help::render_help_overlay;
 pub use message::ConversationView;
+pub use search_input::SearchInput;
 pub use stats::StatsPanel;
 pub use styles::MessageStyles;
 
