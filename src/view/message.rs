@@ -27,6 +27,7 @@ pub struct ConversationView<'a> {
     scroll_state: &'a ScrollState,
     styles: &'a MessageStyles,
     focused: bool,
+    is_subagent_view: bool,
     collapse_threshold: usize,
     summary_lines: usize,
     buffer_size: usize,
@@ -51,6 +52,7 @@ impl<'a> ConversationView<'a> {
             scroll_state,
             styles,
             focused,
+            is_subagent_view: false, // Default to false (main agent view)
             collapse_threshold: 10,
             summary_lines: 3,
             buffer_size: 20,
@@ -72,6 +74,18 @@ impl<'a> ConversationView<'a> {
     /// Set the buffer size (number of entries above/below viewport to render).
     pub fn buffer_size(mut self, size: usize) -> Self {
         self.buffer_size = size;
+        self
+    }
+
+    /// Set whether this is a subagent view (enables initial prompt labeling).
+    ///
+    /// # Arguments
+    /// * `is_subagent` - true for subagent conversations, false for main agent
+    ///
+    /// # Returns
+    /// Updated ConversationView with is_subagent_view set
+    pub fn is_subagent_view(mut self, is_subagent: bool) -> Self {
+        self.is_subagent_view = is_subagent;
         self
     }
 
@@ -1512,6 +1526,304 @@ mod tests {
         assert_eq!(
             widget.buffer_size, 30,
             "Builder pattern should set buffer_size"
+        );
+    }
+
+    // ===== Subagent Initial Prompt Visual Distinction Tests (FR-006, cclv-07v.4.8) =====
+
+    #[test]
+    fn conversation_view_subagent_first_message_has_initial_prompt_label() {
+        use crate::model::{
+            AgentConversation, AgentId, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // Create subagent conversation with 2 messages
+        let agent_id = AgentId::new("subagent-123").expect("valid agent id");
+        let mut conversation = AgentConversation::new(Some(agent_id));
+
+        // First message (initial prompt from main agent)
+        let msg1 = Message::new(
+            Role::User,
+            MessageContent::Text("Please analyze this file.".to_string()),
+        );
+        let entry1 = LogEntry::new(
+            EntryUuid::new("entry-1").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            msg1,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry1);
+
+        // Second message (subagent response)
+        let msg2 = Message::new(
+            Role::Assistant,
+            MessageContent::Text("Analyzing file...".to_string()),
+        );
+        let entry2 = LogEntry::new(
+            EntryUuid::new("entry-2").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            msg2,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry2);
+
+        let scroll_state = ScrollState::default();
+        let styles = create_test_styles();
+
+        // Create widget with is_subagent_view=true (will fail until we add this field)
+        let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+            .is_subagent_view(true);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                frame.render_widget(widget, area);
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        // FR-006: First message should have "Initial Prompt" label or visual marker
+        assert!(
+            content.contains("Initial Prompt") || content.contains("🔷"),
+            "First message in subagent conversation should have 'Initial Prompt' label or marker"
+        );
+    }
+
+    #[test]
+    fn conversation_view_subagent_second_message_has_no_initial_prompt_label() {
+        use crate::model::{
+            AgentConversation, AgentId, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // Create subagent conversation with 2 messages
+        let agent_id = AgentId::new("subagent-456").expect("valid agent id");
+        let mut conversation = AgentConversation::new(Some(agent_id));
+
+        // First message
+        let msg1 = Message::new(
+            Role::User,
+            MessageContent::Text("First message.".to_string()),
+        );
+        let entry1 = LogEntry::new(
+            EntryUuid::new("entry-1").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            msg1,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry1);
+
+        // Second message (should NOT have initial prompt marker)
+        let msg2 = Message::new(
+            Role::Assistant,
+            MessageContent::Text("Second message.".to_string()),
+        );
+        let entry2 = LogEntry::new(
+            EntryUuid::new("entry-2").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            msg2,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry2);
+
+        let scroll_state = ScrollState::default();
+        let styles = create_test_styles();
+        let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+            .is_subagent_view(true);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                frame.render_widget(widget, area);
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        // Should contain second message content
+        assert!(
+            content.contains("Second message"),
+            "Should render second message content"
+        );
+
+        // Count occurrences of "Initial Prompt" marker
+        let initial_prompt_count = content.matches("Initial Prompt").count()
+            + content.matches("🔷").count();
+
+        // Should have exactly ONE initial prompt marker (for first message only)
+        assert_eq!(
+            initial_prompt_count, 1,
+            "Should have exactly one 'Initial Prompt' marker (first message only), found {}",
+            initial_prompt_count
+        );
+    }
+
+    #[test]
+    fn conversation_view_main_agent_does_not_show_initial_prompt_label() {
+        use crate::model::{
+            AgentConversation, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // Create MAIN agent conversation (None agent_id)
+        let mut conversation = AgentConversation::new(None);
+
+        // First message in main agent
+        let msg = Message::new(
+            Role::User,
+            MessageContent::Text("User request to main agent.".to_string()),
+        );
+        let entry = LogEntry::new(
+            EntryUuid::new("entry-1").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            msg,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry);
+
+        let scroll_state = ScrollState::default();
+        let styles = create_test_styles();
+
+        // Create widget with is_subagent_view=false (main agent)
+        let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+            .is_subagent_view(false);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                frame.render_widget(widget, area);
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        // Main agent should NOT have "Initial Prompt" label
+        assert!(
+            !content.contains("Initial Prompt") && !content.contains("🔷"),
+            "Main agent conversation should NOT have 'Initial Prompt' label"
+        );
+
+        // Should still render the message content
+        assert!(
+            content.contains("User request"),
+            "Should render main agent message content"
+        );
+    }
+
+    #[test]
+    fn conversation_view_subagent_initial_prompt_has_distinct_color() {
+        use crate::model::{
+            AgentConversation, AgentId, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::style::Color;
+        use ratatui::Terminal;
+
+        // Create subagent conversation
+        let agent_id = AgentId::new("subagent-789").expect("valid agent id");
+        let mut conversation = AgentConversation::new(Some(agent_id));
+
+        // First message (initial prompt)
+        let msg = Message::new(
+            Role::User,
+            MessageContent::Text("Initial prompt.".to_string()),
+        );
+        let entry = LogEntry::new(
+            EntryUuid::new("entry-1").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            msg,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry);
+
+        let scroll_state = ScrollState::default();
+        let styles = create_test_styles();
+        let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+            .is_subagent_view(true);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                frame.render_widget(widget, area);
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+
+        // Check for distinct color in the initial prompt marker/label
+        // Should have Magenta color for the marker (distinct from User's Cyan)
+        let has_magenta = buffer
+            .content()
+            .iter()
+            .any(|cell| cell.fg == Color::Magenta);
+
+        assert!(
+            has_magenta,
+            "Initial prompt label should have distinct color (Magenta) for visual distinction"
         );
     }
 
