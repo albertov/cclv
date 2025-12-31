@@ -212,93 +212,6 @@ impl<B> TuiApp<B>
 where
     B: ratatui::backend::Backend,
 {
-    /// Create TuiApp for testing (test-only constructor)
-    ///
-    /// This allows tests to construct TuiApp directly without going through
-    /// terminal initialization. Used by acceptance test harness.
-    ///
-    /// **WARNING**: This is for testing only. Do not use in production code.
-    #[doc(hidden)]
-    pub fn new_for_test(
-        terminal: Terminal<B>,
-        mut app_state: AppState,
-        input_source: InputSource,
-        line_counter: usize,
-        key_bindings: KeyBindings,
-    ) -> Self {
-        // Recompute layout after test harness has added entries (matches production new())
-        // Get terminal dimensions for layout params
-        let width = match terminal.size() {
-            Ok(size) if size.width > 0 => size.width,
-            _ => 80, // Fallback for errors OR zero width (cclv-5ur.58)
-        };
-        let wrap = app_state.global_wrap;
-
-        // Store viewport dimensions and relayout all conversations in all sessions (cclv-5ur.58)
-        app_state.log_view_mut().set_viewport_all(width, wrap);
-
-        Self {
-            terminal,
-            app_state,
-            input_source,
-            line_counter,
-            key_bindings,
-            pending_entries: Vec::new(),
-            last_tab_area: None,
-            last_main_area: None,
-        }
-    }
-
-    /// Get reference to app state (test-only accessor)
-    ///
-    /// **WARNING**: This is for testing only. Do not use in production code.
-    #[doc(hidden)]
-    pub fn app_state(&self) -> &AppState {
-        &self.app_state
-    }
-
-    /// Handle a single keyboard event (test-only accessor)
-    ///
-    /// Returns true if app should quit.
-    ///
-    /// **WARNING**: This is for testing only. Do not use in production code.
-    #[doc(hidden)]
-    pub fn handle_key_test(&mut self, key: KeyEvent) -> bool {
-        self.handle_key(key)
-    }
-
-    /// Handle a single mouse event (test-only accessor)
-    ///
-    /// Processes mouse event and updates state accordingly.
-    ///
-    /// **WARNING**: This is for testing only. Do not use in production code.
-    #[doc(hidden)]
-    pub fn handle_mouse_test(&mut self, mouse: MouseEvent) {
-        self.handle_mouse(mouse)
-    }
-
-    /// Render a single frame (test-only accessor)
-    ///
-    /// Calls the internal draw() method to render the current state
-    /// to the TestBackend. Useful for snapshot testing.
-    ///
-    /// **WARNING**: This is for testing only. Do not use in production code.
-    #[doc(hidden)]
-    pub fn render_test(&mut self) -> Result<(), TuiError> {
-        self.draw()
-    }
-
-    /// Get reference to terminal (test-only accessor)
-    ///
-    /// Provides access to the terminal backend for buffer inspection.
-    /// Useful for snapshot testing with TestBackend.
-    ///
-    /// **WARNING**: This is for testing only. Do not use in production code.
-    #[doc(hidden)]
-    pub fn terminal(&self) -> &Terminal<B> {
-        &self.terminal
-    }
-
     /// Poll input source for new lines and process them
     ///
     /// Accumulates entries to pending buffer instead of adding directly to session.
@@ -885,6 +798,105 @@ where
         };
         let wrap = self.app_state.global_wrap;
         self.app_state.log_view_mut().set_viewport_all(width, wrap);
+    }
+}
+
+// ===== Test Helpers =====
+//
+// The following methods are ONLY for testing. They are kept public to support
+// integration tests in tests/, but are marked #[doc(hidden)] to hide from public API docs.
+//
+// DO NOT use these in production code.
+
+impl<B> TuiApp<B>
+where
+    B: ratatui::backend::Backend,
+{
+    /// Create TuiApp for testing (test-only constructor)
+    ///
+    /// This allows tests to construct TuiApp directly without going through
+    /// terminal initialization. Used by acceptance test harness.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn new_for_test(
+        terminal: Terminal<B>,
+        mut app_state: AppState,
+        input_source: InputSource,
+        line_counter: usize,
+        key_bindings: KeyBindings,
+    ) -> Self {
+        // Recompute layout after test harness has added entries (matches production new())
+        // Get terminal dimensions for layout params
+        let width = match terminal.size() {
+            Ok(size) if size.width > 0 => size.width,
+            _ => 80, // Fallback for errors OR zero width (cclv-5ur.58)
+        };
+        let wrap = app_state.global_wrap;
+
+        // Store viewport dimensions and relayout all conversations in all sessions (cclv-5ur.58)
+        app_state.log_view_mut().set_viewport_all(width, wrap);
+
+        Self {
+            terminal,
+            app_state,
+            input_source,
+            line_counter,
+            key_bindings,
+            pending_entries: Vec::new(),
+            last_tab_area: None,
+            last_main_area: None,
+        }
+    }
+
+    /// Get reference to app state (test-only accessor)
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn app_state(&self) -> &AppState {
+        &self.app_state
+    }
+
+    /// Handle a single keyboard event (test-only accessor)
+    ///
+    /// Returns true if app should quit.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn handle_key_test(&mut self, key: KeyEvent) -> bool {
+        self.handle_key(key)
+    }
+
+    /// Handle a single mouse event (test-only accessor)
+    ///
+    /// Processes mouse event and updates state accordingly.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn handle_mouse_test(&mut self, mouse: MouseEvent) {
+        self.handle_mouse(mouse)
+    }
+
+    /// Render a single frame (test-only accessor)
+    ///
+    /// Calls the internal draw() method to render the current state
+    /// to the TestBackend. Useful for snapshot testing.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn render_test(&mut self) -> Result<(), TuiError> {
+        self.draw()
+    }
+
+    /// Get reference to terminal (test-only accessor)
+    ///
+    /// Provides access to the terminal backend for buffer inspection.
+    /// Useful for snapshot testing with TestBackend.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn terminal(&self) -> &Terminal<B> {
+        &self.terminal
     }
 }
 

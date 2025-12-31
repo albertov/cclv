@@ -266,13 +266,6 @@ impl AppState {
             .expect("No session view-state - this is a bug")
     }
 
-    /// Get mutable reference to current session view-state.
-    pub fn session_view_mut(&mut self) -> &mut crate::view_state::session::SessionViewState {
-        self.log_view
-            .current_session_mut()
-            .expect("No session view-state - this is a bug")
-    }
-
     /// Get immutable reference to log_view (view-state layer).
     pub fn log_view(&self) -> &LogViewState {
         &self.log_view
@@ -400,29 +393,6 @@ impl AppState {
             ConversationSelection::Main => None,
             ConversationSelection::Subagent(agent_id) => Some(agent_id.clone()),
         }
-    }
-
-    /// Find the tab index for a given agent_id.
-    ///
-    /// # Routing Logic
-    ///
-    /// Maps AgentId to its tab index using unified tab model (FR-086):
-    /// - First subagent (alphabetically) -> tab 1
-    /// - Second subagent -> tab 2
-    /// - etc.
-    ///
-    /// Tab 0 is reserved for the main agent and is not included in this mapping.
-    ///
-    /// Returns None if the agent_id is not found in the current session's subagents.
-    pub fn tab_index_for_agent(&self, agent_id: &AgentId) -> Option<usize> {
-        let session = self.log_view.current_session()?;
-        let mut agent_ids: Vec<_> = session.subagent_ids().cloned().collect();
-        agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-        agent_ids
-            .iter()
-            .enumerate()
-            .find(|(_, aid)| **aid == *agent_id)
-            .map(|(idx, _)| idx.saturating_add(1))
     }
 
     /// Check if new messages indicator should be shown.
