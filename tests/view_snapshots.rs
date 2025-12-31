@@ -1604,7 +1604,6 @@ fn bug_horizontal_scroll_does_not_work() {
 ///
 /// Root cause: Scroll advances by entry boundaries (variable height) rather than visual lines.
 #[test]
-#[ignore = "cclv-5ur.14: scroll behavior bug - tracked by cclv-5ur.14.8"]
 fn bug_jerky_scroll_line_by_line() {
     // calculate_height is now used internally by ConversationViewState
     use chrono::Utc;
