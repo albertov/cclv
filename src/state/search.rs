@@ -198,6 +198,13 @@ pub fn agent_ids_with_matches(matches: &[SearchMatch]) -> std::collections::Hash
 /// Searches all text content in main agent and all subagents.
 /// Performs case-insensitive substring matching.
 /// Returns all matches with full location information.
+///
+/// # Why domain Session, not view-state?
+///
+/// This function uses the domain `Session` type (not `LogViewState`) because:
+/// - Search must find matches in ALL entries, including pending/uninitialized subagents
+/// - View-state only contains initialized subagent conversations
+/// - Domain model is the source of truth for comprehensive data access
 pub fn execute_search(session: &Session, query: &SearchQuery) -> Vec<SearchMatch> {
     let mut matches = Vec::new();
     let query_lower = query.as_str().to_lowercase();

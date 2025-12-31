@@ -340,6 +340,7 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
 /// Border is highlighted when FocusPane::Stats is active.
 fn render_stats_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     // Build session statistics by iterating through entries
+    // NOTE: Uses domain Session (not view-state) to access ALL entries including pending subagents
     // TODO: This should be cached in Session once stats are integrated
     let stats = build_session_stats(state.session());
 
@@ -361,8 +362,12 @@ fn render_stats_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(panel, area);
 }
 
-/// Build SessionStats by iterating through all session entries.
-/// This is temporary until stats tracking is integrated into Session.
+/// Build SessionStats by iterating through all session entries from the domain model.
+/// This is temporary - stats should eventually be maintained in SessionViewState during ingestion.
+///
+/// Note: We access session data via app_state.session() (domain model) rather than view-state
+/// because we need all entries including uninit subagents. View-state layer only maintains
+/// initialized subagent conversations.
 fn build_session_stats(session: &crate::model::Session) -> crate::model::SessionStats {
     use crate::model::{ConversationEntry, SessionStats};
 
