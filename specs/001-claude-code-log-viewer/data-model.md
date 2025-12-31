@@ -623,6 +623,7 @@ pub struct ScrollState {
     pub vertical_offset: usize,
     pub horizontal_offset: usize,
     pub expanded_messages: HashSet<EntryUuid>,
+    pub focused_message: Option<usize>,  // Index of focused message within pane
 }
 
 impl ScrollState {
@@ -652,6 +653,28 @@ impl ScrollState {
 
     pub fn is_expanded(&self, uuid: &EntryUuid) -> bool {
         self.expanded_messages.contains(uuid)
+    }
+
+    /// Expand all messages by adding all UUIDs to expanded_messages.
+    pub fn expand_all(&mut self, uuids: impl Iterator<Item = EntryUuid>) {
+        for uuid in uuids {
+            self.expanded_messages.insert(uuid);
+        }
+    }
+
+    /// Collapse all messages by clearing the expanded_messages set.
+    pub fn collapse_all(&mut self) {
+        self.expanded_messages.clear();
+    }
+
+    /// Set the focused message index (within the current pane's entry list).
+    pub fn set_focused_message(&mut self, index: Option<usize>) {
+        self.focused_message = index;
+    }
+
+    /// Get the focused message index.
+    pub fn focused_message(&self) -> Option<usize> {
+        self.focused_message
     }
 }
 ```
