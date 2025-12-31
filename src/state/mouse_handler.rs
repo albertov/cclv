@@ -92,8 +92,8 @@ pub fn detect_tab_click(
     let mut cumulative_positions = Vec::with_capacity(total_tabs + 1);
     cumulative_positions.push(0u16);
 
-    // Main Agent tab: "│ Main Agent "
-    let main_agent_width = "Main Agent".len() as u16 + 3;
+    // Main Agent tab: "│ Main "
+    let main_agent_width = "Main".len() as u16 + 3;
     cumulative_positions.push(main_agent_width);
 
     // Subagent tabs
