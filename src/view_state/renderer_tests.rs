@@ -1511,3 +1511,70 @@ fn test_non_current_search_matches_no_reversed_modifier() {
         yellow_bg_count
     );
 }
+
+// ===== Markdown Rendering Tests (cclv-5ur.24) =====
+
+#[test]
+fn test_markdown_code_block_fence_markers_removed() {
+    // RED TEST: Verify that tui-markdown removes fence markers (```) from code blocks
+    // This is a unit test that directly tests compute_entry_lines output
+    let markdown = r#"Here's some code:
+
+```rust
+fn main() {
+    println!("Hello, world!");
+}
+```
+
+That's the code."#;
+
+    let entry = create_entry_with_text(markdown);
+    let styles = default_styles();
+
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded to see full content
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None,
+        false,
+        &crate::state::SearchState::Inactive,
+    );
+
+    // Debug: Show how many lines were rendered
+    eprintln!("Number of lines rendered: {}", lines.len());
+
+    // Reconstruct text from lines to check for fence markers
+    let rendered_text: String = lines
+        .iter()
+        .enumerate()
+        .map(|(i, line)| {
+            let line_text: String = line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect();
+            eprintln!("Line {}: {} spans -> '{}'", i, line.spans.len(), line_text);
+            line_text
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    // Debug output
+    eprintln!("\nFull rendered markdown:\n{}", rendered_text);
+
+    // CRITICAL: Fence markers (```) should NOT appear in rendered output
+    assert!(
+        !rendered_text.contains("```"),
+        "Fence markers (```) should be removed by tui-markdown parser.\nRendered:\n{}",
+        rendered_text
+    );
+
+    // Code content SHOULD still be present
+    assert!(
+        rendered_text.contains("fn main"),
+        "Code content should be rendered (without fence markers)"
+    );
+}

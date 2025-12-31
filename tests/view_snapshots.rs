@@ -415,6 +415,153 @@ That's the code."#;
 }
 
 #[test]
+fn test_code_block_fence_markers_removed() {
+    // RED TEST: Verify tui-markdown removes fence markers (```) from code blocks
+    // This proves tui-markdown is actually parsing the markdown, not just showing raw text
+    let markdown_text = r#"Here's some code:
+
+```rust
+fn main() {
+    println!("Hello, world!");
+}
+```
+
+That's the code."#;
+
+    let entry = create_test_log_entry(
+        "msg-fence-test",
+        Role::Assistant,
+        MessageContent::Text(markdown_text.to_string()),
+        EntryType::Assistant,
+    );
+
+    let conversation = create_test_conversation(vec![entry.clone()]);
+    let mut view_state = ConversationViewState::new(None, None, conversation.clone());
+    let params = LayoutParams::new(80, WrapMode::Wrap);
+    view_state
+        .toggle_expand(
+            EntryIndex::new(0),
+            params,
+            ViewportDimensions::new(80, 24),
+        )
+        .expect("Should be able to toggle expand");
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(80, 20);
+    terminal
+        .draw(|frame| {
+            let widget =
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+
+    // CRITICAL: Fence markers (```) should NOT appear in rendered output
+    // tui-markdown should parse them and render styled code instead
+    assert!(
+        !output.contains("```"),
+        "Fence markers (```) should be removed by tui-markdown parser. Found in output:\n{}",
+        output
+    );
+
+    // Code content SHOULD still be present (just without fences)
+    assert!(
+        output.contains("fn main()"),
+        "Code content should be rendered (without fence markers)"
+    );
+}
+
+#[test]
+fn test_code_block_syntax_highlighting() {
+    // RED TEST: Verify syntax highlighting applies colors to code
+    // This checks that cells have non-default foreground colors
+    let markdown_text = r#"```rust
+fn main() {
+    println!("Hello, world!");
+}
+```"#;
+
+    let entry = create_test_log_entry(
+        "msg-syntax-test",
+        Role::Assistant,
+        MessageContent::Text(markdown_text.to_string()),
+        EntryType::Assistant,
+    );
+
+    let conversation = create_test_conversation(vec![entry.clone()]);
+    let mut view_state = ConversationViewState::new(None, None, conversation.clone());
+    let params = LayoutParams::new(80, WrapMode::Wrap);
+    view_state
+        .toggle_expand(
+            EntryIndex::new(0),
+            params,
+            ViewportDimensions::new(80, 24),
+        )
+        .expect("Should be able to toggle expand");
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(80, 20);
+    terminal
+        .draw(|frame| {
+            let widget =
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer();
+
+    // Find a line containing "fn main()" - this should have syntax highlighting
+    // Search for the 'fn' keyword which should be colored
+    let area = buffer.area();
+    let mut found_fn_keyword = false;
+    let mut color_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+
+    for y in area.top()..area.bottom() {
+        let mut line_text = String::new();
+        for x in area.left()..area.right() {
+            let cell = &buffer[(x, y)];
+            line_text.push_str(cell.symbol());
+        }
+
+        // Look for line containing "fn main"
+        if line_text.contains("fn main") {
+            found_fn_keyword = true;
+
+            // Count colors used in this line for debugging
+            for x in area.left()..area.right() {
+                let cell = &buffer[(x, y)];
+                let color_name = format!("{:?}", cell.fg);
+                *color_counts.entry(color_name).or_insert(0) += 1;
+            }
+            break;
+        }
+    }
+
+    assert!(found_fn_keyword, "Should find 'fn main' in rendered output");
+
+    // Debug: print what colors were found
+    eprintln!("Colors found in 'fn main' line: {:?}", color_counts);
+
+    // Check for syntax highlighting colors (NOT just role colors)
+    // tui-markdown with syntect should use colors like Cyan, Yellow, Magenta, Blue, Red
+    let has_syntax_color = color_counts.keys().any(|color| {
+        !color.contains("Reset")
+            && !color.contains("Green") // Role color
+            && !color.contains("Gray") // Default styling
+    });
+
+    assert!(
+        has_syntax_color,
+        "Syntax highlighting should apply colors to code keywords/strings. \
+         Only found role/default colors: {:?}",
+        color_counts
+    );
+}
+
+#[test]
 fn snapshot_message_with_tool_use() {
     // Create a message with ToolUse content block
     let tool_call = ToolCall::new(
