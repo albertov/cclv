@@ -163,6 +163,8 @@ A developer is looking for a specific piece of information in a long session. Th
 
 **Search**
 - **FR-011**: System MUST provide text search across all conversations
+- **FR-011a**: Search MUST include: Text content, Thinking blocks, ToolResult output
+- **FR-011b**: Search MUST NOT include: ToolUse blocks (tool name + JSON parameters are structured metadata, not conversation content; tool outputs via ToolResult are searchable)
 - **FR-012**: System MUST highlight all search matches in the visible pane
 - **FR-013**: System MUST allow navigation between search matches (next/previous)
 - **FR-014**: System MUST indicate which tabs contain search matches
