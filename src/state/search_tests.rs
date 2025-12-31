@@ -579,3 +579,141 @@ fn agent_ids_with_matches_mixed_main_and_subagent_matches() {
     assert!(agent_ids.contains(&agent1), "Should contain agent-sub1");
     assert!(agent_ids.contains(&agent2), "Should contain agent-sub2");
 }
+
+// ===== Unicode/Emoji Tests =====
+// These tests verify that char_offset and length fields use BYTE offsets (not character offsets).
+// This is correct for Rust string slicing which is byte-indexed.
+
+#[test]
+fn execute_search_handles_emoji_in_content_before_match() {
+    // Content: "🦀 error" - emoji is 4 bytes, then space (1 byte), then "error" at byte 5
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "🦀 error"));
+
+    let query = SearchQuery::new("error").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    assert_eq!(matches.len(), 1);
+    // char_offset should be 5 (byte offset after "🦀 ")
+    // If it were character offset, it would be 2 (crab + space)
+    assert_eq!(matches[0].char_offset, 5, "Should use byte offset, not char offset");
+    assert_eq!(matches[0].length, 5, "Length of 'error' in bytes");
+}
+
+#[test]
+fn execute_search_finds_emoji_in_content() {
+    // Search for emoji within content
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "Rust 🦀 rocks"));
+
+    let query = SearchQuery::new("🦀").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    assert_eq!(matches.len(), 1);
+    // Emoji starts at byte 5 (after "Rust ")
+    assert_eq!(matches[0].char_offset, 5, "Emoji at byte offset 5");
+    // Crab emoji is 4 bytes
+    assert_eq!(matches[0].length, 4, "Crab emoji is 4 bytes");
+}
+
+#[test]
+fn execute_search_handles_multibyte_unicode_characters() {
+    // Japanese characters (3 bytes each in UTF-8)
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "Hello 日本語 world"));
+
+    let query = SearchQuery::new("world").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    assert_eq!(matches.len(), 1);
+    // "Hello " = 6 bytes, "日本語" = 9 bytes (3 chars × 3 bytes), " " = 1 byte
+    // "world" starts at byte 16
+    assert_eq!(matches[0].char_offset, 16, "Should use byte offset");
+    assert_eq!(matches[0].length, 5);
+}
+
+#[test]
+fn execute_search_finds_japanese_text() {
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "Searching for 日本語 here"));
+
+    let query = SearchQuery::new("日本語").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].char_offset, 14, "Japanese at byte 14");
+    assert_eq!(matches[0].length, 9, "日本語 is 9 bytes");
+}
+
+#[test]
+fn execute_search_multiple_emojis_in_text() {
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "🔥🦀🚀 test 🎉"));
+
+    let query = SearchQuery::new("test").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    assert_eq!(matches.len(), 1);
+    // 🔥 = 4 bytes, 🦀 = 4 bytes, 🚀 = 4 bytes, space = 1 byte
+    assert_eq!(matches[0].char_offset, 13, "After 3 emojis and space");
+    assert_eq!(matches[0].length, 4);
+}
+
+#[test]
+fn execute_search_emoji_case_insensitive_ascii_only() {
+    // Case insensitivity should work for ASCII parts, emoji stays as-is
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "ERROR 🔥 here"));
+
+    let query = SearchQuery::new("error").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].char_offset, 0);
+    assert_eq!(matches[0].length, 5);
+}
+
+#[test]
+fn execute_search_overlapping_matches_with_unicode() {
+    // "ää" where ä is 2 bytes each in UTF-8
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "ääää"));
+
+    let query = SearchQuery::new("ää").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    // Should find overlapping matches at byte positions
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[0].char_offset, 0); // First ää
+    assert_eq!(matches[0].length, 4); // 2 chars × 2 bytes
+    assert_eq!(matches[1].char_offset, 2); // Second overlapping match
+    assert_eq!(matches[2].char_offset, 4); // Third overlapping match
+}
+
+#[test]
+fn execute_search_unicode_at_match_boundary() {
+    // Emoji right at the end of a match
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "test🦀 more test🦀"));
+
+    let query = SearchQuery::new("test").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].char_offset, 0);
+    assert_eq!(matches[0].length, 4);
+    // Second "test" is at: "test"(4) + "🦀"(4) + " more "(6) = byte 14
+    assert_eq!(matches[1].char_offset, 14);
+}
+
+#[test]
+fn execute_search_stores_correct_match_length_for_unicode_query() {
+    let mut session = Session::new(make_session_id("session-1"));
+    session.add_entry(make_text_entry("entry-1", None, "Find the 🚀 emoji"));
+
+    let query = SearchQuery::new("🚀").expect("valid query");
+    let matches = execute_search(&session, &query);
+
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].length, 4, "Rocket emoji is 4 bytes, not 1 char");
+}
