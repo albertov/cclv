@@ -1354,7 +1354,6 @@ fn us1_rapid_scroll_updates_within_60fps() {
 ///
 /// The status bar shows "Wrap: On" but thinking blocks ignore this setting.
 #[test]
-#[ignore = "cclv-5ur.9: thinking blocks truncated instead of wrapped"]
 fn bug_thinking_blocks_not_wrapped_like_prose() {
     use cclv::source::FileSource;
     use cclv::state::AppState;
