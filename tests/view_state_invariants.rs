@@ -19,7 +19,7 @@
 
 #![allow(dead_code)] // Allow unused helper strategies
 
-use cclv::model::{AgentId, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role, SessionId};
+use cclv::model::{AgentId, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, MalformedEntry, Role, SessionId};
 use cclv::state::WrapMode;
 use cclv::view_state::{
     conversation::ConversationViewState,
@@ -87,6 +87,29 @@ fn arb_entry_list(max_len: usize) -> impl Strategy<Value = Vec<ConversationEntry
     prop::collection::vec(arb_conversation_entry(), 0..=max_len)
 }
 
+/// Strategy for generating a malformed entry.
+fn arb_malformed_entry() -> impl Strategy<Value = ConversationEntry> {
+    (
+        1usize..=1000,
+        "[a-zA-Z0-9 ]{1,100}",
+        "[a-zA-Z0-9 :,]{1,100}",
+        prop::bool::ANY,
+    )
+        .prop_map(|(line_num, raw_line, error_msg, has_session)| {
+            let session_id = if has_session {
+                Some(SessionId::new("test-session").unwrap())
+            } else {
+                None
+            };
+            ConversationEntry::Malformed(MalformedEntry::new(
+                line_num,
+                raw_line,
+                error_msg,
+                session_id,
+            ))
+        })
+}
+
 /// Strategy for generating ScrollPosition variants.
 fn arb_scroll_position() -> impl Strategy<Value = ScrollPosition> {
     prop_oneof![
@@ -136,6 +159,18 @@ fn line_height_zero_is_rejected_by_smart_constructor() {
 fn line_height_zero_sentinel_exists() {
     assert_eq!(LineHeight::ZERO.get(), 0, "ZERO sentinel should be 0");
     assert!(LineHeight::ZERO.is_zero(), "ZERO.is_zero() should be true");
+}
+
+proptest! {
+    #[test]
+    fn malformed_entries_always_get_zero_height(entry in arb_malformed_entry()) {
+        let height = simple_height_calculator(&entry, false, WrapMode::Wrap);
+        prop_assert!(
+            height.is_zero(),
+            "Malformed entry height must be ZERO, got {}",
+            height.get()
+        );
+    }
 }
 
 // ===== Invariant 2: Cumulative Y is monotonically increasing =====
