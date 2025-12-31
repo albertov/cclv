@@ -14,11 +14,20 @@ pub struct AppConfig {
     /// When `true`, long lines wrap to fit the viewport width.
     /// When `false`, long lines require horizontal scrolling.
     pub line_wrap: bool,
+
+    /// Maximum log entries to retain in logging pane.
+    ///
+    /// Ring buffer capacity for the logging pane. When full, oldest entries
+    /// are dropped. Default: 1000 entries (FR-056).
+    pub log_buffer_capacity: usize,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
-        Self { line_wrap: true }
+        Self {
+            line_wrap: true,
+            log_buffer_capacity: 1000,
+        }
     }
 }
 
@@ -44,13 +53,19 @@ mod tests {
 
     #[test]
     fn can_create_config_with_wrap_disabled() {
-        let config = AppConfig { line_wrap: false };
+        let config = AppConfig {
+            line_wrap: false,
+            log_buffer_capacity: 1000,
+        };
         assert!(!config.line_wrap, "Should allow line_wrap=false");
     }
 
     #[test]
     fn can_create_config_with_wrap_enabled() {
-        let config = AppConfig { line_wrap: true };
+        let config = AppConfig {
+            line_wrap: true,
+            log_buffer_capacity: 1000,
+        };
         assert!(config.line_wrap, "Should allow line_wrap=true");
     }
 
