@@ -676,6 +676,44 @@ fn test_tool_use_nowrap_does_not_wrap() {
     );
 }
 
+#[test]
+fn test_tool_use_header_has_emoji_indicator() {
+    // Create entry with simple ToolUse
+    let input = serde_json::json!({
+        "param": "value"
+    });
+    let entry = create_entry_with_tool_use("TestTool", input);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index prefix
+    );
+
+    // ASSERTION: First line should be the header with emoji: "🔧 Tool: TestTool"
+    let first_line_text: String = lines[0].spans.iter()
+        .map(|span| span.content.as_ref())
+        .collect();
+
+    assert!(
+        first_line_text.starts_with("🔧 Tool:"),
+        "ToolUse header should start with '🔧 Tool:', got: '{}'",
+        first_line_text
+    );
+
+    assert!(
+        first_line_text.contains("TestTool"),
+        "ToolUse header should contain tool name 'TestTool', got: '{}'",
+        first_line_text
+    );
+}
+
 // ============================================================================
 // ENTRY INDEX PREFIX TESTS - Test that entry indices appear as prefixes
 // ============================================================================
