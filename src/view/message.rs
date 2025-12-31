@@ -979,6 +979,54 @@ fn render_entry_lines(
     )
 }
 
+/// Format the entry index as a right-aligned prefix with separator.
+///
+/// Formats a 0-based entry index as a 1-based display number, right-aligned
+/// in a 4-character column with a vertical separator.
+///
+/// # Arguments
+/// * `entry_index` - 0-based index of the entry in the conversation
+///
+/// # Returns
+/// Formatted string like "   1│", "  42│", " 999│" (right-aligned in 4 chars + separator)
+///
+/// # Examples
+/// - `format_entry_index(0)` returns `"   1│"` (index 0 → display as 1)
+/// - `format_entry_index(41)` returns `"  42│"` (index 41 → display as 42)
+/// - `format_entry_index(998)` returns `" 999│"` (index 998 → display as 999)
+fn format_entry_index(entry_index: usize) -> String {
+    let display_num = entry_index + 1; // Convert 0-based to 1-based
+    format!("{:>4}│", display_num)
+}
+
+/// Prepend the entry index to a line as a styled prefix.
+///
+/// Takes an existing Line and prepends the entry index with dim gray styling.
+/// The index is formatted as a right-aligned number with separator (e.g., "   1│").
+///
+/// # Arguments
+/// * `line` - The line to prepend the index to
+/// * `entry_index` - 0-based index of the entry in the conversation
+///
+/// # Returns
+/// A new Line with the index prepended as the first span
+fn prepend_index_to_line(line: Line<'static>, entry_index: usize) -> Line<'static> {
+    use ratatui::text::Span;
+
+    let index_text = format_entry_index(entry_index);
+    let index_span = Span::styled(
+        index_text,
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::DIM),
+    );
+
+    // Create new line with index span prepended
+    let mut new_spans = vec![index_span];
+    new_spans.extend(line.spans);
+    Line::from(new_spans)
+}
+
 /// Render entry lines with search match highlighting applied.
 ///
 /// Wraps the existing entry rendering logic and applies search highlighting
@@ -1020,6 +1068,7 @@ fn render_entry_lines_with_search(
     };
 
     let mut lines = Vec::new();
+    let mut index_added = false; // Track whether we've added the index to the first content line
 
     match entry {
         ConversationEntry::Valid(log_entry) => {
@@ -1047,9 +1096,16 @@ fn render_entry_lines_with_search(
 
                     if should_collapse {
                         // Show summary lines with role styling (no search highlighting in collapsed view)
-                        for line in text_lines.iter().take(summary_lines) {
-                            lines
-                                .push(Line::from(vec![Span::styled(line.to_string(), role_style)]));
+                        for (line_idx, line) in text_lines.iter().take(summary_lines).enumerate() {
+                            let mut rendered_line = Line::from(vec![Span::styled(line.to_string(), role_style)]);
+
+                            // Add index to first content line
+                            if line_idx == 0 && !index_added {
+                                rendered_line = prepend_index_to_line(rendered_line, entry_index);
+                                index_added = true;
+                            }
+
+                            lines.push(rendered_line);
                         }
                         // Add collapse indicator
                         let remaining = total_lines.saturating_sub(summary_lines);
@@ -1077,16 +1133,24 @@ fn render_entry_lines_with_search(
 
                             if entry_matches.is_empty() {
                                 // No matches in this entry - render normally
-                                for line in text_lines {
-                                    lines.push(Line::from(vec![Span::styled(
+                                for (line_idx, line) in text_lines.iter().enumerate() {
+                                    let mut rendered_line = Line::from(vec![Span::styled(
                                         line.to_string(),
                                         role_style,
-                                    )]));
+                                    )]);
+
+                                    // Add index to first content line
+                                    if line_idx == 0 && !index_added {
+                                        rendered_line = prepend_index_to_line(rendered_line, entry_index);
+                                        index_added = true;
+                                    }
+
+                                    lines.push(rendered_line);
                                 }
                             } else {
                                 // Apply highlighting - track cumulative offset for multi-line text
                                 let mut cumulative_offset: usize = 0;
-                                for line_text in text_lines {
+                                for (line_idx, line_text) in text_lines.iter().enumerate() {
                                     let line_start = cumulative_offset;
                                     let line_end = line_start.saturating_add(line_text.len());
 
@@ -1123,11 +1187,18 @@ fn render_entry_lines_with_search(
                                         .collect();
 
                                     // Render line with highlights
-                                    let highlighted_line = apply_highlights_to_text(
+                                    let mut highlighted_line = apply_highlights_to_text(
                                         line_text,
                                         &line_matches,
                                         role_style,
                                     );
+
+                                    // Add index to first content line
+                                    if line_idx == 0 && !index_added {
+                                        highlighted_line = prepend_index_to_line(highlighted_line, entry_index);
+                                        index_added = true;
+                                    }
+
                                     lines.push(highlighted_line);
 
                                     // Update cumulative offset (add line length + newline char)
@@ -1136,11 +1207,19 @@ fn render_entry_lines_with_search(
                             }
                         } else {
                             // No search active - render normally
-                            for line in text_lines {
-                                lines.push(Line::from(vec![Span::styled(
+                            for (line_idx, line) in text_lines.iter().enumerate() {
+                                let mut rendered_line = Line::from(vec![Span::styled(
                                     line.to_string(),
                                     role_style,
-                                )]));
+                                )]);
+
+                                // Add index to first content line
+                                if line_idx == 0 && !index_added {
+                                    rendered_line = prepend_index_to_line(rendered_line, entry_index);
+                                    index_added = true;
+                                }
+
+                                lines.push(rendered_line);
                             }
                         }
                     }
@@ -2217,10 +2296,14 @@ fn apply_highlights_to_text(
 
 // ===== Horizontal Scrolling Helpers =====
 
-/// Apply horizontal offset to a line, skipping the first `offset` characters.
+/// Apply horizontal offset to a line, preserving entry index prefix if present.
+///
+/// Skips the first `offset` characters from line content, but preserves the entry index
+/// prefix (first span containing "│") if present. This ensures the index remains visible
+/// during horizontal scrolling.
 ///
 /// Returns a new Line with characters starting from `offset` position.
-/// If offset exceeds line length, returns empty line.
+/// If offset exceeds line length, returns empty line (or just index if present).
 ///
 /// Uses character-based indexing (not byte-based) for UTF-8 safety.
 #[allow(dead_code)]
@@ -2229,7 +2312,56 @@ fn apply_horizontal_offset(line: Line<'static>, offset: usize) -> Line<'static> 
         return line;
     }
 
-    // Calculate total character count (not bytes)
+    // Check if first span is the index prefix (contains "│")
+    let has_index = line
+        .spans
+        .first()
+        .map(|span| span.content.contains('│'))
+        .unwrap_or(false);
+
+    if has_index {
+        // Preserve index span, apply offset to remaining content
+        let index_span = line.spans[0].clone();
+        let content_spans = &line.spans[1..];
+
+        // Calculate total chars in content (excluding index)
+        let total_chars: usize = content_spans
+            .iter()
+            .map(|span| span.content.chars().count())
+            .sum();
+
+        if offset >= total_chars {
+            // Offset exceeds content, return just index
+            return Line::from(vec![index_span]);
+        }
+
+        // Skip characters in content spans
+        let mut chars_to_skip = offset;
+        let mut new_spans = vec![index_span];
+
+        for span in content_spans {
+            let span_char_count = span.content.chars().count();
+
+            if chars_to_skip >= span_char_count {
+                chars_to_skip -= span_char_count;
+            } else if chars_to_skip > 0 {
+                let remaining =
+                    if let Some((byte_idx, _)) = span.content.char_indices().nth(chars_to_skip) {
+                        span.content[byte_idx..].to_string()
+                    } else {
+                        String::new()
+                    };
+                chars_to_skip = 0;
+                new_spans.push(ratatui::text::Span::styled(remaining, span.style));
+            } else {
+                new_spans.push(span.clone());
+            }
+        }
+
+        return Line::from(new_spans);
+    }
+
+    // No index - apply offset to entire line
     let total_chars: usize = line
         .spans
         .iter()
@@ -2237,11 +2369,9 @@ fn apply_horizontal_offset(line: Line<'static>, offset: usize) -> Line<'static> 
         .sum();
 
     if offset >= total_chars {
-        // Offset exceeds line length, return empty
         return Line::from(vec![]);
     }
 
-    // Skip characters across spans (character-safe, not byte-based)
     let mut chars_to_skip = offset;
     let mut new_spans = Vec::new();
 
