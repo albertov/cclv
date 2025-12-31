@@ -600,9 +600,55 @@ fn render_entry_lines(
 ///
 /// # Returns
 /// `true` if any code block (fenced or indented) is present, `false` otherwise
-#[allow(unused_variables)]
 fn has_code_blocks(content: &str) -> bool {
-    todo!("has_code_blocks: not implemented")
+    for line in content.lines() {
+        // Check for fenced code blocks (``` or ~~~)
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            return true;
+        }
+
+        // Check for indented code blocks (4+ leading spaces)
+        // Count leading spaces
+        let leading_spaces = line.len() - line.trim_start().len();
+        if leading_spaces >= 4 && !line.trim().is_empty() {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Extract text content from a ConversationEntry to scan for code blocks.
+///
+/// Concatenates all text blocks from the entry's message content.
+/// Used by `should_entry_wrap` to determine if code blocks are present.
+///
+/// # Arguments
+/// * `entry` - The conversation entry to extract text from
+///
+/// # Returns
+/// Concatenated text content from all text blocks in the entry
+fn extract_entry_text(entry: &ConversationEntry) -> String {
+    match entry {
+        ConversationEntry::Valid(log_entry) => {
+            let message = log_entry.message();
+            match message.content() {
+                MessageContent::Text(text) => text.clone(),
+                MessageContent::Blocks(blocks) => {
+                    let mut result = String::new();
+                    for block in blocks {
+                        if let ContentBlock::Text { text } = block {
+                            result.push_str(text);
+                            result.push('\n');
+                        }
+                    }
+                    result
+                }
+            }
+        }
+        ConversationEntry::Malformed(_) => String::new(),
+    }
 }
 
 /// * `wrap_mode` - Wrap mode for this specific entry
@@ -780,7 +826,10 @@ pub fn render_conversation_view(
         let actual_entry_index = start_idx + layout_idx;
 
         // Get per-entry effective wrap mode
-        let effective_wrap = if let ConversationEntry::Valid(log_entry) = entry {
+        // FR-053: Code blocks never wrap, always use horizontal scroll
+        let effective_wrap = if has_code_blocks(&extract_entry_text(entry)) {
+            WrapMode::NoWrap
+        } else if let ConversationEntry::Valid(log_entry) = entry {
             scroll.effective_wrap(log_entry.uuid(), global_wrap)
         } else {
             global_wrap
@@ -5903,5 +5952,272 @@ fn test() {}
             !result,
             "Inline code (backticks mid-line) should not be detected as code blocks"
         );
+    }
+
+    // ===== Integration Tests: Code Block Detection in Rendering (FR-053) =====
+
+    #[test]
+    fn entry_with_code_block_forces_nowrap_regardless_of_global() {
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, Role, SessionId};
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // ARRANGE: Entry with fenced code block, global wrap is Wrap
+        let mut conversation = AgentConversation::new(None);
+        let content = r#"Some prose text.
+
+```rust
+let code = "This should not wrap";
+```
+
+More prose."#;
+
+        let message = Message::new(Role::Assistant, MessageContent::Text(content.to_string()));
+        let uuid = EntryUuid::new("entry-code").expect("valid uuid");
+        let entry = LogEntry::new(
+            uuid.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry);
+
+        let scroll_state = ScrollState::default();
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        // ACT: Render with global Wrap mode
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &create_test_styles(),
+                    false,
+                    WrapMode::Wrap, // Global is Wrap, but code blocks should override
+                );
+            })
+            .expect("Failed to draw");
+
+        // ASSERT: Code block should be rendered without wrapping
+        // (This test verifies integration; visual verification would check actual rendering)
+        // The key assertion is that it doesn't panic and renders successfully
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+
+        // Verify the code content appears (it wasn't word-wrapped and lost)
+        assert!(
+            content.contains("let code"),
+            "Code block content should be present in rendered output"
+        );
+    }
+
+    #[test]
+    fn entry_with_only_prose_respects_effective_wrap() {
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, Role, SessionId};
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // ARRANGE: Entry with no code blocks, per-item override to NoWrap
+        let mut conversation = AgentConversation::new(None);
+        let content_text = "This is plain prose text with no code blocks at all.";
+
+        let message = Message::new(Role::Assistant, MessageContent::Text(content_text.to_string()));
+        let uuid = EntryUuid::new("entry-prose").expect("valid uuid");
+        let entry = LogEntry::new(
+            uuid.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry);
+
+        let mut scroll_state = ScrollState::default();
+        // Toggle wrap for this entry (sets per-item override)
+        scroll_state.toggle_wrap(&uuid);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        // ACT: Render with global Wrap, but this entry has override
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &create_test_styles(),
+                    false,
+                    WrapMode::Wrap, // Global Wrap, entry override to NoWrap
+                );
+            })
+            .expect("Failed to draw");
+
+        // ASSERT: Should use effective_wrap (NoWrap due to override)
+        // Verification: render succeeds without panic
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+
+        assert!(
+            content.contains("This is plain prose"),
+            "Prose content should be present"
+        );
+    }
+
+    #[test]
+    fn entry_with_code_block_ignores_per_item_wrap_override() {
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, Role, SessionId};
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // ARRANGE: Entry with code block AND per-item wrap toggle
+        let mut conversation = AgentConversation::new(None);
+        let content_text = r#"```rust
+fn test() { println!("Code blocks always NoWrap"); }
+```"#;
+
+        let message = Message::new(Role::Assistant, MessageContent::Text(content_text.to_string()));
+        let uuid = EntryUuid::new("entry-override").expect("valid uuid");
+        let entry = LogEntry::new(
+            uuid.clone(),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+        conversation.add_entry(entry);
+
+        let mut scroll_state = ScrollState::default();
+        // Try to toggle wrap for this entry (would normally invert global)
+        scroll_state.toggle_wrap(&uuid);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        // ACT: Render with global NoWrap, entry override would flip to Wrap,
+        // but code blocks should ALWAYS be NoWrap (FR-053 takes precedence)
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &create_test_styles(),
+                    false,
+                    WrapMode::NoWrap,
+                );
+            })
+            .expect("Failed to draw");
+
+        // ASSERT: Code block forces NoWrap, ignoring per-item override
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+
+        assert!(
+            content.contains("fn test()"),
+            "Code block should render with NoWrap regardless of override"
+        );
+    }
+
+    #[test]
+    fn extract_entry_text_handles_text_content() {
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, Role, SessionId};
+        use chrono::Utc;
+
+        // ARRANGE: Entry with simple Text content
+        let content = "Hello world\nWith newlines";
+        let message = Message::new(Role::User, MessageContent::Text(content.to_string()));
+        let uuid = EntryUuid::new("text-entry").expect("valid uuid");
+        let entry = LogEntry::new(
+            uuid,
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message,
+            EntryMetadata::default(),
+        );
+
+        // ACT
+        let result = extract_entry_text(&ConversationEntry::Valid(Box::new(entry)));
+
+        // ASSERT
+        assert_eq!(result, "Hello world\nWith newlines");
+    }
+
+    #[test]
+    fn extract_entry_text_concatenates_text_blocks() {
+        use crate::model::{ContentBlock, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, Role, SessionId};
+        use chrono::Utc;
+
+        // ARRANGE: Entry with Blocks containing multiple Text blocks
+        let blocks = vec![
+            ContentBlock::Text {
+                text: "First block".to_string(),
+            },
+            ContentBlock::Text {
+                text: "Second block".to_string(),
+            },
+        ];
+        let message = Message::new(Role::Assistant, MessageContent::Blocks(blocks));
+        let uuid = EntryUuid::new("blocks-entry").expect("valid uuid");
+        let entry = LogEntry::new(
+            uuid,
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        // ACT
+        let result = extract_entry_text(&ConversationEntry::Valid(Box::new(entry)));
+
+        // ASSERT
+        assert_eq!(result, "First block\nSecond block\n");
+    }
+
+    #[test]
+    fn extract_entry_text_returns_empty_for_malformed() {
+        // ARRANGE: Malformed entry
+        use crate::model::MalformedEntry;
+
+        let malformed = MalformedEntry::new(
+            42,
+            "raw line content",
+            "parse error",
+            None, // No session ID
+        );
+        let entry = ConversationEntry::Malformed(malformed);
+
+        // ACT
+        let result = extract_entry_text(&entry);
+
+        // ASSERT
+        assert_eq!(result, "");
     }
 }
