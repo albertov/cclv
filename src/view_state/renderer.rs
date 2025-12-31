@@ -19,7 +19,7 @@
 //! - Rendered line count matches height calculation
 
 use crate::model::{ContentBlock, ConversationEntry, MessageContent};
-use crate::state::WrapMode;
+use crate::state::{WrapContext, WrapMode};
 use crate::view::MessageStyles;
 use ratatui::{
     style::{Color, Modifier, Style},
@@ -82,7 +82,7 @@ use tui_markdown::from_str;
 pub fn compute_entry_lines(
     entry: &ConversationEntry,
     expanded: bool,
-    wrap_mode: WrapMode,
+    wrap_ctx: WrapContext,
     width: u16,
     collapse_threshold: usize,
     summary_lines: usize,
@@ -151,7 +151,7 @@ pub fn compute_entry_lines(
             // Split into lines and wrap BEFORE markdown rendering
             // This ensures rendered line count matches height calculation
             let text_lines: Vec<_> = text.lines().collect();
-            let wrapped_lines = wrap_lines(&text_lines, wrap_mode, width);
+            let wrapped_lines = wrap_lines(&text_lines, wrap_ctx.mode, width);
 
             // If we have search matches AND are expanded, apply highlighting
             // (Don't highlight collapsed view for simplicity)
@@ -233,7 +233,7 @@ pub fn compute_entry_lines(
                 let block_lines = render_block(
                     block,
                     expanded,
-                    wrap_mode,
+                    wrap_ctx,
                     width,
                     collapse_threshold,
                     summary_lines,
@@ -373,13 +373,24 @@ fn wrap_lines(source_lines: &[&str], wrap_mode: WrapMode, width: u16) -> Vec<Str
 fn render_block(
     block: &ContentBlock,
     expanded: bool,
-    wrap_mode: WrapMode,
+    wrap_ctx: WrapContext,
     width: u16,
     collapse_threshold: usize,
     summary_lines: usize,
     role_style: Style,
     styles: &MessageStyles,
 ) -> Vec<Line<'static>> {
+    // For ToolUse and ToolResult blocks: default to NoWrap unless explicit override
+    let effective_wrap = match block {
+        ContentBlock::ToolUse(_) | ContentBlock::ToolResult { .. } => {
+            if wrap_ctx.is_explicit_override {
+                wrap_ctx.mode
+            } else {
+                WrapMode::NoWrap // Default for structured data
+            }
+        }
+        _ => wrap_ctx.mode, // Other blocks use effective wrap normally
+    };
     // Get block-specific style if applicable, otherwise use role style
     let base_style = styles.style_for_content_block(block).unwrap_or(role_style);
 
@@ -388,7 +399,7 @@ fn render_block(
             // Split into lines and wrap BEFORE markdown rendering
             // This ensures rendered line count matches height calculation
             let text_lines: Vec<_> = text.lines().collect();
-            let wrapped_lines = wrap_lines(&text_lines, wrap_mode, width);
+            let wrapped_lines = wrap_lines(&text_lines, effective_wrap, width);
 
             // Rejoin wrapped lines for markdown parsing
             // Each wrapped line becomes a separate paragraph in markdown
@@ -437,7 +448,7 @@ fn render_block(
             let input_lines: Vec<_> = input_json.lines().collect();
 
             // Wrap lines to match height calculation
-            let wrapped_lines = wrap_lines(&input_lines, wrap_mode, width);
+            let wrapped_lines = wrap_lines(&input_lines, effective_wrap, width);
             let total_lines = wrapped_lines.len();
             let should_collapse = total_lines > collapse_threshold && !expanded;
 
@@ -466,7 +477,7 @@ fn render_block(
             let content_lines: Vec<_> = content.lines().collect();
 
             // Wrap lines to match height calculation
-            let wrapped_lines = wrap_lines(&content_lines, wrap_mode, width);
+            let wrapped_lines = wrap_lines(&content_lines, effective_wrap, width);
             let total_lines = wrapped_lines.len();
             let should_collapse = total_lines > collapse_threshold && !expanded;
 
@@ -499,7 +510,7 @@ fn render_block(
             let thinking_lines: Vec<_> = thinking.lines().collect();
 
             // Wrap lines to match height calculation
-            let wrapped_lines = wrap_lines(&thinking_lines, wrap_mode, width);
+            let wrapped_lines = wrap_lines(&thinking_lines, effective_wrap, width);
             let total_lines = wrapped_lines.len();
             let should_collapse = total_lines > collapse_threshold && !expanded;
 

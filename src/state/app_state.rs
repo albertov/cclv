@@ -497,6 +497,40 @@ pub enum WrapMode {
     NoWrap,
 }
 
+/// Wrap context captures both the wrap mode and whether it's from an explicit per-entry override.
+///
+/// This type allows render logic to distinguish between:
+/// - Global wrap mode (default behavior for content type)
+/// - Explicit per-entry override (user explicitly chose to wrap/nowrap this entry)
+///
+/// Use case: ToolUse and ToolResult blocks default to NoWrap (structured data)
+/// UNLESS the user explicitly overrides to Wrap for that specific entry.
+///
+/// # Design (cclv-5ur.22)
+/// ToolUse and ToolResult contain structured data (JSON, file contents).
+/// Default should be NoWrap to preserve structure visibility.
+/// If user explicitly wants wrapping for a specific entry, per-entry override takes precedence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WrapContext {
+    /// The effective wrap mode (either from override or global fallback).
+    pub mode: WrapMode,
+    /// True if this mode came from an explicit per-entry override.
+    /// False if this is the global default.
+    pub is_explicit_override: bool,
+}
+
+impl WrapContext {
+    /// Create context from explicit per-entry override.
+    pub fn from_override(_mode: WrapMode) -> Self {
+        todo!("WrapContext::from_override")
+    }
+
+    /// Create context from global fallback (no per-entry override).
+    pub fn from_global(_mode: WrapMode) -> Self {
+        todo!("WrapContext::from_global")
+    }
+}
+
 // ===== Tests =====
 // Tests removed during expand state migration to view-state layer
 

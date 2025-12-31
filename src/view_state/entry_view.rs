@@ -91,6 +91,7 @@ impl EntryView {
     /// * `index` - Position within conversation
     /// * `wrap_mode` - Effective wrap mode for this entry
     /// * `width` - Viewport width for text wrapping
+    #[allow(unreachable_code, unused_variables)]
     pub fn with_rendered_lines(
         entry: ConversationEntry,
         index: EntryIndex,
@@ -98,12 +99,14 @@ impl EntryView {
         width: u16,
     ) -> Self {
         let expanded = false; // Start collapsed
-                              // TODO: Pass MessageStyles from caller instead of default
+        // New entries have no wrap override, so use global mode
+        let wrap_ctx = todo!("EntryView::with_rendered_lines - create WrapContext from global");
+        // TODO: Pass MessageStyles from caller instead of default
         let styles = crate::view::MessageStyles::new();
         let rendered_lines = compute_entry_lines(
             &entry,
             expanded,
-            wrap_mode,
+            wrap_ctx,
             width,
             Self::COLLAPSE_THRESHOLD,
             Self::SUMMARY_LINES,
@@ -172,16 +175,16 @@ impl EntryView {
     ///
     /// This is `pub(crate)` because only ConversationViewState should
     /// trigger recomputation (to maintain HeightIndex consistency).
-    #[allow(dead_code)] // Will be used by ConversationViewState in future tasks
+    #[allow(dead_code, unreachable_code, unused_variables)] // Will be used by ConversationViewState in future tasks
     pub(crate) fn recompute_lines(&mut self, wrap_mode: WrapMode, width: u16) {
-        // Bug fix cclv-5ur.18: Use effective_wrap to respect per-entry override
-        let effective_mode = self.effective_wrap(wrap_mode);
+        // Bug fix cclv-5ur.22: Create WrapContext that encodes override status
+        let wrap_ctx = todo!("EntryView::recompute_lines - create WrapContext");
         // TODO: Pass MessageStyles from caller instead of default
         let styles = crate::view::MessageStyles::new();
         self.rendered_lines = compute_entry_lines(
             &self.entry,
             self.expanded,
-            effective_mode,
+            wrap_ctx,
             width,
             Self::COLLAPSE_THRESHOLD,
             Self::SUMMARY_LINES,
