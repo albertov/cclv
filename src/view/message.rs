@@ -245,14 +245,16 @@ impl<'a> ConversationView<'a> {
                 // If entry starts before scroll_offset, it renders at viewport y=0
                 // Otherwise, it renders at (cumulative_y - scroll_offset)
                 let y_offset = if cumulative_y >= scroll_offset {
-                    (cumulative_y - scroll_offset) as u16
+                    (cumulative_y - scroll_offset).min(u16::MAX as usize) as u16
                 } else {
                     0_u16
                 };
 
+                debug_assert!(height <= u16::MAX as usize, "Entry height exceeds u16::MAX");
+
                 layouts.push(EntryLayout {
                     y_offset,
-                    height: height as u16,
+                    height: height.min(u16::MAX as usize) as u16,
                 });
             }
 
