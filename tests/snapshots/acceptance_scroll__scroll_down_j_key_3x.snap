@@ -9,6 +9,7 @@ Model: Unknown | Main Agent | ? | 0 tools, 0 agents, 0 skills
 │(+8 more lines)                                                               │
 │                                                                              │
 │I'll start by loading the required skill and then following the coordinator pr│
+│otocol.                                                                       │
 │                                                                              │
 │Tool: Skill                                                                   │
 │  {                                                                           │
@@ -23,6 +24,5 @@ Model: Unknown | Main Agent | ? | 0 tools, 0 agents, 0 skills
 │Launching skill: efficient-subagent-orchestration                             │
 │                                                                              │
 │Base directory for this skill: /home/claude/.claude/skills/efficient-subagent-│
-│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 [LIVE] Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes
