@@ -1,3 +1,8 @@
+---
+name: property-tests
+description: Write property tests (proptest) to analyze bugs and verify invariants. Finds minimal reproduction cases automatically via shrinking. Use when writing tests for state machines, round-trip properties, or bug reproduction. Covers strategy design, simulating actual vs idealized behavior, and regression file management.
+---
+
 # Property Testing for Bug Analysis
 
 Write property tests to analyze bugs, find minimal reproductions, and create formal specifications of invariant violations. This skill is for **analysis and verification only** - not for implementing fixes.
