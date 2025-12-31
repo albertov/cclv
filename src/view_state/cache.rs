@@ -62,6 +62,7 @@ impl Default for RenderCacheConfig {
 /// Bounded capacity with LRU eviction (FR-052).
 /// Cache key includes all parameters that affect rendering.
 /// Capacity configurable via config file (FR-054).
+#[derive(Debug, Clone)]
 pub struct RenderCache {
     cache: LruCache<RenderCacheKey, CachedRender>,
 }
