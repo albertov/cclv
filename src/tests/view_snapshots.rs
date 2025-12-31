@@ -2941,7 +2941,6 @@ fn bug_tab_click_region_mismatch() {
 ///
 /// Bead: cclv-el4
 #[test]
-#[ignore = "cclv-el4: Tab click X offset by 6 chars (Main vs Main Agent)"]
 fn bug_tab_click_x_offset_main_vs_main_agent() {
     use crate::config::keybindings::KeyBindings;
     use crate::source::{FileSource, InputSource, StdinSource};
