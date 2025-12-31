@@ -4,7 +4,7 @@
 //! Full conversation rendering (messages, markdown, syntax highlighting)
 //! will be implemented in bead cclv-07v.4.2.
 
-use crate::model::{AgentConversation, ContentBlock, ToolCall};
+use crate::model::{AgentConversation, ContentBlock, MessageContent, ToolCall};
 use crate::state::ScrollState;
 use ratatui::{
     layout::Rect,
@@ -23,13 +23,13 @@ use ratatui::{
 /// * `frame` - The ratatui frame to render into
 /// * `area` - The area to render within
 /// * `conversation` - The agent conversation to display
-/// * `_scroll` - Scroll state (unused in placeholder, prefix with _ to avoid warning)
+/// * `scroll` - Scroll state (for expansion tracking and scrolling)
 /// * `focused` - Whether this pane currently has focus (affects border color)
 pub fn render_conversation_view(
     frame: &mut Frame,
     area: Rect,
     conversation: &AgentConversation,
-    _scroll: &ScrollState,
+    scroll: &ScrollState,
     focused: bool,
 ) {
     let entry_count = conversation.entries().len();
@@ -59,14 +59,41 @@ pub fn render_conversation_view(
         .title(title)
         .style(Style::default().fg(border_color));
 
-    // Placeholder content
-    let placeholder_text = if entry_count == 0 {
-        "No messages yet...".to_string()
-    } else {
-        format!("Conversation with {} messages", entry_count)
-    };
+    // Render content: collect all lines from all entries
+    let mut lines = Vec::new();
 
-    let paragraph = Paragraph::new(placeholder_text).block(block);
+    if entry_count == 0 {
+        lines.push(Line::from("No messages yet..."));
+    } else {
+        // Iterate through all entries and render their content blocks
+        for entry in conversation.entries() {
+            match entry.message().content() {
+                MessageContent::Text(text) => {
+                    // Simple text message - render each line
+                    for line in text.lines() {
+                        lines.push(Line::from(line.to_string()));
+                    }
+                }
+                MessageContent::Blocks(blocks) => {
+                    // Structured content - render each block
+                    for block in blocks {
+                        let block_lines = render_content_block(
+                            block,
+                            entry.uuid(),
+                            scroll,
+                            10, // Default collapse threshold
+                            3,  // Default summary lines
+                        );
+                        lines.extend(block_lines);
+                    }
+                }
+            }
+            // Add spacing between entries
+            lines.push(Line::from(""));
+        }
+    }
+
+    let paragraph = Paragraph::new(lines).block(block);
     frame.render_widget(paragraph, area);
 }
 
@@ -585,6 +612,135 @@ mod tests {
         assert!(
             text.contains("Analyzing"),
             "Should render Thinking block with content visible"
+        );
+    }
+
+    // ===== render_conversation_view Integration Tests =====
+
+    #[test]
+    fn render_conversation_view_renders_text_content_blocks() {
+        use crate::model::{
+            AgentConversation, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // Create a conversation with a message containing text blocks
+        let mut conversation = AgentConversation::new(None);
+
+        let message = Message::new(
+            Role::Assistant,
+            MessageContent::Blocks(vec![ContentBlock::Text {
+                text: "Test message content".to_string(),
+            }]),
+        );
+
+        let entry = LogEntry::new(
+            EntryUuid::new("entry-1").expect("valid uuid"),
+            None,
+            SessionId::new("session-1").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        conversation.add_entry(entry);
+
+        // Create a test terminal and render
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        let scroll_state = ScrollState::default();
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view(frame, area, &conversation, &scroll_state, false);
+            })
+            .expect("Failed to draw");
+
+        // Get the rendered buffer and check it contains our text
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        // Should render the text content
+        assert!(
+            content.contains("Test message content"),
+            "Should render text content from message blocks"
+        );
+    }
+
+    #[test]
+    fn render_conversation_view_renders_tool_use_blocks() {
+        use crate::model::{
+            AgentConversation, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+            MessageContent, Role, SessionId,
+        };
+        use chrono::Utc;
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // Create a conversation with a message containing a tool use block
+        let mut conversation = AgentConversation::new(None);
+
+        let tool_id = ToolUseId::new("tool-123").expect("valid id");
+        let tool_call = ToolCall::new(
+            tool_id,
+            ToolName::Read,
+            serde_json::json!({"file_path": "/test.txt"}),
+        );
+
+        let message = Message::new(
+            Role::Assistant,
+            MessageContent::Blocks(vec![ContentBlock::ToolUse(tool_call)]),
+        );
+
+        let entry = LogEntry::new(
+            EntryUuid::new("entry-2").expect("valid uuid"),
+            None,
+            SessionId::new("session-2").expect("valid session id"),
+            None,
+            Utc::now(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        );
+
+        conversation.add_entry(entry);
+
+        // Create a test terminal and render
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("Failed to create terminal");
+
+        let scroll_state = ScrollState::default();
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view(frame, area, &conversation, &scroll_state, false);
+            })
+            .expect("Failed to draw");
+
+        // Get the rendered buffer and check it contains tool name
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        // Should render the tool name
+        assert!(
+            content.contains("Read"),
+            "Should render tool name from ToolUse blocks"
         );
     }
 }
