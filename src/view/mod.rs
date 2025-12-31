@@ -528,6 +528,76 @@ where
                 self.app_state.select_tab(n);
             }
 
+            // Entry navigation - move keyboard focus between entries
+            KeyAction::NextEntry => {
+                match self.app_state.focus {
+                    FocusPane::Main => {
+                        if let Some(view) = self.app_state.main_conversation_view_mut() {
+                            let current = view.focused_message().map(|idx| idx.get());
+                            let len = view.len();
+                            if len > 0 {
+                                let next_idx = match current {
+                                    Some(idx) => (idx + 1) % len,
+                                    None => 0,
+                                };
+                                view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(next_idx)));
+                            }
+                        }
+                    }
+                    FocusPane::Subagent => {
+                        if let Some(tab_index) = self.app_state.selected_tab {
+                            if let Some(view) = self.app_state.subagent_conversation_view_mut(tab_index) {
+                                let current = view.focused_message().map(|idx| idx.get());
+                                let len = view.len();
+                                if len > 0 {
+                                    let next_idx = match current {
+                                        Some(idx) => (idx + 1) % len,
+                                        None => 0,
+                                    };
+                                    view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(next_idx)));
+                                }
+                            }
+                        }
+                    }
+                    _ => {} // Stats and Search panes don't have entries
+                }
+            }
+            KeyAction::PrevEntry => {
+                match self.app_state.focus {
+                    FocusPane::Main => {
+                        if let Some(view) = self.app_state.main_conversation_view_mut() {
+                            let current = view.focused_message().map(|idx| idx.get());
+                            let len = view.len();
+                            if len > 0 {
+                                let prev_idx = match current {
+                                    Some(idx) if idx > 0 => idx - 1,
+                                    Some(_) => len - 1,  // Wrap from 0 to last
+                                    None => len - 1,     // Start at last if no focus
+                                };
+                                view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(prev_idx)));
+                            }
+                        }
+                    }
+                    FocusPane::Subagent => {
+                        if let Some(tab_index) = self.app_state.selected_tab {
+                            if let Some(view) = self.app_state.subagent_conversation_view_mut(tab_index) {
+                                let current = view.focused_message().map(|idx| idx.get());
+                                let len = view.len();
+                                if len > 0 {
+                                    let prev_idx = match current {
+                                        Some(idx) if idx > 0 => idx - 1,
+                                        Some(_) => len - 1,  // Wrap from 0 to last
+                                        None => len - 1,     // Start at last if no focus
+                                    };
+                                    view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(prev_idx)));
+                                }
+                            }
+                        }
+                    }
+                    _ => {} // Stats and Search panes don't have entries
+                }
+            }
+
             // Message expand/collapse - delegate to pure expand handler
             KeyAction::ToggleExpand | KeyAction::ExpandMessage | KeyAction::CollapseMessage => {
                 // Get viewport width from terminal
@@ -1455,15 +1525,22 @@ mod tests {
     fn handle_key_ctrl_j_wraps_at_end_of_conversation() {
         let mut app = create_test_app();
 
-        // Add two entries
+        // Add two entries (note: create_test_app adds 1 initial entry, so total will be 3)
         let entry1 = create_test_entry("first");
         let entry2 = create_test_entry("second");
         app.app_state.add_entries(vec![entry1, entry2]);
 
-        // Focus on Main pane and select last entry (index 1)
+        // Get the actual last index
+        let last_idx = app
+            .app_state
+            .main_conversation_view()
+            .map(|v| v.len() - 1)
+            .unwrap_or(0);
+
+        // Focus on Main pane and select last entry
         app.app_state.focus = FocusPane::Main;
         if let Some(view) = app.app_state.main_conversation_view_mut() {
-            view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(1)));
+            view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(last_idx)));
         }
 
         // Press Ctrl+j - should wrap to first entry
@@ -1486,10 +1563,17 @@ mod tests {
     fn handle_key_ctrl_k_wraps_at_beginning_of_conversation() {
         let mut app = create_test_app();
 
-        // Add two entries
+        // Add two entries (note: create_test_app adds 1 initial entry, so total will be 3)
         let entry1 = create_test_entry("first");
         let entry2 = create_test_entry("second");
         app.app_state.add_entries(vec![entry1, entry2]);
+
+        // Get the actual last index
+        let last_idx = app
+            .app_state
+            .main_conversation_view()
+            .map(|v| v.len() - 1)
+            .unwrap_or(0);
 
         // Focus on Main pane and select first entry (index 0)
         app.app_state.focus = FocusPane::Main;
@@ -1508,7 +1592,7 @@ mod tests {
             .map(|idx| idx.get());
         assert_eq!(
             focused_idx,
-            Some(1),
+            Some(last_idx),
             "Ctrl+k should wrap from first entry to last entry"
         );
     }
