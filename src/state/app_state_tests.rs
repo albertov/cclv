@@ -105,6 +105,7 @@ fn scroll_up_decreases_vertical_offset() {
         vertical_offset: 10,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_up(3);
@@ -118,6 +119,7 @@ fn scroll_up_saturates_at_zero() {
         vertical_offset: 2,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_up(5);
@@ -151,6 +153,7 @@ fn scroll_down_respects_max_bound() {
         vertical_offset: 95,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_down(10, 100);
@@ -175,6 +178,7 @@ fn scroll_left_decreases_horizontal_offset() {
         vertical_offset: 0,
         horizontal_offset: 20,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_left(5);
@@ -188,6 +192,7 @@ fn scroll_left_saturates_at_zero() {
         vertical_offset: 0,
         horizontal_offset: 3,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_left(10);
@@ -307,6 +312,7 @@ fn at_bottom_returns_true_when_at_max() {
         vertical_offset: 100,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     assert!(scroll.at_bottom(100));
@@ -318,6 +324,7 @@ fn at_bottom_returns_false_when_below_max() {
         vertical_offset: 50,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     assert!(!scroll.at_bottom(100));
@@ -336,6 +343,7 @@ fn at_bottom_returns_false_when_one_below_max() {
         vertical_offset: 99,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     assert!(!scroll.at_bottom(100));
@@ -358,6 +366,7 @@ fn scroll_to_bottom_from_middle_position() {
         vertical_offset: 50,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_to_bottom(100);
@@ -371,6 +380,7 @@ fn scroll_to_bottom_when_already_at_bottom() {
         vertical_offset: 100,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_to_bottom(100);
@@ -384,6 +394,7 @@ fn scroll_to_bottom_with_zero_max() {
         vertical_offset: 0,
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_to_bottom(0);
@@ -397,6 +408,7 @@ fn scroll_to_bottom_does_not_affect_horizontal_offset() {
         vertical_offset: 10,
         horizontal_offset: 25,
         expanded_messages: HashSet::new(),
+        focused_message: None,
     };
 
     scroll.scroll_to_bottom(100);
@@ -415,6 +427,7 @@ fn scroll_to_bottom_does_not_affect_expanded_messages() {
             set.insert(uuid.clone());
             set
         },
+        focused_message: None,
     };
 
     scroll.scroll_to_bottom(100);
@@ -845,4 +858,163 @@ fn make_subagent_entry(agent_id: &str) -> crate::model::ConversationEntry {
     );
 
     ConversationEntry::Valid(Box::new(log_entry))
+}
+
+// ===== ScrollState::expand_all Tests =====
+
+#[test]
+fn expand_all_adds_all_uuids_to_expanded_set() {
+    let mut scroll = ScrollState::default();
+    let uuid1 = make_entry_uuid("msg-1");
+    let uuid2 = make_entry_uuid("msg-2");
+    let uuid3 = make_entry_uuid("msg-3");
+
+    let uuids = vec![uuid1.clone(), uuid2.clone(), uuid3.clone()];
+    scroll.expand_all(uuids.into_iter());
+
+    assert!(scroll.is_expanded(&uuid1), "uuid1 should be expanded");
+    assert!(scroll.is_expanded(&uuid2), "uuid2 should be expanded");
+    assert!(scroll.is_expanded(&uuid3), "uuid3 should be expanded");
+    assert_eq!(
+        scroll.expanded_messages.len(),
+        3,
+        "Should have 3 expanded messages"
+    );
+}
+
+#[test]
+fn expand_all_with_empty_iterator_does_nothing() {
+    let mut scroll = ScrollState::default();
+    let uuids: Vec<EntryUuid> = vec![];
+
+    scroll.expand_all(uuids.into_iter());
+
+    assert!(
+        scroll.expanded_messages.is_empty(),
+        "Should have no expanded messages"
+    );
+}
+
+#[test]
+fn expand_all_preserves_existing_expanded_messages() {
+    let mut scroll = ScrollState::default();
+    let uuid1 = make_entry_uuid("msg-1");
+    let uuid2 = make_entry_uuid("msg-2");
+    let uuid3 = make_entry_uuid("msg-3");
+
+    // Manually expand uuid1
+    scroll.toggle_expand(&uuid1);
+
+    let new_uuids = vec![uuid2.clone(), uuid3.clone()];
+    scroll.expand_all(new_uuids.into_iter());
+
+    assert!(scroll.is_expanded(&uuid1), "uuid1 should still be expanded");
+    assert!(scroll.is_expanded(&uuid2), "uuid2 should be expanded");
+    assert!(scroll.is_expanded(&uuid3), "uuid3 should be expanded");
+}
+
+// ===== ScrollState::collapse_all Tests =====
+
+#[test]
+fn collapse_all_clears_expanded_messages() {
+    let mut scroll = ScrollState::default();
+    let uuid1 = make_entry_uuid("msg-1");
+    let uuid2 = make_entry_uuid("msg-2");
+
+    scroll.toggle_expand(&uuid1);
+    scroll.toggle_expand(&uuid2);
+    assert_eq!(scroll.expanded_messages.len(), 2, "Setup: 2 expanded");
+
+    scroll.collapse_all();
+
+    assert!(
+        scroll.expanded_messages.is_empty(),
+        "collapse_all should clear all expanded messages"
+    );
+}
+
+#[test]
+fn collapse_all_when_already_empty() {
+    let mut scroll = ScrollState::default();
+
+    scroll.collapse_all();
+
+    assert!(scroll.expanded_messages.is_empty());
+}
+
+#[test]
+fn collapse_all_does_not_affect_scroll_offsets() {
+    let mut scroll = ScrollState {
+        vertical_offset: 10,
+        horizontal_offset: 5,
+        expanded_messages: HashSet::new(),
+        focused_message: Some(2),
+    };
+
+    let uuid = make_entry_uuid("msg-1");
+    scroll.toggle_expand(&uuid);
+
+    scroll.collapse_all();
+
+    assert_eq!(
+        scroll.vertical_offset, 10,
+        "collapse_all should not affect vertical offset"
+    );
+    assert_eq!(
+        scroll.horizontal_offset, 5,
+        "collapse_all should not affect horizontal offset"
+    );
+    assert_eq!(
+        scroll.focused_message,
+        Some(2),
+        "collapse_all should not affect focused message"
+    );
+}
+
+// ===== ScrollState::set_focused_message Tests =====
+
+#[test]
+fn set_focused_message_sets_index() {
+    let mut scroll = ScrollState::default();
+
+    scroll.set_focused_message(Some(5));
+
+    assert_eq!(scroll.focused_message(), Some(5));
+}
+
+#[test]
+fn set_focused_message_can_clear_focus() {
+    let mut scroll = ScrollState::default();
+    scroll.set_focused_message(Some(3));
+
+    scroll.set_focused_message(None);
+
+    assert_eq!(scroll.focused_message(), None);
+}
+
+#[test]
+fn set_focused_message_overwrites_previous_focus() {
+    let mut scroll = ScrollState::default();
+    scroll.set_focused_message(Some(1));
+
+    scroll.set_focused_message(Some(10));
+
+    assert_eq!(scroll.focused_message(), Some(10));
+}
+
+// ===== ScrollState::focused_message Tests =====
+
+#[test]
+fn focused_message_returns_none_by_default() {
+    let scroll = ScrollState::default();
+
+    assert_eq!(scroll.focused_message(), None);
+}
+
+#[test]
+fn focused_message_returns_set_value() {
+    let mut scroll = ScrollState::default();
+    scroll.set_focused_message(Some(7));
+
+    assert_eq!(scroll.focused_message(), Some(7));
 }

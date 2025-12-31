@@ -184,12 +184,13 @@ pub enum FocusPane {
 // ===== ScrollState =====
 
 /// Scroll state for a pane.
-/// Tracks vertical/horizontal offsets and which messages are expanded.
+/// Tracks vertical/horizontal offsets, which messages are expanded, and focus.
 #[derive(Debug, Clone, Default)]
 pub struct ScrollState {
     pub vertical_offset: usize,
     pub horizontal_offset: usize,
     pub expanded_messages: HashSet<EntryUuid>,
+    pub focused_message: Option<usize>,
 }
 
 impl ScrollState {
@@ -237,6 +238,26 @@ impl ScrollState {
     /// Sets vertical_offset to max_entries.
     pub fn scroll_to_bottom(&mut self, max_entries: usize) {
         self.vertical_offset = max_entries;
+    }
+
+    /// Expand all messages by adding all UUIDs to expanded_messages.
+    pub fn expand_all(&mut self, uuids: impl Iterator<Item = EntryUuid>) {
+        todo!("expand_all")
+    }
+
+    /// Collapse all messages by clearing the expanded_messages set.
+    pub fn collapse_all(&mut self) {
+        todo!("collapse_all")
+    }
+
+    /// Set the focused message index.
+    pub fn set_focused_message(&mut self, index: Option<usize>) {
+        todo!("set_focused_message")
+    }
+
+    /// Get the focused message index.
+    pub fn focused_message(&self) -> Option<usize> {
+        todo!("focused_message")
     }
 }
 

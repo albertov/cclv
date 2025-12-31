@@ -2474,6 +2474,7 @@ mod tests {
             vertical_offset: 0,
             horizontal_offset: 10,
             expanded_messages: HashSet::new(),
+            focused_message: None,
         };
 
         let backend = TestBackend::new(80, 10);
@@ -2548,6 +2549,7 @@ mod tests {
             vertical_offset: 0,
             horizontal_offset: 20,
             expanded_messages: HashSet::new(),
+            focused_message: None,
         };
 
         let backend = TestBackend::new(80, 10);
