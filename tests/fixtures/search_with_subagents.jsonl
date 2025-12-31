@@ -1,0 +1,6 @@
+{"type":"system","subtype":"init","cwd":"/workspace","session_id":"search-session","tools":["Bash","Read"],"model":"claude-opus-4-5-20251101","uuid":"uuid-001"}
+{"type":"user","message":{"role":"user","content":"Main agent task"},"session_id":"search-session","uuid":"uuid-002"}
+{"type":"assistant","message":{"role":"assistant","content":"I'll search for the implementation"},"session_id":"search-session","uuid":"uuid-003"}
+{"type":"assistant","message":{"role":"assistant","content":"Subagent A: Implemented the search feature"},"session_id":"search-session","uuid":"uuid-004","agentId":"subagent-a"}
+{"type":"assistant","message":{"role":"assistant","content":"Subagent B: Implemented the navigation system"},"session_id":"search-session","uuid":"uuid-005","agentId":"subagent-b"}
+{"type":"assistant","message":{"role":"assistant","content":"Subagent A: Implementation complete"},"session_id":"search-session","uuid":"uuid-006","agentId":"subagent-a"}
