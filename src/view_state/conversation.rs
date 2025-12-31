@@ -166,22 +166,22 @@ impl ConversationViewState {
 
     /// Get horizontal scroll offset.
     pub fn horizontal_offset(&self) -> u16 {
-        todo!("horizontal_offset getter")
+        self.horizontal_offset
     }
 
     /// Set horizontal scroll offset.
-    pub fn set_horizontal_offset(&mut self, _offset: u16) {
-        todo!("set_horizontal_offset")
+    pub fn set_horizontal_offset(&mut self, offset: u16) {
+        self.horizontal_offset = offset;
     }
 
     /// Scroll left by amount, saturating at 0.
-    pub fn scroll_left(&mut self, _amount: u16) {
-        todo!("scroll_left")
+    pub fn scroll_left(&mut self, amount: u16) {
+        self.horizontal_offset = self.horizontal_offset.saturating_sub(amount);
     }
 
     /// Scroll right by amount.
-    pub fn scroll_right(&mut self, _amount: u16) {
-        todo!("scroll_right")
+    pub fn scroll_right(&mut self, amount: u16) {
+        self.horizontal_offset = self.horizontal_offset.saturating_add(amount);
     }
 
     /// Total height in lines.
