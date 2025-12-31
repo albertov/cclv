@@ -40,8 +40,13 @@ let view_state = ConversationViewState::new(
     ...
 );
 ```
-**Additional Issue**: No code extracts model from Task tool parameters
-**Fix**: Either extract model from Task tool call, or inherit from parent agent
+**Evidence from real log** (cc-session-log.jsonl):
+- `assistant` messages in subagent conversations HAVE the `model` field
+- Different subagents use different models (haiku, sonnet, etc.)
+- `user` messages don't have model (expected)
+
+**Fix**: Extract model from first `assistant` message in subagent conversation.
+When adding entry: if entry is assistant with model AND subagent has no model yet, store it.
 
 ### Bug 3: Content Not Rendering (H5 - CONFIRMED - PRIMARY BUG)
 **Location**: `src/view_state/session.rs`
