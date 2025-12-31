@@ -53,6 +53,8 @@ Three-tier testing aligned with Elm Architecture:
 2. **Property tests** - Invariants via proptest (scroll bounds, stats consistency)
 3. **Snapshot tests** - Rendered output via insta + TestBackend
 
+**IMPORTANT: Always commit the proptest-regressions files that proptest generates when property tests fail.**
+
 ```bash
 cargo test                           # All tests
 cargo test --lib                     # Unit tests only
