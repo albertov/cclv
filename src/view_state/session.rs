@@ -8,22 +8,20 @@ use std::collections::HashMap;
 ///
 /// Contains:
 /// - Main conversation view-state (always present)
-/// - Subagent view-states (lazily created on first view, FR-073)
-/// - Pending subagent entries (before view-state creation)
+/// - Subagent view-states (created eagerly on first entry, FR-073)
 ///
-/// # Lazy Initialization (FR-073)
-/// Subagent view-states are created lazily when first accessed.
-/// Until accessed, entries are stored in `pending_subagent_entries`.
+/// # Eager Initialization (FR-073)
+/// Subagent view-states are created eagerly when the first entry for that
+/// subagent arrives. This ensures view-state exists before rendering, avoiding
+/// mutable access during immutable render pass.
 #[derive(Debug, Clone)]
 pub struct SessionViewState {
     /// Session identifier.
     session_id: SessionId,
     /// Main conversation view-state.
     main: ConversationViewState,
-    /// Subagent view-states (lazily initialized).
+    /// Subagent view-states (eagerly initialized on first entry).
     subagents: HashMap<AgentId, ConversationViewState>,
-    /// Pending subagent entries (before lazy init).
-    pending_subagent_entries: HashMap<AgentId, Vec<ConversationEntry>>,
     /// Cumulative line offset from start of log (for multi-session).
     start_line: usize,
     /// Maximum context window size (from config).
@@ -39,7 +37,6 @@ impl SessionViewState {
             session_id,
             main: ConversationViewState::empty(),
             subagents: HashMap::new(),
-            pending_subagent_entries: HashMap::new(),
             start_line: 0,
             max_context_tokens: 200_000, // Default
             pricing: crate::model::PricingConfig::default(),
@@ -66,15 +63,14 @@ impl SessionViewState {
         &self.subagents
     }
 
-    /// Get subagent view-state, creating lazily if needed.
+    /// Get subagent view-state, creating empty state if needed.
     pub fn subagent(&mut self, id: &AgentId) -> &ConversationViewState {
         if !self.subagents.contains_key(id) {
-            // Create from pending entries
-            let entries = self.pending_subagent_entries.remove(id).unwrap_or_default();
+            // Create empty view-state
             let view_state = ConversationViewState::new(
                 Some(id.clone()),
                 None,
-                entries,
+                vec![],
                 self.max_context_tokens,
                 self.pricing.clone(),
             );
@@ -83,14 +79,14 @@ impl SessionViewState {
         self.subagents.get(id).unwrap()
     }
 
-    /// Mutable reference to subagent view-state.
+    /// Mutable reference to subagent view-state, creating empty state if needed.
     pub fn subagent_mut(&mut self, id: &AgentId) -> &mut ConversationViewState {
         if !self.subagents.contains_key(id) {
-            let entries = self.pending_subagent_entries.remove(id).unwrap_or_default();
+            // Create empty view-state
             let view_state = ConversationViewState::new(
                 Some(id.clone()),
                 None,
-                entries,
+                vec![],
                 self.max_context_tokens,
                 self.pricing.clone(),
             );
@@ -110,16 +106,14 @@ impl SessionViewState {
         self.subagents.get(id)
     }
 
-    /// List all known subagent IDs (initialized or pending).
+    /// List all known subagent IDs.
     pub fn subagent_ids(&self) -> impl Iterator<Item = &AgentId> {
-        self.subagents
-            .keys()
-            .chain(self.pending_subagent_entries.keys())
+        self.subagents.keys()
     }
 
-    /// Check if there are any subagents (initialized or pending).
+    /// Check if there are any subagents.
     pub fn has_subagents(&self) -> bool {
-        !self.subagents.is_empty() || !self.pending_subagent_entries.is_empty()
+        !self.subagents.is_empty()
     }
 
     /// Get system metadata from main conversation.
@@ -127,35 +121,20 @@ impl SessionViewState {
         self.main.system_metadata()
     }
 
-    /// Iterate all initialized subagent conversations.
+    /// Iterate all subagent conversations.
     ///
-    /// Returns iterator over (AgentId, ConversationViewState) pairs for
-    /// subagents that have been lazily initialized.
+    /// Returns iterator over (AgentId, ConversationViewState) pairs for all subagents.
     pub fn initialized_subagents(
         &self,
     ) -> impl Iterator<Item = (&AgentId, &ConversationViewState)> {
         self.subagents.iter()
     }
 
-    /// Iterate all pending subagent entries.
-    ///
-    /// Returns iterator over (AgentId, Vec<ConversationEntry>) pairs for
-    /// subagents that have entries but haven't been lazily initialized yet.
-    pub fn pending_subagents(&self) -> impl Iterator<Item = (&AgentId, &Vec<ConversationEntry>)> {
-        self.pending_subagent_entries.iter()
-    }
-
-    /// Get subagent entry count (from either initialized or pending state).
+    /// Get subagent entry count.
     ///
     /// Returns the number of entries for the given agent ID without requiring mutation.
-    /// Checks initialized subagents first, then pending entries.
     pub fn get_subagent_entry_count(&self, id: &AgentId) -> usize {
-        // Check initialized subagents first
-        if let Some(view_state) = self.subagents.get(id) {
-            return view_state.len();
-        }
-        // Check pending entries
-        self.pending_subagent_entries.get(id).map_or(0, |v| v.len())
+        self.subagents.get(id).map_or(0, |v| v.len())
     }
 
     /// Add entry to main conversation.
@@ -191,17 +170,11 @@ impl SessionViewState {
     ///
     /// Includes:
     /// - Main conversation height
-    /// - All initialized subagent conversation heights
-    /// - Pending subagent entries (estimated at 1 line each until initialized)
+    /// - All subagent conversation heights
     pub fn total_height(&self) -> usize {
         let main_h = self.main.total_height();
         let subagent_h: usize = self.subagents.values().map(|s| s.total_height()).sum();
-        let pending_h: usize = self
-            .pending_subagent_entries
-            .values()
-            .map(|v| v.len())
-            .sum();
-        main_h + subagent_h + pending_h
+        main_h + subagent_h
     }
 }
 
@@ -291,7 +264,7 @@ mod tests {
         assert_eq!(state.main().len(), 1);
     }
 
-    // ===== Lazy Initialization Tests =====
+    // ===== Eager Initialization Tests =====
 
     #[test]
     fn subagent_creates_view_state_on_first_access() {
@@ -337,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn subagent_mut_also_creates_lazily() {
+    fn subagent_mut_also_creates_on_first_access() {
         let session_id = make_session_id("session-1");
         let mut state = SessionViewState::new(session_id);
         let agent_id = make_agent_id("agent-1");
@@ -354,7 +327,7 @@ mod tests {
     // ===== subagent_ids Tests =====
 
     #[test]
-    fn subagent_ids_returns_both_initialized_and_pending() {
+    fn subagent_ids_returns_all_subagents() {
         let session_id = make_session_id("session-1");
         let mut state = SessionViewState::new(session_id);
 
@@ -362,13 +335,13 @@ mod tests {
         let agent2 = make_agent_id("agent-2");
         let agent3 = make_agent_id("agent-3");
 
-        // Initialize agent1
+        // Initialize agent1 (empty)
         let _ = state.subagent(&agent1);
 
-        // Add pending for agent2
+        // Add entries for agent2 (eager initialization)
         state.add_subagent_entry(agent2.clone(), make_valid_entry("uuid-1", "session-1"));
 
-        // Add pending for agent3
+        // Add entries for agent3 (eager initialization)
         state.add_subagent_entry(agent3.clone(), make_valid_entry("uuid-2", "session-1"));
 
         let mut ids: Vec<_> = state.subagent_ids().cloned().collect();
@@ -527,13 +500,13 @@ mod tests {
         // BUG: Entries with agentId field were appearing in main conversation
         // instead of routing to separate subagent tabs.
         //
-        // ROOT CAUSE: Rendering uses get_subagent() which returns None for
-        // pending (non-initialized) subagents, so entries were invisible.
+        // ROOT CAUSE: Lazy initialization used pending_subagent_entries, but
+        // get_subagent() (read-only) couldn't trigger initialization.
         //
-        // This test reproduces the rendering scenario:
-        // 1. Entries arrive and route to pending_subagent_entries
-        // 2. View layer tries to render using get_subagent() (read-only)
-        // 3. View layer expects to see the entries
+        // FIX: Eager initialization - add_subagent_entry() now creates view-state
+        // immediately via subagent_mut(), ensuring entries are always visible.
+        //
+        // This test verifies the fix:
         let session_id = make_session_id("session-1");
         let mut state = SessionViewState::new(session_id);
         let agent_id = make_agent_id("agent-1");

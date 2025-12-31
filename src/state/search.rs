@@ -212,24 +212,10 @@ pub fn execute_search(
         }
     }
 
-    // Search initialized subagent entries
+    // Search subagent entries (all eagerly initialized)
     for (agent_id, conversation_view) in session_view.initialized_subagents() {
         for entry_view in conversation_view.iter() {
             if let Some(log_entry) = entry_view.entry().as_valid() {
-                search_entry(
-                    log_entry,
-                    Some(agent_id.clone()),
-                    &query_lower,
-                    &mut matches,
-                );
-            }
-        }
-    }
-
-    // Search pending subagent entries (not yet lazily initialized)
-    for (agent_id, entries) in session_view.pending_subagents() {
-        for entry in entries {
-            if let Some(log_entry) = entry.as_valid() {
                 search_entry(
                     log_entry,
                     Some(agent_id.clone()),

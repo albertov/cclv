@@ -346,19 +346,10 @@ fn build_session_stats(
         }
     }
 
-    // Process initialized subagent entries
+    // Process subagent entries (all eagerly initialized)
     for (_agent_id, conversation_view) in session_view.initialized_subagents() {
         for entry_view in conversation_view.iter() {
             if let Some(log_entry) = entry_view.entry().as_valid() {
-                stats.record_entry(log_entry);
-            }
-        }
-    }
-
-    // Process pending subagent entries (not yet lazily initialized)
-    for (_agent_id, entries) in session_view.pending_subagents() {
-        for entry in entries {
-            if let Some(log_entry) = entry.as_valid() {
                 stats.record_entry(log_entry);
             }
         }
