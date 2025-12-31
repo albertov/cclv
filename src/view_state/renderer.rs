@@ -60,10 +60,9 @@ use ratatui::{
 ///
 /// # Note on Wrapping
 ///
-/// The `wrap_mode` and `width` parameters control text wrapping behavior:
-/// - **Thinking blocks**: Wrapping is fully implemented (lines 304-345)
-/// - **Other blocks**: Wrapping to follow in future phases
-/// The signature accepts these parameters for all blocks to provide a consistent API.
+/// The `wrap_mode` and `width` parameters control text wrapping behavior for all block types.
+/// All content blocks (Text, ToolUse, ToolResult, Thinking) apply wrapping consistently to match
+/// the height calculation in layout.rs, ensuring rendered line count equals calculated height.
 ///
 /// # Example
 ///
@@ -102,13 +101,16 @@ pub fn compute_entry_lines(
         MessageContent::Text(text) => {
             // Render plain text with collapse support
             let text_lines: Vec<_> = text.lines().collect();
-            let total_lines = text_lines.len();
+
+            // Wrap lines to match height calculation (layout.rs count_text_lines)
+            let wrapped_lines = wrap_lines(&text_lines, wrap_mode, width);
+            let total_lines = wrapped_lines.len();
             let should_collapse = total_lines > collapse_threshold && !expanded;
 
             if should_collapse {
                 // Show summary lines
-                for line in text_lines.iter().take(summary_lines) {
-                    lines.push(Line::from(line.to_string()));
+                for line in wrapped_lines.iter().take(summary_lines) {
+                    lines.push(Line::from(line.clone()));
                 }
                 // Add collapse indicator
                 let remaining = total_lines - summary_lines;
@@ -118,8 +120,8 @@ pub fn compute_entry_lines(
                 )));
             } else {
                 // Show all lines
-                for line in text_lines {
-                    lines.push(Line::from(line.to_string()));
+                for line in wrapped_lines {
+                    lines.push(Line::from(line));
                 }
             }
 
@@ -201,15 +203,18 @@ fn render_block(
     match block {
         ContentBlock::Text { text } => {
             let text_lines: Vec<_> = text.lines().collect();
-            let total_lines = text_lines.len();
+
+            // Wrap lines to match height calculation (layout.rs count_text_lines)
+            let wrapped_lines = wrap_lines(&text_lines, wrap_mode, width);
+            let total_lines = wrapped_lines.len();
             let should_collapse = total_lines > collapse_threshold && !expanded;
 
             let mut lines = Vec::new();
 
             if should_collapse {
                 // Show summary lines
-                for line in text_lines.iter().take(summary_lines) {
-                    lines.push(Line::from(line.to_string()));
+                for line in wrapped_lines.iter().take(summary_lines) {
+                    lines.push(Line::from(line.clone()));
                 }
                 // Add collapse indicator
                 let remaining = total_lines - summary_lines;
@@ -219,8 +224,8 @@ fn render_block(
                 )));
             } else {
                 // Show all lines
-                for line in text_lines {
-                    lines.push(Line::from(line.to_string()));
+                for line in wrapped_lines {
+                    lines.push(Line::from(line));
                 }
             }
 
@@ -241,12 +246,15 @@ fn render_block(
             let input_json =
                 serde_json::to_string_pretty(tool_call.input()).unwrap_or_default();
             let input_lines: Vec<_> = input_json.lines().collect();
-            let total_lines = input_lines.len();
+
+            // Wrap lines to match height calculation (layout.rs count_text_lines)
+            let wrapped_lines = wrap_lines(&input_lines, wrap_mode, width);
+            let total_lines = wrapped_lines.len();
             let should_collapse = total_lines > collapse_threshold && !expanded;
 
             if should_collapse {
                 // Show summary lines
-                for line in input_lines.iter().take(summary_lines) {
+                for line in wrapped_lines.iter().take(summary_lines) {
                     lines.push(Line::from(format!("  {}", line)));
                 }
                 // Add collapse indicator
@@ -257,7 +265,7 @@ fn render_block(
                 )));
             } else {
                 // Show all lines
-                for line in input_lines {
+                for line in wrapped_lines {
                     lines.push(Line::from(format!("  {}", line)));
                 }
             }
@@ -267,7 +275,10 @@ fn render_block(
         ContentBlock::ToolResult { content, is_error, .. } => {
             let mut lines = Vec::new();
             let content_lines: Vec<_> = content.lines().collect();
-            let total_lines = content_lines.len();
+
+            // Wrap lines to match height calculation (layout.rs count_text_lines)
+            let wrapped_lines = wrap_lines(&content_lines, wrap_mode, width);
+            let total_lines = wrapped_lines.len();
             let should_collapse = total_lines > collapse_threshold && !expanded;
 
             // Determine which lines to show
@@ -278,14 +289,14 @@ fn render_block(
             };
 
             // Render the visible lines with styling
-            for line in content_lines.iter().take(lines_to_show) {
+            for line in wrapped_lines.iter().take(lines_to_show) {
                 let rendered_line = if *is_error {
                     Line::from(Span::styled(
-                        line.to_string(),
+                        line.clone(),
                         Style::default().fg(ratatui::style::Color::Red),
                     ))
                 } else {
-                    Line::from(line.to_string())
+                    Line::from(line.clone())
                 };
                 lines.push(rendered_line);
             }
