@@ -242,22 +242,24 @@ impl ScrollState {
 
     /// Expand all messages by adding all UUIDs to expanded_messages.
     pub fn expand_all(&mut self, uuids: impl Iterator<Item = EntryUuid>) {
-        todo!("expand_all")
+        for uuid in uuids {
+            self.expanded_messages.insert(uuid);
+        }
     }
 
     /// Collapse all messages by clearing the expanded_messages set.
     pub fn collapse_all(&mut self) {
-        todo!("collapse_all")
+        self.expanded_messages.clear();
     }
 
     /// Set the focused message index.
     pub fn set_focused_message(&mut self, index: Option<usize>) {
-        todo!("set_focused_message")
+        self.focused_message = index;
     }
 
     /// Get the focused message index.
     pub fn focused_message(&self) -> Option<usize> {
-        todo!("focused_message")
+        self.focused_message
     }
 }
 
