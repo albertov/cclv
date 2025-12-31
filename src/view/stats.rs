@@ -1379,4 +1379,144 @@ mod tests {
             content
         );
     }
+
+    // ===== Tool count filtering tests =====
+
+    #[test]
+    fn stats_panel_with_main_agent_filter_shows_only_main_agent_tools() {
+        use crate::model::{AgentId, ToolName};
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: Global has Read:10, Write:8
+        //        Main agent has Read:6, Write:4
+        //        Subagent has Bash:4
+        let mut global_counts = HashMap::new();
+        global_counts.insert(ToolName::Read, 10);
+        global_counts.insert(ToolName::Write, 8);
+
+        let mut main_counts = HashMap::new();
+        main_counts.insert(ToolName::Read, 6);
+        main_counts.insert(ToolName::Write, 4);
+
+        let agent1 = AgentId::new("agent-1").unwrap();
+        let mut agent1_counts = HashMap::new();
+        agent1_counts.insert(ToolName::Bash, 4);
+
+        let mut subagent_counts = HashMap::new();
+        subagent_counts.insert(agent1.clone(), agent1_counts);
+
+        let stats = SessionStats {
+            total_usage: Default::default(),
+            main_agent_usage: Default::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: global_counts,
+            main_agent_tool_counts: main_counts,
+            subagent_tool_counts: subagent_counts,
+            subagent_count: 1,
+            entry_count: 10,
+        };
+
+        let filter = StatsFilter::MainAgent;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 30));
+        panel.render(Rect::new(0, 0, 50, 30), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Should show ONLY main agent tools (Read:6, Write:4)
+        // NOT global tools (Read:10, Write:8) or subagent tools (Bash:4)
+        assert!(
+            content.contains("Read: 6"),
+            "Expected 'Read: 6' (main agent count), got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("Write: 4"),
+            "Expected 'Write: 4' (main agent count), got:\n{}",
+            content
+        );
+        assert!(
+            !content.contains("Read: 10"),
+            "Should NOT show global count 'Read: 10', got:\n{}",
+            content
+        );
+        assert!(
+            !content.contains("Bash"),
+            "Should NOT show subagent tool 'Bash', got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_with_subagent_filter_shows_only_subagent_tools() {
+        use crate::model::{AgentId, ToolName};
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: Global has Read:15, Bash:10
+        //        Main agent has Read:10
+        //        Subagent-1 has Bash:7, Edit:3
+        let mut global_counts = HashMap::new();
+        global_counts.insert(ToolName::Read, 15);
+        global_counts.insert(ToolName::Bash, 10);
+
+        let mut main_counts = HashMap::new();
+        main_counts.insert(ToolName::Read, 10);
+
+        let agent1 = AgentId::new("agent-1").unwrap();
+        let mut agent1_counts = HashMap::new();
+        agent1_counts.insert(ToolName::Bash, 7);
+        agent1_counts.insert(ToolName::Edit, 3);
+
+        let mut subagent_counts = HashMap::new();
+        subagent_counts.insert(agent1.clone(), agent1_counts);
+
+        let stats = SessionStats {
+            total_usage: Default::default(),
+            main_agent_usage: Default::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: global_counts,
+            main_agent_tool_counts: main_counts,
+            subagent_tool_counts: subagent_counts,
+            subagent_count: 1,
+            entry_count: 10,
+        };
+
+        let filter = StatsFilter::Subagent(agent1);
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 30));
+        panel.render(Rect::new(0, 0, 50, 30), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Should show ONLY subagent tools (Bash:7, Edit:3)
+        // NOT global tools (Read:15, Bash:10) or main agent tools (Read:10)
+        assert!(
+            content.contains("Bash: 7"),
+            "Expected 'Bash: 7' (subagent count), got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("Edit: 3"),
+            "Expected 'Edit: 3' (subagent count), got:\n{}",
+            content
+        );
+        assert!(
+            !content.contains("Bash: 10"),
+            "Should NOT show global count 'Bash: 10', got:\n{}",
+            content
+        );
+        assert!(
+            !content.contains("Read"),
+            "Should NOT show main agent tool 'Read', got:\n{}",
+            content
+        );
+    }
 }
