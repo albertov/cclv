@@ -28,7 +28,17 @@ pub fn process_lines(
     lines: Vec<String>,
     starting_line_number: usize,
 ) -> Vec<ParseError> {
-    todo!("process_lines")
+    let mut errors = Vec::new();
+
+    for (index, line) in lines.into_iter().enumerate() {
+        let line_number = starting_line_number + index;
+        match parser::parse_entry(&line, line_number) {
+            Ok(entry) => session.add_entry(entry),
+            Err(err) => errors.push(err),
+        }
+    }
+
+    errors
 }
 
 #[cfg(test)]
