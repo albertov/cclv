@@ -116,11 +116,12 @@ fn calculate_horizontal_constraints(has_subagents: bool) -> (Constraint, Constra
 
 /// Render the main agent pane using shared ConversationView widget.
 fn render_main_pane(frame: &mut Frame, area: Rect, state: &AppState, styles: &MessageStyles) {
-    message::render_conversation_view(
+    message::render_conversation_view_with_search(
         frame,
         area,
         state.session().main_agent(),
         &state.main_scroll,
+        &state.search,
         styles,
         state.focus == FocusPane::Main,
     );
@@ -160,11 +161,12 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
 
     // Render the selected conversation
     if let Some(conversation) = selected_conversation {
-        message::render_conversation_view(
+        message::render_conversation_view_with_search(
             frame,
             content_area,
             conversation,
             &state.subagent_scroll,
+            &state.search,
             styles,
             state.focus == FocusPane::Subagent,
         );

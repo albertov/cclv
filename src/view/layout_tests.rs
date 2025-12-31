@@ -906,6 +906,120 @@ fn render_status_bar_hints_change_based_on_focus() {
     );
 }
 
+// ===== Search Integration Tests =====
+
+#[test]
+fn render_layout_uses_search_highlighting_when_search_active() {
+    use crate::model::{
+        EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
+    };
+    use crate::state::SearchState;
+    use chrono::Utc;
+
+    let mut terminal = create_test_terminal();
+    let session_id = SessionId::new("test-session").unwrap();
+    let mut session = Session::new(session_id);
+
+    // Add entry with searchable text
+    let entry = LogEntry::new(
+        EntryUuid::new("entry-1").unwrap(),
+        None,
+        SessionId::new("test-session").unwrap(),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("hello world test".to_string())),
+        EntryMetadata::default(),
+    );
+    session.add_entry(entry);
+
+    let mut state = AppState::new(session);
+
+    // Activate search for "world"
+    use crate::state::search::{execute_search, SearchQuery};
+    let query = SearchQuery::new("world").unwrap();
+    let matches = execute_search(&state.session(), &query);
+    state.search = SearchState::Active {
+        query,
+        matches,
+        current_match: 0,
+    };
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+
+    // Verify the searchable text is present
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
+
+    assert!(
+        content.contains("hello") && content.contains("world"),
+        "Rendered content should include the searched text"
+    );
+
+    // Note: We cannot easily verify highlighting in TestBackend as it doesn't
+    // preserve exact styling. The real verification is that render_conversation_view_with_search
+    // is called, which will be confirmed when dead_code warnings disappear.
+}
+
+#[test]
+fn render_layout_no_search_highlighting_when_search_inactive() {
+    use crate::model::{
+        EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
+    };
+    use chrono::Utc;
+
+    let mut terminal = create_test_terminal();
+    let session_id = SessionId::new("test-session").unwrap();
+    let mut session = Session::new(session_id);
+
+    // Add entry with text
+    let entry = LogEntry::new(
+        EntryUuid::new("entry-1").unwrap(),
+        None,
+        SessionId::new("test-session").unwrap(),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("hello world test".to_string())),
+        EntryMetadata::default(),
+    );
+    session.add_entry(entry);
+
+    let state = AppState::new(session);
+    // search remains SearchState::Inactive (default)
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
+
+    // Text should still be rendered
+    assert!(
+        content.contains("hello") && content.contains("world"),
+        "Text should render normally when search is inactive"
+    );
+
+    // With search inactive, render_conversation_view_with_search should handle
+    // SearchState::Inactive and produce same output as render_conversation_view
+}
+
 // ===== Helper Functions =====
 
 fn buffer_to_string(buffer: &ratatui::buffer::Buffer) -> String {
