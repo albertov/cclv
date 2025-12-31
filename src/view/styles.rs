@@ -25,12 +25,20 @@ impl ColorConfig {
     /// 2. `NO_COLOR` env var (any value disables colors)
     /// 3. Default: colors enabled
     pub fn from_env_and_args(no_color_flag: bool) -> Self {
-        todo!("ColorConfig::from_env_and_args")
+        let enabled = if no_color_flag {
+            false
+        } else if std::env::var("NO_COLOR").is_ok() {
+            false
+        } else {
+            true
+        };
+
+        Self { enabled }
     }
 
     /// Check if colors are enabled.
     pub fn colors_enabled(self) -> bool {
-        todo!("ColorConfig::colors_enabled")
+        self.enabled
     }
 }
 
@@ -60,7 +68,21 @@ impl MessageStyles {
     ///
     /// If colors are disabled, all styles will use default (no color) styling.
     pub fn with_color_config(config: ColorConfig) -> Self {
-        todo!("MessageStyles::with_color_config")
+        if config.colors_enabled() {
+            Self {
+                user_style: Style::default().fg(Color::Cyan),
+                assistant_style: Style::default().fg(Color::Green),
+                tool_call_style: Style::default().fg(Color::Yellow),
+                error_style: Style::default().fg(Color::Red),
+            }
+        } else {
+            Self {
+                user_style: Style::default(),
+                assistant_style: Style::default(),
+                tool_call_style: Style::default(),
+                error_style: Style::default(),
+            }
+        }
     }
 
     /// Get the style for a message role.

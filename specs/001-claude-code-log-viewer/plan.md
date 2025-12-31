@@ -405,7 +405,8 @@ Static binaries:
 | US4 - Keyboard Navigation | cclv-07v.6 | ✅ Complete | Key bindings, focus cycling, shortcuts |
 | US5 - Search | cclv-07v.7 | ✅ Complete | Search state machine, highlighting, navigation |
 | Polish | cclv-07v.8 | 🔄 In Progress | Edge cases, config file loading |
-| **Line Wrapping** | cclv-07v.9 | 📋 Planned | Global + per-item toggle (FR-039–FR-053) |
+| **Line Wrapping** | cclv-07v.9 | 🔄 In Progress | Core done; wrap indicator, code block exemption, status bar remaining |
+| **Logging Pane** | cclv-07v.9.17 | 📋 Planned | Toggleable bottom panel for tracing output (FR-054–FR-060) |
 
 ---
 
@@ -499,23 +500,163 @@ pub enum KeyAction {
 
 ### Tasks
 
-| Bead | Task | Description | Dependencies |
-|------|------|-------------|--------------|
-| cclv-07v.9.1 | LW-001 | Add `WrapMode` enum to `src/state/app_state.rs` | None |
-| cclv-07v.9.2 | LW-002 | Add `wrap_overrides: HashSet<EntryUuid>` to `ScrollState` | LW-001 |
-| cclv-07v.9.3 | LW-003 | Add `global_wrap` field to `AppState` | LW-001 |
-| cclv-07v.9.4 | LW-004 | Add `ToggleWrap`, `ToggleGlobalWrap` to `KeyAction` enum | None |
-| cclv-07v.9.5 | LW-005 | Add default keybindings: `w` → ToggleWrap, `W` → ToggleGlobalWrap | LW-004 |
-| cclv-07v.9.6 | LW-006 | Add `line_wrap` config option to `AppConfig` with default `true` | None |
-| cclv-07v.9.7 | LW-007 | Implement wrap state handlers in key event processing | LW-002, LW-003, LW-005 |
-| cclv-07v.9.8 | LW-008 | Update message rendering to respect wrap mode | LW-007 |
-| cclv-07v.9.9 | LW-009 | Add continuation indicator (`↩`) rendering at wrap points | LW-008 |
-| cclv-07v.9.10 | LW-010 | Exempt code blocks from wrapping (always horizontal scroll) | LW-008 |
-| cclv-07v.9.11 | LW-011 | Display global wrap state in status bar | LW-003 |
-| cclv-07v.9.12 | LW-012 | Add tests for wrap state transitions | LW-007 |
-| cclv-07v.9.13 | LW-013 | Add tests for wrap rendering behavior | LW-008, LW-009 |
+| Bead | Task | Description | Status |
+|------|------|-------------|--------|
+| cclv-07v.9.1 | LW-001 | Add `WrapMode` enum to `src/state/app_state.rs` | ✅ Complete |
+| cclv-07v.9.2 | LW-002 | Add `wrap_overrides: HashSet<EntryUuid>` to `ScrollState` | ✅ Complete |
+| cclv-07v.9.3 | LW-003 | Add `global_wrap` field to `AppState` | ✅ Complete |
+| cclv-07v.9.4 | LW-004 | Add `ToggleWrap`, `ToggleGlobalWrap` to `KeyAction` enum | ✅ Complete |
+| cclv-07v.9.5 | LW-005 | Add default keybindings: `w` → ToggleWrap, `W` → ToggleGlobalWrap | ✅ Complete |
+| cclv-07v.9.6 | LW-006 | Add `line_wrap` config option to `AppConfig` with default `true` | ✅ Complete |
+| cclv-07v.9.7 | LW-007 | Implement wrap state handlers in key event processing | ✅ Complete |
+| cclv-07v.9.8 | LW-008 | Update message rendering to respect wrap mode | ✅ Complete |
+| cclv-07v.9.9 | LW-009 | Add continuation indicator (`↩`) rendering at wrap points | 🔲 Open |
+| cclv-07v.9.10 | LW-010 | Exempt code blocks from wrapping (always horizontal scroll) | 🔲 Open |
+| cclv-07v.9.11 | LW-011 | Display global wrap state in status bar | 🔲 Open |
+| cclv-07v.9.12 | LW-012 | Add tests for wrap state transitions | ✅ Complete |
+| cclv-07v.9.13 | LW-013 | Add tests for wrap rendering behavior | 🔲 Open |
+| cclv-07v.9.14 | LW-014 | Per-item wrap rendering requires view architecture refactor | 🔲 Open (tech debt) |
 
 **Checkpoint**: All wrap-related tests pass; visual verification of wrap indicator and code block exemption.
+
+### Known Issues (Blocking)
+
+| Bead | Priority | Description | Status |
+|------|----------|-------------|--------|
+| cclv-07v.9.15 | P0 | Tests hang waiting for user input | ✅ Fixed |
+| cclv-07v.9.16 | P1 | Errors parsing cc-session-log.jsonl (missing sessionId) | 🔄 In Progress |
+
+---
+
+## Phase: Logging Pane Feature
+
+**Purpose**: Add a toggleable logging pane to display tracing output, preventing errors from breaking the main UI.
+
+**Requirements** (from spec clarifications 2025-12-26):
+- FR-054: Toggleable logging pane as a bottom panel
+- FR-055: Display tracing output, log level controlled via tracing infrastructure (RUST_LOG / config)
+- FR-056: Ring buffer with configurable capacity (default: 1000 entries)
+- FR-057: Status bar badge showing unread log count, color-coded by severity
+- FR-058: Clear unread count when user opens logging pane
+- FR-059: Errors in logging pane MUST NOT interrupt main UI flow
+- FR-060: Default keybinding: `L` for ToggleLogPane
+
+### Design Decisions
+
+| Aspect | Decision | Rationale |
+|--------|----------|-----------|
+| Pane location | Bottom panel | Standard pattern for logs/consoles in dev tools |
+| Toggle key | `L` | Mnemonic for "Log", consistent with single-letter shortcuts |
+| Log source | Rust tracing | Standard infrastructure; RUST_LOG controls verbosity |
+| Buffer type | Ring buffer | Bounded memory; oldest entries dropped when full |
+| Capacity default | 1000 entries | Sufficient for diagnosis without unbounded growth |
+| Error indication | Status bar badge | Non-intrusive but always visible; color-coded severity |
+
+### Data Model Additions
+
+```rust
+// ===== src/state/app_state.rs additions =====
+
+/// Log entry for the logging pane
+#[derive(Debug, Clone)]
+pub struct LogPaneEntry {
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub level: tracing::Level,
+    pub message: String,
+}
+
+/// Logging pane state
+#[derive(Debug)]
+pub struct LogPaneState {
+    /// Ring buffer of log entries
+    pub entries: VecDeque<LogPaneEntry>,
+    /// Maximum entries to retain (configurable)
+    pub capacity: usize,
+    /// Count of unread entries since pane was last opened
+    pub unread_count: usize,
+    /// Highest severity among unread entries
+    pub unread_max_level: Option<tracing::Level>,
+    /// Whether the pane is currently visible
+    pub visible: bool,
+}
+
+impl LogPaneState {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            entries: VecDeque::with_capacity(capacity),
+            capacity,
+            unread_count: 0,
+            unread_max_level: None,
+            visible: false,
+        }
+    }
+
+    pub fn push(&mut self, entry: LogPaneEntry) {
+        if self.entries.len() >= self.capacity {
+            self.entries.pop_front();
+        }
+        if !self.visible {
+            self.unread_count += 1;
+            self.unread_max_level = Some(
+                self.unread_max_level
+                    .map_or(entry.level, |l| std::cmp::max(l, entry.level))
+            );
+        }
+        self.entries.push_back(entry);
+    }
+
+    pub fn toggle_visible(&mut self) {
+        self.visible = !self.visible;
+        if self.visible {
+            self.unread_count = 0;
+            self.unread_max_level = None;
+        }
+    }
+}
+
+// Add to AppState:
+pub struct AppState {
+    // ... existing fields ...
+    pub log_pane: LogPaneState,
+}
+
+// ===== src/model/key_action.rs additions =====
+
+pub enum KeyAction {
+    // ... existing variants ...
+
+    // Logging pane (new)
+    ToggleLogPane,    // Toggle log pane visibility (L)
+}
+
+// ===== src/config/mod.rs additions =====
+
+pub struct AppConfig {
+    // ... existing fields ...
+    /// Maximum log entries to retain in logging pane (default: 1000)
+    pub log_buffer_capacity: usize,
+}
+```
+
+### Tasks
+
+| Bead | Description | Dependencies |
+|------|-------------|--------------|
+| cclv-07v.9.17.1 | Add `LogPaneEntry` and `LogPaneState` types | None |
+| cclv-07v.9.17.2 | Add `ToggleLogPane` to `KeyAction` enum | None |
+| cclv-07v.9.17.3 | Add default keybinding: `L` → ToggleLogPane | cclv-07v.9.17.2 |
+| cclv-07v.9.17.4 | Add `log_buffer_capacity` config option (default: 1000) | None |
+| cclv-07v.9.17.5 | Add `log_pane` field to `AppState` | cclv-07v.9.17.1 |
+| cclv-07v.9.17.6 | Create custom tracing subscriber that writes to LogPaneState | cclv-07v.9.17.1 |
+| cclv-07v.9.17.7 | Implement log pane toggle handler in key event processing | cclv-07v.9.17.5, cclv-07v.9.17.3 |
+| cclv-07v.9.17.8 | Create `LogPaneView` widget for rendering log entries | cclv-07v.9.17.1 |
+| cclv-07v.9.17.9 | Update layout to include bottom panel when log pane visible | cclv-07v.9.17.8 |
+| cclv-07v.9.17.10 | Add unread badge to status bar (count + color by severity) | cclv-07v.9.17.5 |
+| cclv-07v.9.17.11 | Add `FocusLogPane` to focus cycling | cclv-07v.9.17.5 |
+| cclv-07v.9.17.12 | Add tests for LogPaneState (push, capacity, unread tracking) | cclv-07v.9.17.1 |
+| cclv-07v.9.17.13 | Add tests for log pane toggle and focus | cclv-07v.9.17.7 |
+
+**Checkpoint**: Log pane toggles correctly; tracing output appears in pane; status bar shows unread count with correct severity color.
 
 ---
 
@@ -537,8 +678,18 @@ pub enum KeyAction {
 
 ## Next Steps
 
-1. Complete in-progress Polish tasks (cclv-07v.8.11: eliminate panic/unwrap)
-2. Create beads for Line Wrapping phase tasks (LW-001 through LW-013)
-3. Implement Line Wrapping feature
-4. Close remaining Polish tasks
+1. **Fix sessionId parsing bug (cclv-07v.9.16)** - P1 blocker; cc-session-log.jsonl must parse without errors
+2. **Complete Line Wrapping phase** - Remaining tasks:
+   - cclv-07v.9.9: Add continuation indicator (`↩`) at wrap points
+   - cclv-07v.9.10: Exempt code blocks from wrapping
+   - cclv-07v.9.11: Display global wrap state in status bar
+   - cclv-07v.9.13: Add tests for wrap rendering behavior
+   - cclv-07v.9.14: Address view architecture tech debt for per-item wrap
+3. **Implement Logging Pane feature (cclv-07v.9.17)** - New feature per spec clarifications
+4. **Complete Polish phase (cclv-07v.8)** - Remaining tasks:
+   - cclv-07v.8.6: Add --no-color flag support
+   - cclv-07v.8.7: Add theme selection support
+   - cclv-07v.8.8: Implement configuration file loading
+   - cclv-07v.8.9: Add snapshot tests for key views
+   - cclv-07v.8.10: Address TOCTOU race in poll_changes()
 

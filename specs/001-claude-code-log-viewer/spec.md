@@ -26,6 +26,11 @@
 - Q: What keyboard shortcuts for wrap toggle? → A: `w` for per-item toggle, `W` (shift) for global toggle
 - Q: How should wrap state be visually indicated? → A: Global state in status bar; wrapped lines show subtle arrow (e.g., `↩`) at wrap points
 - Q: Should code blocks wrap differently than prose? → A: Code blocks never wrap (always horizontal scroll); prose follows global setting
+- Q: Where should the logging pane appear in the UI? → A: Bottom panel (horizontal strip, resizable, like a terminal console)
+- Q: What keyboard shortcut should toggle the logging pane? → A: `L` (mnemonic for "Log", single lowercase letter)
+- Q: What severity levels should appear in the logging pane? → A: Pipe tracing output to pane; log level controlled via tracing infrastructure (RUST_LOG / config)
+- Q: How should new errors be indicated when logging pane is hidden? → A: Status bar badge with count, color-coded by severity (red for errors)
+- Q: How many log entries should be retained in the logging pane? → A: Ring buffer with configurable capacity (config file); default 1000 entries
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -127,7 +132,7 @@ A developer is looking for a specific piece of information in a long session. Th
 
 ### Edge Cases
 
-- What happens when the JSONL file is malformed or contains invalid JSON lines? Display error inline and continue parsing valid lines
+- What happens when the JSONL file is malformed or contains invalid JSON lines? Log error to logging pane and continue parsing valid lines; UI remains functional
 - How does system handle extremely large log files (>1GB)? Load entire file into memory; virtualize rendering (only render visible messages plus ±20 buffer). **Measurable criteria**: Startup <5 seconds for 1GB file, UI remains responsive at 60fps during navigation
 - What happens when a subagent is referenced but its spawn event wasn't logged? Show placeholder tab with agentId, entry count, and "[incomplete data]" indicator
 - How does the viewer handle log files with no subagents? Hide or minimize the subagent pane; show main agent only
@@ -206,6 +211,15 @@ A developer is looking for a specific piece of information in a long session. Th
 - **FR-044**: Domain actions (e.g., ScrollUp, ScrollDown, ExpandMessage, NextTab) MUST be enumerated and mappable to keys
 - **FR-045**: Default key bindings MUST be provided; users MAY override via configuration
 
+**Logging Pane**
+- **FR-054**: System MUST provide a toggleable logging pane as a bottom panel
+- **FR-055**: System MUST display tracing output in the logging pane, with log level controlled via tracing infrastructure (RUST_LOG / config)
+- **FR-056**: System MUST use a ring buffer for log entries with configurable capacity (default: 1000 entries)
+- **FR-057**: System MUST display a status bar badge showing unread log count, color-coded by severity (red for errors)
+- **FR-058**: System MUST clear the unread count when user opens the logging pane
+- **FR-059**: Errors in the logging pane MUST NOT interrupt or break the main UI flow
+- **FR-060**: Default keybinding for ToggleLogPane MUST be `L`
+
 **Performance**
 - **FR-028**: System MUST maintain responsive UI (60fps) even with large log files
 - **FR-029**: System MUST use virtualized rendering for long conversations (only render visible content)
@@ -220,11 +234,12 @@ A developer is looking for a specific piece of information in a long session. Th
 - **Statistics**: Aggregated metrics (tokens, cost, tool counts) that can be scoped to agent level
 - **KeyAction**: Enumerated domain-level actions that can be mapped to configurable key bindings:
   - Scrolling: ScrollUp, ScrollDown, ScrollLeft, ScrollRight, PageUp, PageDown, ScrollToTop, ScrollToBottom
-  - Focus: FocusMain, FocusSubagent, FocusStats, CycleFocus
+  - Focus: FocusMain, FocusSubagent, FocusStats, FocusLogPane, CycleFocus
   - Tabs: NextTab, PrevTab, SelectTab(1-9)
   - Messages: ExpandMessage, CollapseMessage, ToggleExpand, ToggleWrap (per-item), ToggleGlobalWrap
   - Search: StartSearch, SubmitSearch, CancelSearch, NextMatch, PrevMatch
   - Stats: ToggleStats, FilterGlobal, FilterMainAgent, FilterSubagent
+  - Logging: ToggleLogPane
   - Live mode: ToggleAutoScroll, ScrollToLatest
   - Application: Quit, Help, Refresh
 
