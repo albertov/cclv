@@ -1503,3 +1503,102 @@ fn bug_jerky_scroll_line_by_line() {
         );
     }
 }
+
+/// Bug reproduction: Collapsed entries have height mismatch causing jerky scroll
+///
+/// EXPECTED: Each j press scrolls by exactly 1 visual line
+/// ACTUAL: Multiple j presses required to scroll when entries are collapsed
+///
+/// Steps to reproduce manually:
+/// 1. cargo run -- tests/fixtures/cc-session-log.jsonl
+/// 2. Navigate to an entry showing "(+N more lines)" collapse indicator
+/// 3. Press j repeatedly
+/// 4. Observe: First j works, then 2-4 j presses do nothing, then it finally scrolls
+///
+/// Root cause: Height calculator returns full content height for collapsed entries,
+/// but renderer only shows 3 summary lines + collapse indicator (~4 lines total).
+#[test]
+#[ignore = "cclv-5ur.13: collapsed entries still cause jerky scroll in TUI"]
+fn bug_collapsed_entry_height_mismatch() {
+    use cclv::source::FileSource;
+    use cclv::view::calculate_entry_height;
+    use cclv::view_state::scroll::ScrollPosition;
+    use cclv::view_state::types::LineOffset;
+    use std::path::PathBuf;
+
+    // Load the full fixture that reproduces the bug in the TUI
+    let mut file_source =
+        FileSource::new(PathBuf::from("tests/fixtures/cc-session-log.jsonl"))
+            .expect("Should load fixture");
+    let log_entries = file_source.drain_entries().expect("Should parse entries");
+
+    let entries: Vec<ConversationEntry> = log_entries
+        .into_iter()
+        .map(|e| ConversationEntry::Valid(Box::new(e)))
+        .collect();
+
+    // Create view state with entries NOT expanded (collapsed by default)
+    let mut state = ConversationViewState::new(None, None, entries);
+    let params = LayoutParams::new(211, WrapMode::Wrap);
+    state.recompute_layout(params, calculate_entry_height);
+
+    // Use viewport similar to actual terminal (211x62 observed in tmux)
+    let viewport = ViewportDimensions::new(211, 62);
+
+    // Helper to render and get content lines
+    let render = |s: &ConversationViewState| -> Vec<String> {
+        let mut terminal = Terminal::new(TestBackend::new(viewport.width, viewport.height)).unwrap();
+        terminal
+            .draw(|frame| {
+                let styles = MessageStyles::default();
+                let widget = ConversationView::new(s, &styles, false);
+                frame.render_widget(widget, frame.area());
+            })
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        let mut lines = Vec::new();
+        for y in 0..buffer.area.height {
+            let mut line = String::new();
+            for x in 0..buffer.area.width {
+                line.push(buffer[(x, y)].symbol().chars().next().unwrap_or(' '));
+            }
+            lines.push(line);
+        }
+        // Skip first/last lines (frame borders)
+        lines[1..lines.len().saturating_sub(1)].to_vec()
+    };
+
+    // Track how many consecutive scrolls produce identical output across ALL positions
+    let mut max_stuck_run = 0;
+    let mut current_stuck_run = 0;
+    let total_height = state.total_height();
+
+    // Start from top and scroll through the document
+    state.set_scroll(ScrollPosition::Top);
+    let mut prev_lines = render(&state);
+
+    // Test scrolling through first 100 positions (or total_height if smaller)
+    let test_range = total_height.min(100);
+    for offset in 1..test_range {
+        state.set_scroll(ScrollPosition::AtLine(LineOffset::new(offset)));
+        let current_lines = render(&state);
+
+        if current_lines == prev_lines {
+            current_stuck_run += 1;
+            max_stuck_run = max_stuck_run.max(current_stuck_run);
+        } else {
+            current_stuck_run = 0;
+        }
+        prev_lines = current_lines;
+    }
+
+    // If we get stuck for more than 2 consecutive scrolls, the bug exists
+    // (1 stuck is acceptable due to entry boundaries)
+    assert!(
+        max_stuck_run <= 2,
+        "BUG: Scroll got stuck for {} consecutive steps (max allowed: 2).\n\
+         Height calculation doesn't match rendered output.\n\
+         Tested {} scroll positions.",
+        max_stuck_run, test_range
+    );
+}
