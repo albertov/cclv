@@ -307,3 +307,271 @@ fn test_small_text_content_never_collapses() {
         "Below-threshold text entry should NOT include collapse indicator"
     );
 }
+
+// ============================================================================
+// WRAPPING TESTS - Test that all content block types wrap consistently
+// ============================================================================
+
+#[test]
+fn test_text_block_wraps_long_lines() {
+    // Create entry with a single very long line (100 chars)
+    let long_line = "x".repeat(100);
+    let entry = create_entry_with_text(&long_line);
+
+    let width = 40; // Narrow viewport
+    let collapse_threshold = 10;
+    let summary_lines = 3;
+
+    // Render with wrapping enabled
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        width,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
+    // should wrap to ceil(100/38) = 3 lines, plus 1 separator = 4 total
+    //
+    // This test ensures Text blocks apply wrap_lines() like Thinking blocks do.
+    assert_eq!(
+        lines.len(),
+        4,
+        "100-char line should wrap to 3 lines + 1 separator = 4 lines at width {}, got {}",
+        width,
+        lines.len()
+    );
+}
+
+#[test]
+fn test_text_block_nowrap_does_not_wrap() {
+    // Create entry with a single very long line (100 chars)
+    let long_line = "x".repeat(100);
+    let entry = create_entry_with_text(&long_line);
+
+    let width = 40; // Narrow viewport
+    let collapse_threshold = 10;
+    let summary_lines = 3;
+
+    // Render with NoWrap mode
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::NoWrap,
+        width,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    // ASSERTION: NoWrap mode keeps the 100-char line as a single line
+    // 1 content line + 1 separator = 2 total
+    assert_eq!(
+        lines.len(),
+        2,
+        "NoWrap mode should keep long line unwrapped: 1 line + 1 separator = 2 lines, got {}",
+        lines.len()
+    );
+}
+
+/// Helper to create a test LogEntry with ToolResult content block.
+fn create_entry_with_tool_result(content: &str, is_error: bool) -> ConversationEntry {
+    use crate::model::ToolUseId;
+
+    let blocks = vec![ContentBlock::ToolResult {
+        tool_use_id: ToolUseId::new("test-tool-use-001").unwrap(),
+        content: content.to_string(),
+        is_error,
+    }];
+
+    let message = Message::new(Role::User, MessageContent::Blocks(blocks));
+    let uuid = EntryUuid::new("test-tool-result-001").unwrap();
+    let session_id = SessionId::new("test-session").unwrap();
+    let timestamp = Utc::now();
+
+    let log_entry = LogEntry::new(
+        uuid,
+        None, // parent_uuid
+        session_id,
+        None, // agent_id
+        timestamp,
+        EntryType::User,
+        message,
+        EntryMetadata::default(),
+    );
+    ConversationEntry::Valid(Box::new(log_entry))
+}
+
+#[test]
+fn test_tool_result_wraps_long_lines() {
+    // Create entry with a single very long line (100 chars) in ToolResult
+    let long_line = "y".repeat(100);
+    let entry = create_entry_with_tool_result(&long_line, false);
+
+    let width = 40; // Narrow viewport
+    let collapse_threshold = 10;
+    let summary_lines = 3;
+
+    // Render with wrapping enabled
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        width,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
+    // should wrap to ceil(100/38) = 3 lines, plus 1 separator = 4 total
+    //
+    // This test ensures ToolResult blocks apply wrap_lines() like Thinking blocks do.
+    assert_eq!(
+        lines.len(),
+        4,
+        "100-char ToolResult line should wrap to 3 lines + 1 separator = 4 lines at width {}, got {}",
+        width,
+        lines.len()
+    );
+}
+
+#[test]
+fn test_tool_result_nowrap_does_not_wrap() {
+    // Create entry with a single very long line (100 chars)
+    let long_line = "y".repeat(100);
+    let entry = create_entry_with_tool_result(&long_line, false);
+
+    let width = 40; // Narrow viewport
+    let collapse_threshold = 10;
+    let summary_lines = 3;
+
+    // Render with NoWrap mode
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::NoWrap,
+        width,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    // ASSERTION: NoWrap mode keeps the 100-char line as a single line
+    // 1 content line + 1 separator = 2 total
+    assert_eq!(
+        lines.len(),
+        2,
+        "NoWrap mode should keep long ToolResult unwrapped: 1 line + 1 separator = 2 lines, got {}",
+        lines.len()
+    );
+}
+
+/// Helper to create a test LogEntry with ToolUse content block.
+fn create_entry_with_tool_use(tool_name: &str, input_json: serde_json::Value) -> ConversationEntry {
+    use crate::model::{ToolCall, ToolName, ToolUseId};
+
+    let tool_call = ToolCall::new(
+        ToolUseId::new("test-tool-use-002").unwrap(),
+        ToolName::parse(tool_name),
+        input_json,
+    );
+
+    let blocks = vec![ContentBlock::ToolUse(tool_call)];
+
+    let message = Message::new(Role::Assistant, MessageContent::Blocks(blocks));
+    let uuid = EntryUuid::new("test-tool-use-002").unwrap();
+    let session_id = SessionId::new("test-session").unwrap();
+    let timestamp = Utc::now();
+
+    let log_entry = LogEntry::new(
+        uuid,
+        None, // parent_uuid
+        session_id,
+        None, // agent_id
+        timestamp,
+        EntryType::Assistant,
+        message,
+        EntryMetadata::default(),
+    );
+    ConversationEntry::Valid(Box::new(log_entry))
+}
+
+#[test]
+fn test_tool_use_wraps_long_input_lines() {
+    // Create entry with ToolUse that has a long string value
+    let long_value = "z".repeat(100);
+    let input = serde_json::json!({
+        "long_param": long_value
+    });
+    let entry = create_entry_with_tool_use("TestTool", input);
+
+    let width = 40; // Narrow viewport
+    let collapse_threshold = 10;
+    let summary_lines = 3;
+
+    // Render with wrapping enabled
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        width,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    // ASSERTION: ToolUse renders as:
+    // - 1 header line: "Tool: TestTool"
+    // - N input lines (pretty-printed JSON with long string that should wrap)
+    // - 1 separator
+    //
+    // The JSON line with the 100-char string should wrap to multiple lines.
+    // We expect MORE than 3 lines total (header + wrapped JSON + separator)
+    assert!(
+        lines.len() > 3,
+        "ToolUse with 100-char parameter should wrap to >3 lines at width {}, got {}",
+        width,
+        lines.len()
+    );
+}
+
+#[test]
+fn test_tool_use_nowrap_does_not_wrap() {
+    // Create entry with ToolUse that has a long string value
+    let long_value = "z".repeat(100);
+    let input = serde_json::json!({
+        "long_param": long_value
+    });
+    let entry = create_entry_with_tool_use("TestTool", input);
+
+    let width = 40; // Narrow viewport
+    let collapse_threshold = 10;
+    let summary_lines = 3;
+
+    // Render with NoWrap mode
+    let wrapped_lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        width,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    let nowrap_lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::NoWrap,
+        width,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    // ASSERTION: NoWrap mode should produce FEWER lines than Wrap mode
+    // because long lines stay unwrapped
+    assert!(
+        nowrap_lines.len() < wrapped_lines.len(),
+        "NoWrap mode should produce fewer lines than Wrap mode, got NoWrap={} Wrap={}",
+        nowrap_lines.len(),
+        wrapped_lines.len()
+    );
+}
