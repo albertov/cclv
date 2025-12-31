@@ -2708,7 +2708,6 @@ fn bug_subagent_entry_expand_collapse_not_working() {
 ///
 /// Bead: cclv-5ur.48
 #[test]
-#[ignore = "cclv-5ur.48: mouse clicks don't toggle expand on subagent panes"]
 fn bug_subagent_mouse_click_expand_not_working() {
     use cclv::config::keybindings::KeyBindings;
     use cclv::source::{FileSource, InputSource, StdinSource};
