@@ -286,6 +286,7 @@ fn render_conversation_pane(
                     styles,
                     state.focus == FocusPane::Subagent,
                 )
+                .is_subagent_view(true)
                 .global_wrap(state.global_wrap)
                 .max_context_tokens(state.max_context_tokens)
                 .pricing(state.pricing.clone());
