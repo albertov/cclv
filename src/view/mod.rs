@@ -50,7 +50,7 @@ use crate::view_state::types::LineHeight;
 /// Returns a constant height of 5 lines for all valid entries, 0 for malformed.
 /// This is a temporary implementation to enable scrolling functionality.
 ///
-/// TODO(future): Replace with actual line counting based on content length,
+/// TODO(cclv-5ur.8): Replace with actual line counting based on content length,
 /// wrap mode, and viewport width for accurate heights.
 fn calculate_entry_height(
     entry: &ConversationEntry,
