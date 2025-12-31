@@ -2566,6 +2566,10 @@ fn bug_subagent_entry_expand_collapse_not_working() {
     app.render_test()
         .expect("Render after tab switch should succeed");
 
+    // Snapshot BEFORE expand (collapsed state)
+    let output_before = buffer_to_string(app.terminal().backend().buffer());
+    insta::assert_snapshot!("bug_subagent_expand_before", output_before);
+
     // Get the subagent's conversation view state
     let mut sorted_agent_ids: Vec<_> = app.app_state().session_view().subagent_ids().collect();
     sorted_agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
@@ -2602,6 +2606,10 @@ fn bug_subagent_entry_expand_collapse_not_working() {
     // Render after toggle attempt
     app.render_test()
         .expect("Render after toggle should succeed");
+
+    // Snapshot AFTER expand (expanded state - should show more content)
+    let output_after = buffer_to_string(app.terminal().backend().buffer());
+    insta::assert_snapshot!("bug_subagent_expand_after", output_after);
 
     // Get expanded state of entry 0 in subagent AFTER toggle attempt
     let subagent_entry_0_expanded_after = app
