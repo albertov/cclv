@@ -1332,8 +1332,10 @@ mod tests {
             conversation.add_entry(entry);
         }
 
-        let mut scroll_state = ScrollState::default();
-        scroll_state.vertical_offset = 50; // Scrolled down by 50 lines
+        let scroll_state = ScrollState {
+            vertical_offset: 50, // Scrolled down by 50 lines
+            ..Default::default()
+        };
 
         let widget = ConversationView::new(&conversation, &scroll_state, false);
 
@@ -1584,6 +1586,31 @@ mod tests {
         assert!(
             rendered.contains("this link") || rendered.contains("example.com"),
             "Link text or URL should be visible in rendered output"
+        );
+    }
+
+    #[test]
+    fn render_markdown_with_code_block_applies_syntax_highlighting() {
+        // FR-022: System MUST apply syntax highlighting to code blocks
+        let markdown = "```rust\nfn main() {\n    println!(\"Hello\");\n}\n```";
+        let lines = render_markdown(markdown);
+
+        // Should have syntax highlighting (foreground colors) on code content
+        let has_syntax_colors = lines.iter().any(|line| {
+            line.spans
+                .iter()
+                .any(|span| span.style.fg.is_some())
+        });
+        assert!(
+            has_syntax_colors,
+            "Rust code blocks should have syntax highlighting (foreground colors applied)"
+        );
+
+        // Content should be preserved
+        let rendered: String = lines.iter().map(|l| l.to_string()).collect();
+        assert!(
+            rendered.contains("fn") || rendered.contains("main") || rendered.contains("println"),
+            "Code block content should be preserved"
         );
     }
 
