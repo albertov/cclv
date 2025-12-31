@@ -238,10 +238,7 @@ fn separator_styled_with_dim_gray() {
     // Find the separator line and check its styling
     let separator_is_dimmed = buffer_separator_is_dimmed(buffer, "session-2");
 
-    assert!(
-        separator_is_dimmed,
-        "Separator should use dim/gray styling"
-    );
+    assert!(separator_is_dimmed, "Separator should use dim/gray styling");
 }
 
 // ===== Buffer Inspection Helpers =====
@@ -289,7 +286,8 @@ fn buffer_separator_is_dimmed(buffer: &Buffer, session_id: &str) -> bool {
                 let style = cell.style();
 
                 // Accept either DarkGray foreground or DIM modifier
-                let is_dark_gray = style.fg == Some(Color::DarkGray) || style.fg == Some(Color::Gray);
+                let is_dark_gray =
+                    style.fg == Some(Color::DarkGray) || style.fg == Some(Color::Gray);
                 let is_dimmed = style.add_modifier.contains(Modifier::DIM);
 
                 if is_dark_gray || is_dimmed {

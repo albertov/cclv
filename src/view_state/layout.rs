@@ -336,7 +336,10 @@ mod tests {
             let entry = make_malformed_entry();
             let height = calculate_height(&entry, false, WrapMode::Wrap, 80);
             // Malformed entries now return ~5 lines to account for error display
-            assert!(!height.is_zero(), "Malformed entries should have height > 0");
+            assert!(
+                !height.is_zero(),
+                "Malformed entries should have height > 0"
+            );
             assert_eq!(height.get(), 5, "Malformed entries render with 5 lines");
         }
 

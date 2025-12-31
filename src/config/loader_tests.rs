@@ -823,8 +823,8 @@ fn render_cache_config_parses_from_toml() {
 capacity = 500
 "#;
 
-    let config: ConfigFile = toml::from_str(toml_content)
-        .expect("Should parse render_cache section");
+    let config: ConfigFile =
+        toml::from_str(toml_content).expect("Should parse render_cache section");
 
     assert!(
         config.render_cache.is_some(),
@@ -844,8 +844,8 @@ fn render_cache_config_uses_default_when_missing() {
 theme = "solarized-dark"
 "#;
 
-    let config: ConfigFile = toml::from_str(toml_content)
-        .expect("Should parse config without render_cache");
+    let config: ConfigFile =
+        toml::from_str(toml_content).expect("Should parse config without render_cache");
 
     assert_eq!(
         config.render_cache, None,
@@ -860,8 +860,8 @@ fn render_cache_config_allows_partial_fields_with_defaults() {
 [render_cache]
 "#;
 
-    let config: ConfigFile = toml::from_str(toml_content)
-        .expect("Should parse empty render_cache section");
+    let config: ConfigFile =
+        toml::from_str(toml_content).expect("Should parse empty render_cache section");
 
     assert!(
         config.render_cache.is_some(),
@@ -897,7 +897,9 @@ capacity = 2000
     assert_eq!(config.theme, Some("base16-ocean".to_string()));
     assert_eq!(config.follow, Some(true));
 
-    let render_cache = config.render_cache.expect("Should have render_cache section");
+    let render_cache = config
+        .render_cache
+        .expect("Should have render_cache section");
     assert_eq!(render_cache.capacity, 2000);
 
     // Cleanup

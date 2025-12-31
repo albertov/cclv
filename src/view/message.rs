@@ -456,9 +456,10 @@ impl<'a> ConversationView<'a> {
                     MessageContent::Text(text) => {
                         // Simple text message - render each line with role-based styling
                         for line in text.lines() {
-                            entry_lines.push(Line::from(vec![
-                                ratatui::text::Span::styled(line.to_string(), role_style),
-                            ]));
+                            entry_lines.push(Line::from(vec![ratatui::text::Span::styled(
+                                line.to_string(),
+                                role_style,
+                            )]));
                         }
                     }
                     MessageContent::Blocks(blocks) => {
@@ -577,7 +578,8 @@ impl<'a> Widget for ConversationView<'a> {
                 // FR-074: Detect session boundary and render separator
                 // Only render separator if session changed from previous entry
                 if let Some(current_session_id) = entry.session_id() {
-                    let session_changed = prev_session_id.is_some_and(|prev| prev != current_session_id);
+                    let session_changed =
+                        prev_session_id.is_some_and(|prev| prev != current_session_id);
 
                     if session_changed {
                         // Render session separator line
@@ -618,11 +620,7 @@ impl<'a> Widget for ConversationView<'a> {
                         // Cache MISS - render and cache
                         drop(cache); // Release cache borrow before rendering
 
-                        let rendered = self.render_entry_uncached(
-                            entry,
-                            actual_index,
-                            is_expanded,
-                        );
+                        let rendered = self.render_entry_uncached(entry, actual_index, is_expanded);
 
                         // Cache the result
                         let mut cache = self.view_state.render_cache().borrow_mut();
@@ -1104,7 +1102,6 @@ fn render_entry_paragraph(
         WrapMode::NoWrap => Paragraph::new(lines),
     }
 }
-
 
 /// Apply highlighting to a text string based on match offsets.
 /// Returns a Line with spans that have highlight styling applied.
@@ -1599,4 +1596,3 @@ pub fn render_content_block(
             .collect(),
     }
 }
-

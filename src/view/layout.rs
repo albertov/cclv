@@ -314,9 +314,12 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
 
     // Render the selected conversation using its view-state
     if let Some(conversation_view) = selected_conversation_view {
-        let conversation_widget =
-            message::ConversationView::new(conversation_view, styles, state.focus == FocusPane::Subagent)
-                .global_wrap(state.global_wrap);
+        let conversation_widget = message::ConversationView::new(
+            conversation_view,
+            styles,
+            state.focus == FocusPane::Subagent,
+        )
+        .global_wrap(state.global_wrap);
 
         frame.render_widget(conversation_widget, content_area);
     }

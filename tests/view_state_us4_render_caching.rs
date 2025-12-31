@@ -144,7 +144,11 @@ fn us4_scenario2_cache_invalidation_on_resize() {
         cache.get(&key_width_100).is_some(),
         "New width 100 should now be cached"
     );
-    assert_eq!(cache.len(), 2, "Cache should have 2 entries (one per width)");
+    assert_eq!(
+        cache.len(),
+        2,
+        "Cache should have 2 entries (one per width)"
+    );
 
     // RESULT: Cache invalidation on resize
     // MATCHES: Yes - different widths produce different keys, forcing re-render
@@ -288,7 +292,10 @@ fn us4_scenario3_lru_eviction_under_memory_pressure() {
     );
 
     // THEN: Oldest entry (key1) was evicted, others remain
-    assert!(cache.get(&key1).is_none(), "Key1 (oldest) should be evicted");
+    assert!(
+        cache.get(&key1).is_none(),
+        "Key1 (oldest) should be evicted"
+    );
     assert!(cache.get(&key2).is_some(), "Key2 should remain");
     assert!(cache.get(&key3).is_some(), "Key3 should remain");
     assert!(cache.get(&key4).is_some(), "Key4 (newest) should be added");

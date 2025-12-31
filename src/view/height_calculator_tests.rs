@@ -29,12 +29,7 @@ fn make_text_entry(text: &str) -> ConversationEntry {
 }
 
 fn make_malformed_entry() -> ConversationEntry {
-    ConversationEntry::Malformed(MalformedEntry::new(
-        1,
-        "bad json",
-        "Parse error",
-        None,
-    ))
+    ConversationEntry::Malformed(MalformedEntry::new(1, "bad json", "Parse error", None))
 }
 
 // ===== Malformed Entry Tests =====
@@ -77,14 +72,17 @@ fn valid_entry_returns_at_least_one_line() {
 fn empty_text_collapsed_returns_different_than_multiline_expanded() {
     // Stub returns constant 5 for all entries - this will FAIL
     let empty = make_text_entry("");
-    let multiline = make_text_entry("Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10");
+    let multiline = make_text_entry(
+        "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10",
+    );
 
     let empty_collapsed = calculate_entry_height(&empty, false, WrapMode::Wrap, 80);
     let multiline_expanded = calculate_entry_height(&multiline, true, WrapMode::Wrap, 80);
 
     // Stub returns 5 for both, so this assertion will FAIL proving stub is wrong
     assert_ne!(
-        empty_collapsed, multiline_expanded,
+        empty_collapsed,
+        multiline_expanded,
         "Empty collapsed ({}) should differ from 10-line expanded ({})",
         empty_collapsed.get(),
         multiline_expanded.get()

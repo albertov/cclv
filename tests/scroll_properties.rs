@@ -19,8 +19,8 @@
 //! - Incorrect clamping at top/bottom bounds
 
 use cclv::model::{
-    ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry,
-    Message, MessageContent, Role, SessionId,
+    ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent,
+    Role, SessionId,
 };
 use cclv::state::WrapMode;
 use cclv::view::{calculate_entry_height, ConversationView, MessageStyles};
@@ -105,10 +105,7 @@ enum ScrollDirection {
 /// Strategy for generating a sequence of scroll moves.
 fn arb_scroll_sequence(max_moves: usize) -> impl Strategy<Value = Vec<ScrollDirection>> {
     prop::collection::vec(
-        prop_oneof![
-            Just(ScrollDirection::Up),
-            Just(ScrollDirection::Down),
-        ],
+        prop_oneof![Just(ScrollDirection::Up), Just(ScrollDirection::Down),],
         1..=max_moves,
     )
 }
@@ -117,10 +114,7 @@ fn arb_scroll_sequence(max_moves: usize) -> impl Strategy<Value = Vec<ScrollDire
 
 /// Render ConversationViewState to TestBackend and extract visible content lines.
 /// Strips the frame border to focus on content area.
-fn render_to_lines(
-    state: &ConversationViewState,
-    viewport: ViewportDimensions,
-) -> Vec<String> {
+fn render_to_lines(state: &ConversationViewState, viewport: ViewportDimensions) -> Vec<String> {
     let mut terminal = Terminal::new(TestBackend::new(viewport.width, viewport.height)).unwrap();
 
     terminal

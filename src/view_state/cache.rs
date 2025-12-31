@@ -72,11 +72,7 @@ impl RenderCache {
     ///
     /// If capacity is 0, uses default of 1000.
     pub fn new(capacity: usize) -> Self {
-        let capacity = if capacity == 0 {
-            1000
-        } else {
-            capacity
-        };
+        let capacity = if capacity == 0 { 1000 } else { capacity };
         let capacity = NonZeroUsize::new(capacity).expect("Capacity must be non-zero");
         Self {
             cache: LruCache::new(capacity),
@@ -292,7 +288,10 @@ mod tests {
         // Adding key4 should evict key2 (now least recently used)
         cache.put(key4.clone(), test_render(4));
 
-        assert!(cache.get(&key1).is_some(), "key1 should remain (recently used)");
+        assert!(
+            cache.get(&key1).is_some(),
+            "key1 should remain (recently used)"
+        );
         assert!(cache.get(&key2).is_none(), "key2 should be evicted");
         assert!(cache.get(&key3).is_some(), "key3 should remain");
         assert!(cache.get(&key4).is_some(), "key4 should be present");
@@ -380,8 +379,14 @@ mod tests {
         cache.put(key_expanded.clone(), test_render(10));
 
         // Different expand state should be a cache miss
-        assert!(cache.get(&key_collapsed).is_none(), "Different expand state should miss");
-        assert!(cache.get(&key_expanded).is_some(), "Original expand state should hit");
+        assert!(
+            cache.get(&key_collapsed).is_none(),
+            "Different expand state should miss"
+        );
+        assert!(
+            cache.get(&key_expanded).is_some(),
+            "Original expand state should hit"
+        );
     }
 
     #[test]
@@ -395,8 +400,13 @@ mod tests {
         cache.put(key_wrap.clone(), test_render(8));
 
         // Different wrap mode should be a cache miss
-        assert!(cache.get(&key_nowrap).is_none(), "Different wrap mode should miss");
-        assert!(cache.get(&key_wrap).is_some(), "Original wrap mode should hit");
+        assert!(
+            cache.get(&key_nowrap).is_none(),
+            "Different wrap mode should miss"
+        );
+        assert!(
+            cache.get(&key_wrap).is_some(),
+            "Original wrap mode should hit"
+        );
     }
 }
-

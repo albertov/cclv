@@ -84,7 +84,10 @@ fn test_pending_entries_flushed_on_event() {
     let main_entries = app.app_state().session_view().main().len();
 
     // Note: create_test_app() adds 1 initial entry for session_view creation
-    assert_eq!(main_entries, 1, "Should have initial entry from create_test_app");
+    assert_eq!(
+        main_entries, 1,
+        "Should have initial entry from create_test_app"
+    );
 }
 
 /// Test: Keyboard event triggers immediate render

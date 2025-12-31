@@ -99,7 +99,7 @@ fn us2_scenario1_expand_collapsed_entry_remains_visible() {
     let entry_2 = view_state.get(EntryIndex::new(2)).unwrap();
     assert!(!entry_2.is_expanded(), "Entry 2 should start collapsed");
     assert_eq!(
-        entry_2.layout().cumulative_y().get(),
+        view_state.entry_cumulative_y(EntryIndex::new(2)).unwrap().get(),
         6,
         "Entry 2 should be at line offset 6"
     );
@@ -128,7 +128,7 @@ fn us2_scenario1_expand_collapsed_entry_remains_visible() {
 
     // THEN: Entry 2 height changed from 3 to 50
     assert_eq!(
-        entry_2_after.layout().height().get(),
+        entry_2_after.height().get(),
         50,
         "Expanded entry should be 50 lines tall"
     );
@@ -143,15 +143,14 @@ fn us2_scenario1_expand_collapsed_entry_remains_visible() {
 
     // THEN: Entry 2 remains at same cumulative_y (scroll stability)
     assert_eq!(
-        entry_2_after.layout().cumulative_y().get(),
+        view_state.entry_cumulative_y(EntryIndex::new(2)).unwrap().get(),
         6,
         "Entry 2 cumulative_y should remain stable"
     );
 
     // THEN: Following entries shifted down by 47 lines
-    let entry_3 = view_state.get(EntryIndex::new(3)).unwrap();
     assert_eq!(
-        entry_3.layout().cumulative_y().get(),
+        view_state.entry_cumulative_y(EntryIndex::new(3)).unwrap().get(),
         56, // Was at 9, now at 9 + 47 = 56
         "Entry 3 should shift down after entry 2 expands"
     );
@@ -190,15 +189,14 @@ fn us2_scenario2_collapse_expanded_entry_smooth_shift() {
     // Verify entry 1 is expanded
     let entry_1_before = view_state.get(EntryIndex::new(1)).unwrap();
     assert!(entry_1_before.is_expanded(), "Entry 1 should be expanded");
-    assert_eq!(entry_1_before.layout().height().get(), 50);
+    assert_eq!(entry_1_before.height().get(), 50);
 
     // Total height: 3 + 50 + 3 + 3 = 59
     assert_eq!(view_state.total_height(), 59);
 
     // Entry 2 should be at line 53 (3 + 50)
-    let entry_2_before = view_state.get(EntryIndex::new(2)).unwrap();
     assert_eq!(
-        entry_2_before.layout().cumulative_y().get(),
+        view_state.entry_cumulative_y(EntryIndex::new(2)).unwrap().get(),
         53,
         "Entry 2 should be at line 53 before collapse"
     );
@@ -222,7 +220,7 @@ fn us2_scenario2_collapse_expanded_entry_smooth_shift() {
     let entry_1_after = view_state.get(EntryIndex::new(1)).unwrap();
     assert!(!entry_1_after.is_expanded(), "Entry 1 should be collapsed");
     assert_eq!(
-        entry_1_after.layout().height().get(),
+        entry_1_after.height().get(),
         3,
         "Collapsed entry should be 3 lines"
     );
@@ -235,9 +233,8 @@ fn us2_scenario2_collapse_expanded_entry_smooth_shift() {
     );
 
     // THEN: Entry 2 shifted up smoothly
-    let entry_2_after = view_state.get(EntryIndex::new(2)).unwrap();
     assert_eq!(
-        entry_2_after.layout().cumulative_y().get(),
+        view_state.entry_cumulative_y(EntryIndex::new(2)).unwrap().get(),
         6, // 3 + 3
         "Entry 2 should shift up to line 6"
     );
@@ -329,8 +326,7 @@ fn us2_scenario4_entries_above_viewport_toggle_visible_stable() {
     );
 
     // Record entry 6 position before toggle
-    let entry_6_before = view_state.get(EntryIndex::new(6)).unwrap();
-    let entry_6_y_before = entry_6_before.layout().cumulative_y().get();
+    let entry_6_y_before = view_state.entry_cumulative_y(EntryIndex::new(6)).unwrap().get();
 
     // WHEN: Toggle entry 2 (above viewport)
     view_state.toggle_expand(
@@ -345,9 +341,8 @@ fn us2_scenario4_entries_above_viewport_toggle_visible_stable() {
     assert!(entry_2.is_expanded(), "Entry 2 should be expanded");
 
     // THEN: Entry 6 shifted down by 47 lines (50 - 3)
-    let entry_6_after = view_state.get(EntryIndex::new(6)).unwrap();
     assert_eq!(
-        entry_6_after.layout().cumulative_y().get(),
+        view_state.entry_cumulative_y(EntryIndex::new(6)).unwrap().get(),
         entry_6_y_before + 47,
         "Entry 6 should shift down by 47 lines"
     );

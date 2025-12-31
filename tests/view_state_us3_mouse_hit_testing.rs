@@ -27,7 +27,10 @@ use chrono::Utc;
 fn make_entry(uuid: &str) -> ConversationEntry {
     let uuid = EntryUuid::new(uuid).unwrap();
     let session = SessionId::new("test-session").unwrap();
-    let message = Message::new(Role::User, MessageContent::Text(format!("Test message for {}", uuid)));
+    let message = Message::new(
+        Role::User,
+        MessageContent::Text(format!("Test message for {}", uuid)),
+    );
     let entry = LogEntry::new(
         uuid,
         None,
@@ -42,12 +45,22 @@ fn make_entry(uuid: &str) -> ConversationEntry {
 }
 
 /// Height calculator that returns a fixed height
-fn fixed_height(_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16) -> LineHeight {
+fn fixed_height(
+    _entry: &ConversationEntry,
+    _expanded: bool,
+    _wrap: WrapMode,
+    _width: u16,
+) -> LineHeight {
     LineHeight::new(10).unwrap()
 }
 
 /// Height calculator with variable heights based on entry index
-fn variable_height(entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16) -> LineHeight {
+fn variable_height(
+    entry: &ConversationEntry,
+    _expanded: bool,
+    _wrap: WrapMode,
+    _width: u16,
+) -> LineHeight {
     // Extract index from UUID pattern "entry-N"
     if let ConversationEntry::Valid(log_entry) = entry {
         let uuid_str = log_entry.uuid().as_str();
@@ -145,10 +158,7 @@ fn us3_scenario2_click_expand_collapse_indicator() {
     );
 
     // Verify the toggle mechanism works (using ConversationViewState.toggle_expand)
-    let initial_expanded = state
-        .get(EntryIndex::new(1))
-        .unwrap()
-        .is_expanded();
+    let initial_expanded = state.get(EntryIndex::new(1)).unwrap().is_expanded();
 
     // Toggle expand state
     let viewport = ViewportDimensions::new(80, 24);
@@ -160,10 +170,7 @@ fn us3_scenario2_click_expand_collapse_indicator() {
     );
 
     // Verify entry state changed
-    let after_toggle = state
-        .get(EntryIndex::new(1))
-        .unwrap()
-        .is_expanded();
+    let after_toggle = state.get(EntryIndex::new(1)).unwrap().is_expanded();
     assert_eq!(
         after_toggle, !initial_expanded,
         "Entry expanded state should toggle"
@@ -175,7 +182,9 @@ fn us3_scenario2_click_expand_collapse_indicator() {
 #[test]
 fn us3_scenario3_scrolled_middle_hit_test_correct() {
     // GIVEN: Conversation with many entries, scrolled to middle
-    let entries: Vec<_> = (0..20).map(|i| make_entry(&format!("entry-{}", i))).collect();
+    let entries: Vec<_> = (0..20)
+        .map(|i| make_entry(&format!("entry-{}", i)))
+        .collect();
 
     let mut state = ConversationViewState::new(None, None, entries);
     let params = LayoutParams::new(80, WrapMode::Wrap);
@@ -220,7 +229,9 @@ fn us3_scenario3_scrolled_middle_hit_test_correct() {
 #[test]
 fn us3_scenario4_variable_heights_boundary_clicks() {
     // GIVEN: Variable height entries
-    let entries: Vec<_> = (0..8).map(|i| make_entry(&format!("entry-{}", i))).collect();
+    let entries: Vec<_> = (0..8)
+        .map(|i| make_entry(&format!("entry-{}", i)))
+        .collect();
 
     let mut state = ConversationViewState::new(None, None, entries);
     let params = LayoutParams::new(80, WrapMode::Wrap);
@@ -305,11 +316,11 @@ fn us3_performance_hit_test_o_log_n() {
 
     // WHEN: Perform hit_test at various positions
     let test_positions = vec![
-        (0, 0, 0),           // Start
-        (50_000, 25, 10),    // Middle
-        (99_999, 50, 20),    // End
-        (25_000, 10, 5),     // Quarter
-        (75_000, 30, 15),    // Three quarters
+        (0, 0, 0),        // Start
+        (50_000, 25, 10), // Middle
+        (99_999, 50, 20), // End
+        (25_000, 10, 5),  // Quarter
+        (75_000, 30, 15), // Three quarters
     ];
 
     let mut total_duration = std::time::Duration::ZERO;

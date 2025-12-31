@@ -5,9 +5,9 @@
 //! accidental UI changes.
 
 use cclv::model::{
-    AgentId, ContentBlock, ConversationEntry, EntryMetadata, EntryType,
-    EntryUuid, LogEntry, Message, MessageContent, PricingConfig, Role, SessionId,
-    SessionStats, StatsFilter, TokenUsage, ToolCall, ToolName, ToolUseId,
+    AgentId, ContentBlock, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry,
+    Message, MessageContent, PricingConfig, Role, SessionId, SessionStats, StatsFilter, TokenUsage,
+    ToolCall, ToolName, ToolUseId,
 };
 use cclv::state::WrapMode;
 use cclv::view::{tabs, ConversationView, MessageStyles, StatsPanel};
@@ -320,8 +320,8 @@ fn snapshot_message_collapsed_multiline() {
     let mut terminal = create_terminal(60, 15);
     terminal
         .draw(|frame| {
-            let widget = ConversationView::new(&view_state, &styles, false)
-                .global_wrap(WrapMode::Wrap);
+            let widget =
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
             frame.render_widget(widget, frame.area());
         })
         .unwrap();
@@ -359,8 +359,7 @@ fn snapshot_message_expanded_multiline() {
     terminal
         .draw(|frame| {
             let widget =
-                ConversationView::new(&view_state, &styles, false)
-                    .global_wrap(WrapMode::Wrap);
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
             frame.render_widget(widget, frame.area());
         })
         .unwrap();
@@ -405,8 +404,7 @@ That's the code."#;
     terminal
         .draw(|frame| {
             let widget =
-                ConversationView::new(&view_state, &styles, false)
-                    .global_wrap(WrapMode::Wrap);
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
             frame.render_widget(widget, frame.area());
         })
         .unwrap();
@@ -456,8 +454,7 @@ fn snapshot_message_with_tool_use() {
     terminal
         .draw(|frame| {
             let widget =
-                ConversationView::new(&view_state, &styles, false)
-                    .global_wrap(WrapMode::Wrap);
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
             frame.render_widget(widget, frame.area());
         })
         .unwrap();
@@ -504,8 +501,7 @@ Total lines: 3"#;
     terminal
         .draw(|frame| {
             let widget =
-                ConversationView::new(&view_state, &styles, false)
-                    .global_wrap(WrapMode::Wrap);
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
             frame.render_widget(widget, frame.area());
         })
         .unwrap();
@@ -550,8 +546,7 @@ fn snapshot_message_with_thinking_block() {
     terminal
         .draw(|frame| {
             let widget =
-                ConversationView::new(&view_state, &styles, false)
-                    .global_wrap(WrapMode::Wrap);
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
             frame.render_widget(widget, frame.area());
         })
         .unwrap();
@@ -595,8 +590,7 @@ fn bug_entry_indices_not_visible_in_rendered_output() {
     terminal
         .draw(|frame| {
             let widget =
-                ConversationView::new(&view_state, &styles, false)
-                    .global_wrap(WrapMode::Wrap);
+                ConversationView::new(&view_state, &styles, false).global_wrap(WrapMode::Wrap);
             frame.render_widget(widget, frame.area());
         })
         .unwrap();
@@ -1310,9 +1304,10 @@ fn bug_horizontal_scroll_does_not_work() {
     use std::path::PathBuf;
 
     // Load minimal fixture with long line
-    let mut file_source =
-        FileSource::new(PathBuf::from("tests/fixtures/horizontal_scroll_repro.jsonl"))
-            .expect("Should load fixture");
+    let mut file_source = FileSource::new(PathBuf::from(
+        "tests/fixtures/horizontal_scroll_repro.jsonl",
+    ))
+    .expect("Should load fixture");
     let log_entries = file_source.drain_entries().expect("Should parse entries");
     let entry_count = log_entries.len();
 
@@ -1355,7 +1350,8 @@ fn bug_horizontal_scroll_does_not_work() {
     for _ in 0..50 {
         let _ = app.handle_key_test(right_key);
     }
-    app.render_test().expect("Render after scroll should succeed");
+    app.render_test()
+        .expect("Render after scroll should succeed");
 
     // Capture output after horizontal scroll
     let scrolled_output = buffer_to_string(app.terminal().backend().buffer());
@@ -1413,10 +1409,25 @@ fn bug_jerky_scroll_line_by_line() {
     }
 
     let entries = vec![
-        make_entry("e1", &["First entry line 1", "First entry line 2", "First entry line 3"]),
+        make_entry(
+            "e1",
+            &[
+                "First entry line 1",
+                "First entry line 2",
+                "First entry line 3",
+            ],
+        ),
         make_entry("e2", &["Second entry line 1", "Second entry line 2"]),
         make_entry("e3", &["Third entry - single line"]),
-        make_entry("e4", &["Fourth entry line 1", "Fourth entry line 2", "Fourth entry line 3", "Fourth entry line 4"]),
+        make_entry(
+            "e4",
+            &[
+                "Fourth entry line 1",
+                "Fourth entry line 2",
+                "Fourth entry line 3",
+                "Fourth entry line 4",
+            ],
+        ),
         make_entry("e5", &["Fifth entry line 1", "Fifth entry line 2"]),
     ];
 
@@ -1430,7 +1441,8 @@ fn bug_jerky_scroll_line_by_line() {
 
     // Helper to render and get content lines
     let render = |s: &ConversationViewState| -> Vec<String> {
-        let mut terminal = Terminal::new(TestBackend::new(viewport.width, viewport.height)).unwrap();
+        let mut terminal =
+            Terminal::new(TestBackend::new(viewport.width, viewport.height)).unwrap();
         terminal
             .draw(|frame| {
                 let styles = MessageStyles::default();
@@ -1485,19 +1497,21 @@ fn bug_jerky_scroll_line_by_line() {
     // Simple check: the SECOND content line from before should now be the FIRST content line after scroll
     if before_lines.len() > 1 && after_lines.len() > 1 {
         let before_line_1 = &before_lines[1]; // Second line before scroll
-        let after_line_0 = &after_lines[0];   // First line after scroll
-        
+        let after_line_0 = &after_lines[0]; // First line after scroll
+
         // They should match (content shifted up by 1)
         // But with jerky scroll, this fails because scroll jumps by entry heights, not lines
         assert_eq!(
-            before_line_1.trim(), after_line_0.trim(),
+            before_line_1.trim(),
+            after_line_0.trim(),
             "BUG: Scroll is jerky, not smooth.\n\
              After scrolling down 1 line, content should shift up by exactly 1 line.\n\
              Expected line 1 before scroll to become line 0 after scroll.\n\n\
              Before line 1: '{}'\n\
              After line 0:  '{}'\n\n\
              This indicates scroll is jumping by entry boundaries instead of visual lines.",
-            before_line_1.trim(), after_line_0.trim()
+            before_line_1.trim(),
+            after_line_0.trim()
         );
     }
 }
@@ -1524,9 +1538,8 @@ fn bug_collapsed_entry_height_mismatch() {
     use std::path::PathBuf;
 
     // Load the full fixture that reproduces the bug in the TUI
-    let mut file_source =
-        FileSource::new(PathBuf::from("tests/fixtures/cc-session-log.jsonl"))
-            .expect("Should load fixture");
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/cc-session-log.jsonl"))
+        .expect("Should load fixture");
     let log_entries = file_source.drain_entries().expect("Should parse entries");
 
     let entries: Vec<ConversationEntry> = log_entries
@@ -1544,7 +1557,8 @@ fn bug_collapsed_entry_height_mismatch() {
 
     // Helper to render and get content lines
     let render = |s: &ConversationViewState| -> Vec<String> {
-        let mut terminal = Terminal::new(TestBackend::new(viewport.width, viewport.height)).unwrap();
+        let mut terminal =
+            Terminal::new(TestBackend::new(viewport.width, viewport.height)).unwrap();
         terminal
             .draw(|frame| {
                 let styles = MessageStyles::default();
@@ -1624,9 +1638,10 @@ fn bug_scroll_stuck_with_thinking_blocks() {
     use std::path::PathBuf;
 
     // Load fixture with thinking block entries
-    let mut file_source =
-        FileSource::new(PathBuf::from("tests/fixtures/scroll_jump_thinking_repro.jsonl"))
-            .expect("Should load fixture");
+    let mut file_source = FileSource::new(PathBuf::from(
+        "tests/fixtures/scroll_jump_thinking_repro.jsonl",
+    ))
+    .expect("Should load fixture");
     let log_entries = file_source.drain_entries().expect("Should parse entries");
 
     let entries: Vec<ConversationEntry> = log_entries

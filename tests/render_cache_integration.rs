@@ -107,7 +107,9 @@ fn cache_miss_on_first_render_populates_cache() {
     }
 
     // Simulate rendering the entry (without borrowing view_state)
-    let entry_view = view_state.get(cclv::view_state::types::EntryIndex::new(0)).unwrap();
+    let entry_view = view_state
+        .get(cclv::view_state::types::EntryIndex::new(0))
+        .unwrap();
     let entry = entry_view.entry();
     let rendered_lines = stub_render_entry(entry, false, WrapMode::Wrap);
 
@@ -186,11 +188,7 @@ fn cache_hit_on_subsequent_render_uses_cached_lines() {
         assert!(cached_result.is_some(), "Cache should hit on second render");
 
         let cached_lines = &cached_result.unwrap().lines;
-        assert_eq!(
-            cached_lines.len(),
-            3,
-            "Cached lines should match original"
-        );
+        assert_eq!(cached_lines.len(), 3, "Cached lines should match original");
         assert_eq!(
             cached_lines[0].to_string(),
             "Cached line 1",

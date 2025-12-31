@@ -424,10 +424,7 @@ fn make_subagent_entry_for_session(
         Some(AgentId::new(agent_id).expect("valid agent id")),
         Utc::now(),
         EntryType::Assistant,
-        Message::new(
-            Role::Assistant,
-            MessageContent::Text(content.to_string()),
-        ),
+        Message::new(Role::Assistant, MessageContent::Text(content.to_string())),
         EntryMetadata::default(),
     );
 
@@ -443,13 +440,29 @@ fn next_tab_uses_active_session_subagents_when_scrolled_to_first_session() {
 
     // Session 1
     entries.push(make_main_entry("session-1", "First session"));
-    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
-    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "alpha",
+        "Alpha msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "beta",
+        "Beta msg",
+    ));
 
     // Session 2
     entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
-    entries.push(make_subagent_entry_for_session("session-2", "delta", "Delta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "gamma",
+        "Gamma msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "delta",
+        "Delta msg",
+    ));
     entries.push(make_subagent_entry_for_session(
         "session-2",
         "epsilon",
@@ -482,13 +495,29 @@ fn next_tab_wraps_within_active_session_subagents() {
 
     // Session 1: alpha, beta (2 subagents)
     entries.push(make_main_entry("session-1", "First session"));
-    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
-    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "alpha",
+        "Alpha msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "beta",
+        "Beta msg",
+    ));
 
     // Session 2: gamma, delta, epsilon (3 subagents)
     entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
-    entries.push(make_subagent_entry_for_session("session-2", "delta", "Delta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "gamma",
+        "Gamma msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "delta",
+        "Delta msg",
+    ));
     entries.push(make_subagent_entry_for_session(
         "session-2",
         "epsilon",
@@ -520,13 +549,29 @@ fn prev_tab_uses_active_session_subagents() {
 
     // Session 1: alpha, beta
     entries.push(make_main_entry("session-1", "First session"));
-    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
-    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "alpha",
+        "Alpha msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "beta",
+        "Beta msg",
+    ));
 
     // Session 2: gamma, delta
     entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
-    entries.push(make_subagent_entry_for_session("session-2", "delta", "Delta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "gamma",
+        "Gamma msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "delta",
+        "Delta msg",
+    ));
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -553,13 +598,29 @@ fn select_tab_clamps_to_active_session_subagent_count() {
 
     // Session 1: alpha, beta (2 subagents)
     entries.push(make_main_entry("session-1", "First session"));
-    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
-    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "alpha",
+        "Alpha msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "beta",
+        "Beta msg",
+    ));
 
     // Session 2: gamma, delta, epsilon (3 subagents)
     entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
-    entries.push(make_subagent_entry_for_session("session-2", "delta", "Delta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "gamma",
+        "Gamma msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "delta",
+        "Delta msg",
+    ));
     entries.push(make_subagent_entry_for_session(
         "session-2",
         "epsilon",
@@ -592,12 +653,24 @@ fn tab_operations_respect_scroll_position_to_determine_active_session() {
 
     // Session 1: alpha, beta (2 subagents)
     entries.push(make_main_entry("session-1", "First session"));
-    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
-    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "alpha",
+        "Alpha msg",
+    ));
+    entries.push(make_subagent_entry_for_session(
+        "session-1",
+        "beta",
+        "Beta msg",
+    ));
 
     // Session 2: gamma (1 subagent)
     entries.push(make_main_entry("session-2", "Second session"));
-    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "gamma",
+        "Gamma msg",
+    ));
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -617,7 +690,10 @@ fn tab_operations_respect_scroll_position_to_determine_active_session() {
         .unwrap()
         .subagent_ids()
         .count();
-    assert_eq!(session1_subagent_count, 2, "Session 1 should have 2 subagents");
+    assert_eq!(
+        session1_subagent_count, 2,
+        "Session 1 should have 2 subagents"
+    );
 
     // Verify session 2 has 1 subagent
     let session2_subagent_count = state
@@ -626,7 +702,10 @@ fn tab_operations_respect_scroll_position_to_determine_active_session() {
         .unwrap()
         .subagent_ids()
         .count();
-    assert_eq!(session2_subagent_count, 1, "Session 2 should have 1 subagent");
+    assert_eq!(
+        session2_subagent_count, 1,
+        "Session 2 should have 1 subagent"
+    );
 
     // When scrolled to session 2 (scroll position beyond session 1's content)
     // Session 2 only has gamma (1 subagent)

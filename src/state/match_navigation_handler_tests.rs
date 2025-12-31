@@ -21,7 +21,6 @@ fn make_agent_id(s: &str) -> AgentId {
     AgentId::new(s).expect("valid agent id")
 }
 
-
 fn make_search_match(agent_id: Option<AgentId>, uuid: &str) -> crate::state::SearchMatch {
     crate::state::SearchMatch {
         agent_id,
@@ -234,7 +233,7 @@ fn next_match_selects_correct_subagent_tab() {
             Message::new(Role::User, MessageContent::Text("test".to_string())),
             EntryMetadata::default(),
         );
-    entries.push(crate::model::ConversationEntry::Valid(Box::new(entry)));
+        entries.push(crate::model::ConversationEntry::Valid(Box::new(entry)));
     }
 
     let mut state = AppState::new();
