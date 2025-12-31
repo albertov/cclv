@@ -1,0 +1,8 @@
+{"uuid":"entry-1","session_id":"test","type":"user","message":{"role":"user","content":"First entry with short content"}}
+{"uuid":"entry-2","session_id":"test","type":"assistant","message":{"role":"assistant","content":"Second entry with a bit more content.\n\nThis has multiple lines to ensure we have varying heights.\n\n1. Point one\n2. Point two\n3. Point three"}}
+{"uuid":"entry-3","session_id":"test","type":"user","message":{"role":"user","content":"Third entry - another short one"}}
+{"uuid":"entry-4","session_id":"test","type":"assistant","message":{"role":"assistant","content":"Fourth entry with medium content.\n\nSome explanation here."}}
+{"uuid":"entry-5","session_id":"test","type":"user","message":{"role":"user","content":"Fifth entry"}}
+{"uuid":"entry-6","session_id":"test","type":"assistant","message":{"role":"assistant","content":"Sixth entry with more lines:\n\n- Item A\n- Item B\n- Item C\n- Item D\n- Item E"}}
+{"uuid":"entry-7","session_id":"test","type":"user","message":{"role":"user","content":"Seventh entry"}}
+{"uuid":"entry-8","session_id":"test","type":"assistant","message":{"role":"assistant","content":"Eighth and final entry for testing scroll behavior across multiple entries with varying heights."}}

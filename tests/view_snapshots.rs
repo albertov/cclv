@@ -1376,3 +1376,130 @@ fn bug_horizontal_scroll_does_not_work() {
          Scrolled output:\n{scrolled_output}"
     );
 }
+
+// ===== Jerky Scroll Bug Reproducer =====
+
+/// Bug reproduction: Line-by-line scroll is jerky, not smooth
+///
+/// EXPECTED: Each scroll-down should shift ALL content up by exactly 1 line
+/// ACTUAL: Content jumps erratically - sometimes doesn't move, sometimes jumps multiple lines
+///
+/// Steps to reproduce manually:
+/// 1. cargo run --release -- tests/fixtures/jerky_scroll_repro.jsonl
+/// 2. Press 'g' to go to top
+/// 3. Press 'j' repeatedly to scroll down line by line
+/// 4. Observe: Content jumps/stutters instead of smooth 1-line shifts
+///
+/// Root cause: Scroll advances by entry boundaries (variable height) rather than visual lines.
+#[test]
+#[ignore = "cclv-5ur.11: line-by-line scroll is jerky, not smooth"]
+fn bug_jerky_scroll_line_by_line() {
+    use cclv::view::calculate_entry_height;
+    use chrono::Utc;
+
+    // Create entries with varying content lengths
+    fn make_entry(uuid: &str, lines: &[&str]) -> ConversationEntry {
+        let text = lines.join("\n");
+        let message = Message::new(Role::User, MessageContent::Text(text));
+        let entry = LogEntry::new(
+            EntryUuid::new(uuid).unwrap(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message,
+            EntryMetadata::default(),
+        );
+        ConversationEntry::Valid(Box::new(entry))
+    }
+
+    let entries = vec![
+        make_entry("e1", &["First entry line 1", "First entry line 2", "First entry line 3"]),
+        make_entry("e2", &["Second entry line 1", "Second entry line 2"]),
+        make_entry("e3", &["Third entry - single line"]),
+        make_entry("e4", &["Fourth entry line 1", "Fourth entry line 2", "Fourth entry line 3", "Fourth entry line 4"]),
+        make_entry("e5", &["Fifth entry line 1", "Fifth entry line 2"]),
+    ];
+
+    // Create view state
+    let mut state = ConversationViewState::new(None, None, entries);
+    let params = LayoutParams::new(80, WrapMode::NoWrap);
+    state.recompute_layout(params, calculate_entry_height);
+
+    // Use a tall viewport so we can see multiple entries
+    let viewport = ViewportDimensions::new(80, 20);
+
+    // Helper to render and get content lines
+    let render = |s: &ConversationViewState| -> Vec<String> {
+        let mut terminal = Terminal::new(TestBackend::new(viewport.width, viewport.height)).unwrap();
+        terminal
+            .draw(|frame| {
+                let styles = MessageStyles::default();
+                let widget = ConversationView::new(s, &styles, false);
+                frame.render_widget(widget, frame.area());
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let area = buffer.area();
+
+        let mut lines = Vec::new();
+        for y in area.top()..area.bottom() {
+            let mut line = String::new();
+            for x in area.left()..area.right() {
+                let cell = &buffer[(x, y)];
+                line.push_str(cell.symbol());
+            }
+            lines.push(line.trim_end().to_string());
+        }
+
+        // Skip first/last lines (frame borders)
+        lines[1..lines.len().saturating_sub(1)].to_vec()
+    };
+
+    use cclv::view_state::scroll::ScrollPosition;
+    use cclv::view_state::types::LineOffset;
+
+    // Go to top
+    state.set_scroll(ScrollPosition::Top);
+
+    // Render BEFORE scroll
+    let before_lines = render(&state);
+
+    // Scroll down by 1 line - use AtLine(1) to scroll to line offset 1
+    state.set_scroll(ScrollPosition::AtLine(LineOffset::new(1)));
+
+    // Render AFTER scroll
+    let after_lines = render(&state);
+
+    // Snapshot both states for debugging
+    let before_str = before_lines.join("\n");
+    let after_str = after_lines.join("\n");
+    insta::assert_snapshot!("bug_jerky_scroll_before", before_str);
+    insta::assert_snapshot!("bug_jerky_scroll_after", after_str);
+
+    // THE KEY ASSERTION: After scrolling down by 1 line, content should shift up by 1 line
+    // This means: before_lines[1] should equal after_lines[0]
+    //             before_lines[2] should equal after_lines[1]
+    //             etc.
+
+    // Simple check: the SECOND content line from before should now be the FIRST content line after scroll
+    if before_lines.len() > 1 && after_lines.len() > 1 {
+        let before_line_1 = &before_lines[1]; // Second line before scroll
+        let after_line_0 = &after_lines[0];   // First line after scroll
+        
+        // They should match (content shifted up by 1)
+        // But with jerky scroll, this fails because scroll jumps by entry heights, not lines
+        assert_eq!(
+            before_line_1.trim(), after_line_0.trim(),
+            "BUG: Scroll is jerky, not smooth.\n\
+             After scrolling down 1 line, content should shift up by exactly 1 line.\n\
+             Expected line 1 before scroll to become line 0 after scroll.\n\n\
+             Before line 1: '{}'\n\
+             After line 0:  '{}'\n\n\
+             This indicates scroll is jumping by entry boundaries instead of visual lines.",
+            before_line_1.trim(), after_line_0.trim()
+        );
+    }
+}

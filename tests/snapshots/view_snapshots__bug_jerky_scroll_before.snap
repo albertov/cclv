@@ -1,0 +1,23 @@
+---
+source: tests/view_snapshots.rs
+assertion_line: 1479
+expression: before_str
+---
+│First entry line 1                                                            │
+│First entry line 2                                                            │
+│First entry line 3                                                            │
+│                                                                              │
+│Second entry line 1                                                           │
+│Second entry line 2                                                           │
+│                                                                              │
+│Third entry - single line                                                     │
+│                                                                              │
+│Fourth entry line 1                                                           │
+│Fourth entry line 2                                                           │
+│Fourth entry line 3                                                           │
+│Fourth entry line 4                                                           │
+│                                                                              │
+│Fifth entry line 1                                                            │
+│Fifth entry line 2                                                            │
+│                                                                              │
+│                                                                              │
