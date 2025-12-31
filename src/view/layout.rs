@@ -4,7 +4,7 @@
 //! placeholder widgets for main agent, subagent tabs, and status bar.
 
 use crate::model::{AgentId, PricingConfig};
-use crate::state::{agent_ids_with_matches, AppState, FocusPane, SearchState};
+use crate::state::{agent_ids_with_matches, AppState, FocusPane, SearchState, WrapMode};
 use crate::view::{message, stats::StatsPanel, tabs, MessageStyles, SearchInput};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -307,17 +307,26 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
         ""
     };
 
+    // Build wrap state indicator (FR-051)
+    let wrap_indicator = match state.global_wrap {
+        WrapMode::Wrap => "Wrap: On | ",
+        WrapMode::NoWrap => "Wrap: Off | ",
+    };
+
     // Determine if search is active
     let search_active = matches!(state.search, SearchState::Active { .. });
 
-    // Calculate available width after live indicator
-    let available_width = area.width.saturating_sub(live_indicator.len() as u16);
+    // Calculate available width after live indicator and wrap indicator
+    let available_width = area
+        .width
+        .saturating_sub(live_indicator.len() as u16)
+        .saturating_sub(wrap_indicator.len() as u16);
 
     // Build context-sensitive keyboard hints
     let hints = build_keyboard_hints(state.focus, search_active, available_width);
 
-    // Combine live indicator and hints
-    let status_text = format!("{}{}", live_indicator, hints);
+    // Combine live indicator, wrap indicator, and hints
+    let status_text = format!("{}{}{}", live_indicator, wrap_indicator, hints);
 
     let style = if state.live_mode && state.auto_scroll {
         Style::default().fg(Color::Green)
