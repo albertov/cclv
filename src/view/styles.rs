@@ -134,6 +134,7 @@ impl Default for MessageStyles {
 mod tests {
     use super::*;
     use crate::model::{ToolCall, ToolName, ToolUseId};
+    use serial_test::serial;
 
     // ===== ColorConfig Tests =====
 
@@ -147,6 +148,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(no_color)]
     fn color_config_respects_no_color_env_var() {
         // Set NO_COLOR env var
         std::env::set_var("NO_COLOR", "1");
@@ -159,6 +161,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(no_color)]
     fn color_config_flag_overrides_env_var() {
         // Set NO_COLOR env var but also pass --no-color flag
         std::env::set_var("NO_COLOR", "1");
@@ -171,6 +174,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(no_color)]
     fn color_config_enables_colors_by_default() {
         // Ensure NO_COLOR is not set
         std::env::remove_var("NO_COLOR");
@@ -182,6 +186,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(no_color)]
     fn color_config_no_color_env_any_value_disables() {
         // NO_COLOR can be any value (even empty string)
         std::env::set_var("NO_COLOR", "");
@@ -196,6 +201,7 @@ mod tests {
     // ===== MessageStyles with ColorConfig Tests =====
 
     #[test]
+    #[serial(no_color)]
     fn message_styles_with_color_config_enabled_has_colors() {
         std::env::remove_var("NO_COLOR");
         let config = ColorConfig::from_env_and_args(false);
