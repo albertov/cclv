@@ -221,10 +221,11 @@ pub fn detect_entry_click(
 pub fn handle_entry_click(mut state: AppState, entry_click: EntryClickResult) -> AppState {
     use crate::state::WrapMode;
     use crate::view_state::layout_params::LayoutParams;
-    use crate::view_state::types::{EntryIndex, LineHeight};
+    use crate::view_state::types::{EntryIndex, LineHeight, ViewportDimensions};
 
-    // Layout params for relayout (TODO: Use actual viewport width)
+    // Layout params and viewport for relayout (TODO: Use actual viewport dimensions)
     let params = LayoutParams::new(80, state.global_wrap);
+    let viewport = ViewportDimensions::new(80, 24);
 
     // Height calculator stub
     let height_calc = |_entry: &crate::model::ConversationEntry, _expanded: bool, _wrap: WrapMode| -> LineHeight {
@@ -237,7 +238,7 @@ pub fn handle_entry_click(mut state: AppState, entry_click: EntryClickResult) ->
             if let Some(session_view) = state.log_view_mut().current_session_mut() {
                 let conv_view = session_view.main_mut();
                 let idx = EntryIndex::new(index);
-                conv_view.toggle_expand(idx, params, height_calc);
+                conv_view.toggle_expand(idx, params, viewport, height_calc);
             }
             state
         }
@@ -252,7 +253,7 @@ pub fn handle_entry_click(mut state: AppState, entry_click: EntryClickResult) ->
                 if let (Some(agent_id), Some(session_view)) = (agent_id_opt, state.log_view_mut().current_session_mut()) {
                     let conv_view = session_view.subagent_mut(&agent_id);
                     let idx = EntryIndex::new(index);
-                    conv_view.toggle_expand(idx, params, height_calc);
+                    conv_view.toggle_expand(idx, params, viewport, height_calc);
                 }
             }
             state

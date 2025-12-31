@@ -215,14 +215,67 @@ impl ConversationViewState {
 
     /// Toggle expand state for entry at index and relayout.
     /// Returns new expanded state, or None if index out of bounds.
-    pub fn toggle_expand<F>(&mut self, index: EntryIndex, params: LayoutParams, height_calculator: F) -> Option<bool>
+    ///
+    /// # Scroll Stability (US2 scenario 4)
+    /// When toggling an entry above the viewport, the scroll position is adjusted
+    /// to keep the currently visible entries stable using ScrollPosition::AtEntry.
+    ///
+    /// # Arguments
+    /// - `index`: Entry to toggle
+    /// - `params`: Layout parameters
+    /// - `viewport`: Current viewport dimensions (needed for scroll stability)
+    /// - `height_calculator`: Function to compute entry heights
+    pub fn toggle_expand<F>(
+        &mut self,
+        index: EntryIndex,
+        params: LayoutParams,
+        viewport: ViewportDimensions,
+        height_calculator: F,
+    ) -> Option<bool>
     where
         F: Fn(&ConversationEntry, bool, WrapMode) -> LineHeight,
     {
+        // Capture scroll anchor BEFORE toggling if entry is above viewport
+        let scroll_anchor = self.compute_scroll_anchor_before_toggle(index, viewport);
+
         let entry = self.entries.get_mut(index.get())?;
         let new_state = entry.toggle_expanded();
         self.relayout_from(index, params, height_calculator);
+
+        // Restore scroll stability if we had an anchor
+        if let Some(anchor) = scroll_anchor {
+            self.scroll = anchor;
+        }
+
         Some(new_state)
+    }
+
+    /// Compute scroll anchor for preserving viewport stability when toggling entry.
+    /// Returns Some(ScrollPosition::AtEntry) if toggled entry is above viewport.
+    fn compute_scroll_anchor_before_toggle(&self, toggled_index: EntryIndex, viewport: ViewportDimensions) -> Option<ScrollPosition> {
+        if self.entries.is_empty() {
+            return None;
+        }
+
+        // Get current visible range
+        let visible = self.visible_range(viewport);
+
+        // If toggled entry is at or after first visible entry, no anchor needed
+        // (viewport doesn't need adjustment for toggles within or below viewport)
+        if toggled_index >= visible.start_index {
+            return None;
+        }
+
+        // Entry is above viewport - anchor to first visible entry
+        let first_visible = visible.start_index;
+        let first_visible_y = self.get(first_visible)?.layout().cumulative_y().get();
+        let scroll_offset = visible.scroll_offset.get();
+        let line_in_entry = first_visible_y.saturating_sub(scroll_offset);
+
+        Some(ScrollPosition::AtEntry {
+            entry_index: first_visible,
+            line_in_entry,
+        })
     }
 
     /// Set wrap override for entry at index and relayout.
@@ -695,7 +748,8 @@ mod tests {
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));
 
-        let result = state.toggle_expand(EntryIndex::new(0), params, fixed_height_calculator(10));
+        let viewport = ViewportDimensions::new(80, 24);
+        let result = state.toggle_expand(EntryIndex::new(0), params, viewport, fixed_height_calculator(10));
 
         assert_eq!(result, Some(true), "Should toggle to expanded");
         assert!(state.get(EntryIndex::new(0)).unwrap().is_expanded());
@@ -706,7 +760,8 @@ mod tests {
         let mut state = ConversationViewState::empty();
         let params = LayoutParams::new(80, WrapMode::Wrap);
 
-        let result = state.toggle_expand(EntryIndex::new(0), params, fixed_height_calculator(10));
+        let viewport = ViewportDimensions::new(80, 24);
+        let result = state.toggle_expand(EntryIndex::new(0), params, viewport, fixed_height_calculator(10));
 
         assert_eq!(result, None);
     }
@@ -731,7 +786,8 @@ mod tests {
         state.recompute_layout(params, variable_height);
         // Initial: [0, 10], total=20
 
-        state.toggle_expand(EntryIndex::new(0), params, variable_height);
+        let viewport = ViewportDimensions::new(80, 24);
+        state.toggle_expand(EntryIndex::new(0), params, viewport, variable_height);
         // After expanding entry 0: [0, 20], total=30
 
         assert_eq!(state.get(EntryIndex::new(0)).unwrap().layout().cumulative_y().get(), 0);
@@ -780,7 +836,7 @@ mod tests {
         let offset_in_viewport_before = first_visible_y_before.saturating_sub(scroll_offset_before);
 
         // Toggle expand on entry 2 (above viewport: cumulative_y=4, which is before scroll_offset=10)
-        state.toggle_expand(EntryIndex::new(2), params, variable_height);
+        state.toggle_expand(EntryIndex::new(2), params, viewport, variable_height);
 
         // After expanding entry 2 (height 2 -> 5), cumulative_y shifts:
         // Entry 0: y=0..2

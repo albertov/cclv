@@ -6,7 +6,7 @@
 use crate::model::KeyAction;
 use crate::state::{AppState, FocusPane, WrapMode};
 use crate::view_state::layout_params::LayoutParams;
-use crate::view_state::types::{EntryIndex, LineHeight};
+use crate::view_state::types::{EntryIndex, LineHeight, ViewportDimensions};
 
 /// Handle a message expand/collapse keyboard action.
 ///
@@ -22,8 +22,9 @@ pub fn handle_expand_action(mut state: AppState, action: KeyAction) -> AppState 
         _ => {}
     }
 
-    // Get layout params for relayout (needed by toggle_expand)
+    // Get layout params and viewport for relayout (needed by toggle_expand)
     let params = LayoutParams::new(80, state.global_wrap); // TODO: Use actual viewport width
+    let viewport = ViewportDimensions::new(80, 24); // TODO: Use actual viewport dimensions
 
     // Height calculator stub for now
     let height_calc = |_entry: &crate::model::ConversationEntry, _expanded: bool, _wrap: WrapMode| -> LineHeight {
@@ -40,7 +41,7 @@ pub fn handle_expand_action(mut state: AppState, action: KeyAction) -> AppState 
                     KeyAction::ToggleExpand => {
                         // Toggle the focused message via ConversationViewState
                         if let Some(focused_idx) = conv_view.focused_message() {
-                            conv_view.toggle_expand(focused_idx, params, height_calc);
+                            conv_view.toggle_expand(focused_idx, params, viewport, height_calc);
                         }
                     }
                     KeyAction::ExpandMessage => {
@@ -50,7 +51,7 @@ pub fn handle_expand_action(mut state: AppState, action: KeyAction) -> AppState 
                             let idx = EntryIndex::new(i);
                             if let Some(entry) = conv_view.get(idx) {
                                 if !entry.is_expanded() {
-                                    conv_view.toggle_expand(idx, params, height_calc);
+                                    conv_view.toggle_expand(idx, params, viewport, height_calc);
                                 }
                             }
                         }
@@ -62,7 +63,7 @@ pub fn handle_expand_action(mut state: AppState, action: KeyAction) -> AppState 
                             let idx = EntryIndex::new(i);
                             if let Some(entry) = conv_view.get(idx) {
                                 if entry.is_expanded() {
-                                    conv_view.toggle_expand(idx, params, height_calc);
+                                    conv_view.toggle_expand(idx, params, viewport, height_calc);
                                 }
                             }
                         }
