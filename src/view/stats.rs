@@ -1380,6 +1380,47 @@ mod tests {
         );
     }
 
+    #[test]
+    fn stats_panel_displays_subagent_count() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        let stats = SessionStats {
+            total_usage: TokenUsage::default(),
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            main_agent_tool_counts: HashMap::new(),
+            subagent_tool_counts: HashMap::new(),
+            subagent_count: 7, // Test value - distinct from other tests
+            entry_count: 10,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Verify subagent section is displayed
+        assert!(
+            content.contains("Subagents:"),
+            "Expected 'Subagents:' label in output, got:\n{}",
+            content
+        );
+        // Verify the count value appears in context (not just anywhere)
+        assert!(
+            content.contains("Count: 7"),
+            "Expected subagent 'Count: 7' in output, got:\n{}",
+            content
+        );
+    }
+
     // ===== Tool count filtering tests =====
 
     #[test]
