@@ -1,5 +1,5 @@
 //! Claude Code Log Viewer - Entry Point
 
 fn main() {
-    todo!("main: print version")
+    println!("{}", env!("CARGO_PKG_VERSION"));
 }
