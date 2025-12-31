@@ -58,6 +58,7 @@ impl AcceptanceTestHarness {
     /// # Returns
     /// * `Ok(Self)` - Initialized harness with fixture loaded
     /// * `Err(TuiError)` - If fixture cannot be loaded or parsed
+    #[allow(dead_code)]
     pub fn from_fixture(path: &str) -> Result<Self, TuiError> {
         Self::from_fixture_with_size(path, 80, 24)
     }
