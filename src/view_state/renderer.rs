@@ -22,7 +22,7 @@ use crate::model::{ContentBlock, ConversationEntry, MessageContent};
 use crate::state::WrapMode;
 use crate::view::MessageStyles;
 use ratatui::{
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
 };
 
@@ -77,6 +77,7 @@ use ratatui::{
 /// let expanded_lines = compute_entry_lines(&entry, true, WrapMode::Wrap, 80, 10, 3, &styles, None);
 /// // Should return ~100 lines (all content), without index prefixes
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub fn compute_entry_lines(
     entry: &ConversationEntry,
     expanded: bool,
@@ -87,8 +88,6 @@ pub fn compute_entry_lines(
     styles: &MessageStyles,
     entry_index: Option<usize>,
 ) -> Vec<Line<'static>> {
-    // TODO: Implement entry_index prefix logic
-    let _ = entry_index;
     let mut lines = Vec::new();
 
     // Only handle Valid entries for now (minimal implementation)
@@ -147,6 +146,19 @@ pub fn compute_entry_lines(
 
             // Add separator line at end
             lines.push(Line::from(""));
+        }
+    }
+
+    // Apply entry index prefix if requested
+    if let Some(index) = entry_index {
+        // Prepend index to all lines EXCEPT the separator (last line)
+        let separator = lines.pop(); // Remove separator temporarily
+        lines = lines
+            .into_iter()
+            .map(|line| prepend_index_to_line(line, index))
+            .collect();
+        if let Some(sep) = separator {
+            lines.push(sep); // Re-add separator without prefix
         }
     }
 
@@ -372,6 +384,55 @@ fn render_block(
             lines
         }
     }
+}
+
+/// Format entry index as right-aligned 4-character string with separator.
+///
+/// Converts 0-based index to 1-based display number, right-aligns in 4 characters,
+/// and appends the "│" separator.
+///
+/// # Arguments
+/// * `entry_index` - 0-based index of the entry in the conversation
+///
+/// # Returns
+/// Formatted string like "   1│", "  42│", "1000│"
+///
+/// # Examples
+/// ```ignore
+/// format_entry_index(0)   => "   1│"
+/// format_entry_index(41)  => "  42│"
+/// format_entry_index(999) => "1000│"
+/// ```
+fn format_entry_index(entry_index: usize) -> String {
+    let display_num = entry_index + 1; // Convert 0-based to 1-based
+    format!("{:>4}│", display_num)
+}
+
+/// Prepend the entry index to a line as a styled prefix.
+///
+/// Takes an existing Line and prepends the entry index with DarkGray + DIM styling.
+/// The index is formatted as a right-aligned number with separator (e.g., "   1│").
+///
+/// # Arguments
+/// * `line` - The line to prepend the index to
+/// * `entry_index` - 0-based index of the entry in the conversation
+///
+/// # Returns
+/// A new Line with the index prepended as the first span
+fn prepend_index_to_line(line: Line<'static>, entry_index: usize) -> Line<'static> {
+    let index_text = format_entry_index(entry_index);
+    let index_span = Span::styled(
+        index_text,
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::DIM),
+    );
+
+    // Create new line with index span prepended
+    let mut new_spans = vec![index_span];
+    new_spans.extend(line.spans);
+
+    Line::from(new_spans)
 }
 
 #[cfg(test)]
