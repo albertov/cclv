@@ -230,17 +230,25 @@ fn render_conversation_pane(
     // Build tab list: Main Agent (tab 0) + Subagents (tabs 1..N)
     let subagent_ids: Vec<_> = state.session_view().subagent_ids().collect();
 
+    // FR-086: Build ConversationTab list with Main Agent at position 0
+    let mut conversation_tabs = vec![tabs::ConversationTab::Main];
+    conversation_tabs.extend(
+        subagent_ids
+            .iter()
+            .map(|id| tabs::ConversationTab::Subagent(id)),
+    );
+
     // Extract agent IDs with matches from search state
     let tabs_with_matches: HashSet<AgentId> = match &state.search {
         SearchState::Active { matches, .. } => agent_ids_with_matches(matches),
         _ => HashSet::new(), // No search active, no matches
     };
 
-    // Render tab bar (will be updated to include main agent at position 0)
+    // Render tab bar with Main Agent at position 0
     tabs::render_tab_bar(
         frame,
         tab_area,
-        &subagent_ids, // TODO: Include main agent at position 0
+        &conversation_tabs,
         state.selected_tab,
         &tabs_with_matches,
     );

@@ -144,7 +144,7 @@ fn create_entries_with_multiple_subagents() -> Vec<ConversationEntry> {
 // REMOVED: calculate_horizontal_constraints tests - function deleted in unified tab model
 
 #[test]
-fn render_layout_creates_three_areas_with_subagents() {
+fn render_layout_creates_unified_layout_with_subagents() {
     let mut terminal = create_test_terminal();
     let entries = create_entries_with_subagents();
     let mut state = AppState::new();
@@ -158,24 +158,34 @@ fn render_layout_creates_three_areas_with_subagents() {
 
     let buffer = terminal.backend().buffer().clone();
 
-    // Verify layout structure exists by checking for:
-    // 1. Main pane border/title (left side)
-    // 2. Subagent pane border/title (right side)
-    // 3. Status bar (bottom)
+    // FR-083-088: Verify unified layout structure:
+    // 1. Tab bar with "Conversations" title
+    // 2. "Main Agent" tab at position 0
+    // 3. Subagent tabs following
+    // 4. Status bar (bottom)
 
-    // Look for "Main Agent" title somewhere in the buffer
     let content = buffer
         .content
         .iter()
         .map(|c| c.symbol())
         .collect::<String>();
+
+    // Tab bar should have "Conversations" title
+    assert!(
+        content.contains("Conversations"),
+        "Tab bar should have 'Conversations' title"
+    );
+
+    // "Main Agent" tab should be present
     assert!(
         content.contains("Main Agent"),
-        "Main agent pane title should be rendered"
+        "Main Agent tab should be rendered at position 0"
     );
+
+    // At least one subagent should be present in tabs
     assert!(
-        content.contains("Subagent"),
-        "Subagent pane should be rendered"
+        content.contains("subagent"),
+        "Subagent tabs should be rendered"
     );
 }
 
@@ -296,10 +306,10 @@ fn render_layout_displays_tab_bar_in_subagent_pane() {
         "Tab bar should display at least one subagent ID"
     );
 
-    // Verify "Subagents" title is present (indicates tab bar is rendered)
+    // Verify "Conversations" title is present (indicates tab bar is rendered)
     assert!(
-        content.contains("Subagents"),
-        "Tab bar should have 'Subagents' title"
+        content.contains("Conversations"),
+        "Tab bar should have 'Conversations' title"
     );
 }
 

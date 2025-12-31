@@ -1,6 +1,6 @@
-//! Subagent tab bar widget.
+//! Conversation tab bar widget.
 //!
-//! Displays tabs for each subagent using ratatui's Tabs widget.
+//! Displays tabs for all conversations (Main Agent + Subagents).
 //! Selection state is managed by AppState.selected_tab.
 
 use crate::model::AgentId;
@@ -13,48 +13,77 @@ use ratatui::{
 };
 use std::collections::HashSet;
 
-/// Render the subagent tab bar.
+/// Represents a conversation tab in the tab bar.
+///
+/// FR-083/084/086: Tab bar always includes Main Agent at position 0,
+/// followed by subagents in spawn order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConversationTab<'a> {
+    /// Main agent conversation (always at position 0)
+    Main,
+    /// Subagent conversation identified by AgentId
+    Subagent(&'a AgentId),
+}
+
+/// Render the conversation tab bar.
+///
+/// FR-083/084/086/088: Tab bar always includes Main Agent at position 0,
+/// followed by subagents. Tab bar always visible, even with no subagents.
 ///
 /// # Arguments
 /// * `frame` - The ratatui frame to render into
 /// * `area` - The area to render the tab bar within
-/// * `agent_ids` - Ordered list of subagent IDs (from Session::subagent_ids_ordered)
+/// * `tabs` - Ordered list of conversation tabs (Main Agent at index 0, subagents follow)
 /// * `selected_tab` - Index of selected tab (None means no selection)
 /// * `tabs_with_matches` - Set of agent IDs that contain search matches (empty set if no search active)
 ///
 /// # Behavior
-/// - Shows one tab per subagent with agent ID as label
+/// - Tab 0 is always "Main Agent"
+/// - Tabs 1..N show subagent IDs as labels
 /// - Highlights the selected tab if Some(index) and index is in bounds
 /// - Supports deselection via None (no highlight)
 /// - Out-of-bounds indices are treated as None
-/// - Agent IDs may be truncated if they exceed available space
+/// - Labels may be truncated if they exceed available space
 /// - Tabs with search matches display a visual indicator (•)
 pub fn render_tab_bar(
     frame: &mut Frame,
     area: Rect,
-    agent_ids: &[&AgentId],
+    tabs: &[ConversationTab],
     selected_tab: Option<usize>,
     tabs_with_matches: &HashSet<AgentId>,
 ) {
-    // Convert agent IDs to tab titles with match indicators
-    let titles: Vec<Line> = agent_ids
+    // Convert conversation tabs to titles with match indicators
+    let titles: Vec<Line> = tabs
         .iter()
-        .map(|id| {
-            let label = if tabs_with_matches.contains(*id) {
-                format!("{} •", id.as_str())
-            } else {
-                id.as_str().to_string()
+        .map(|tab| {
+            let label = match tab {
+                ConversationTab::Main => {
+                    // Main agent - no match indicator (matches apply to subagents only)
+                    "Main Agent".to_string()
+                }
+                ConversationTab::Subagent(agent_id) => {
+                    // Subagent - show match indicator if matches exist
+                    if tabs_with_matches.contains(*agent_id) {
+                        format!("{} •", agent_id.as_str())
+                    } else {
+                        agent_id.as_str().to_string()
+                    }
+                }
             };
             Line::from(label)
         })
         .collect();
 
     // Validate bounds: treat out-of-bounds as None
-    let validated_selection = selected_tab.filter(|&idx| idx < agent_ids.len());
+    let validated_selection = selected_tab.filter(|&idx| idx < tabs.len());
 
     // Create Tabs widget with block
-    let mut tabs = Tabs::new(titles)
-        .block(Block::default().borders(Borders::ALL).title("Subagents"))
+    let mut tabs_widget = Tabs::new(titles)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Conversations"),
+        )
         .style(Style::default().fg(Color::White));
 
     // Apply highlight only if we have a valid selection
@@ -62,13 +91,13 @@ pub fn render_tab_bar(
     // - With selection: set highlight_style and select
     // - Without selection: omit highlight_style (tabs render without highlight)
     if let Some(idx) = validated_selection {
-        tabs = tabs
+        tabs_widget = tabs_widget
             .highlight_style(Style::default().fg(Color::Yellow))
             .select(idx);
     }
 
     // Render the tabs widget
-    frame.render_widget(tabs, area);
+    frame.render_widget(tabs_widget, area);
 }
 
 #[cfg(test)]
@@ -96,14 +125,14 @@ mod tests {
     }
 
     #[test]
-    fn render_tab_bar_displays_single_tab() {
+    fn render_tab_bar_displays_single_subagent_tab() {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("agent-abc");
-        let agent_ids = vec![&agent1];
+        let tabs = vec![ConversationTab::Main, ConversationTab::Subagent(&agent1)];
 
         terminal
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, Some(0), &no_matches());
+                render_tab_bar(frame, frame.area(), &tabs, Some(1), &no_matches());
             })
             .unwrap();
 
@@ -114,7 +143,11 @@ mod tests {
             .map(|c| c.symbol())
             .collect::<String>();
 
-        // Should contain the agent ID somewhere in the buffer
+        // Should contain both Main Agent and the subagent ID
+        assert!(
+            buffer_str.contains("Main Agent"),
+            "Tab bar should display 'Main Agent'"
+        );
         assert!(
             buffer_str.contains("agent-abc"),
             "Tab bar should display agent ID 'agent-abc'"
@@ -127,11 +160,16 @@ mod tests {
         let agent1 = agent_id("agent-1");
         let agent2 = agent_id("agent-2");
         let agent3 = agent_id("agent-3");
-        let agent_ids = vec![&agent1, &agent2, &agent3];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+            ConversationTab::Subagent(&agent3),
+        ];
 
         terminal
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, Some(1), &no_matches());
+                render_tab_bar(frame, frame.area(), &tabs, Some(1), &no_matches());
             })
             .unwrap();
 
@@ -142,7 +180,8 @@ mod tests {
             .map(|c| c.symbol())
             .collect::<String>();
 
-        // All three agent IDs should be present
+        // Main Agent and all three subagent IDs should be present
+        assert!(buffer_str.contains("Main Agent"), "Should contain Main Agent");
         assert!(buffer_str.contains("agent-1"), "Should contain agent-1");
         assert!(buffer_str.contains("agent-2"), "Should contain agent-2");
         assert!(buffer_str.contains("agent-3"), "Should contain agent-3");
@@ -152,11 +191,11 @@ mod tests {
     fn render_tab_bar_handles_no_selection() {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("agent-xyz");
-        let agent_ids = vec![&agent1];
+        let tabs = vec![ConversationTab::Main, ConversationTab::Subagent(&agent1)];
 
         // Should not panic with None selection
         let result = terminal.draw(|frame| {
-            render_tab_bar(frame, frame.area(), &agent_ids, None, &no_matches());
+            render_tab_bar(frame, frame.area(), &tabs, None, &no_matches());
         });
 
         assert!(
@@ -166,18 +205,18 @@ mod tests {
     }
 
     #[test]
-    fn render_tab_bar_handles_empty_agent_list() {
+    fn render_tab_bar_handles_main_agent_only() {
         let mut terminal = create_test_terminal();
-        let agent_ids: Vec<&AgentId> = vec![];
+        let tabs = vec![ConversationTab::Main];
 
-        // Should not panic with empty list
+        // Should not panic with only Main Agent (no subagents)
         let result = terminal.draw(|frame| {
-            render_tab_bar(frame, frame.area(), &agent_ids, None, &no_matches());
+            render_tab_bar(frame, frame.area(), &tabs, None, &no_matches());
         });
 
         assert!(
             result.is_ok(),
-            "Should render without error when agent list is empty"
+            "Should render without error when only Main Agent exists"
         );
     }
 
@@ -186,11 +225,15 @@ mod tests {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("agent-1");
         let agent2 = agent_id("agent-2");
-        let agent_ids = vec![&agent1, &agent2];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+        ];
 
-        // Selecting index 1 (agent-2) should work
+        // Selecting index 1 (first subagent) should work
         let result = terminal.draw(|frame| {
-            render_tab_bar(frame, frame.area(), &agent_ids, Some(1), &no_matches());
+            render_tab_bar(frame, frame.area(), &tabs, Some(1), &no_matches());
         });
 
         assert!(result.is_ok(), "Should render with valid selection index");
@@ -200,11 +243,11 @@ mod tests {
     fn render_tab_bar_uses_agent_id_as_label() {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("subagent-12345");
-        let agent_ids = vec![&agent1];
+        let tabs = vec![ConversationTab::Main, ConversationTab::Subagent(&agent1)];
 
         terminal
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, Some(0), &no_matches());
+                render_tab_bar(frame, frame.area(), &tabs, Some(1), &no_matches());
             })
             .unwrap();
 
@@ -227,11 +270,15 @@ mod tests {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("agent-1");
         let agent2 = agent_id("agent-2");
-        let agent_ids = vec![&agent1, &agent2];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+        ];
 
-        // Selecting index 5 when only 2 agents exist should be treated as None
+        // Selecting index 5 when only 3 tabs exist should be treated as None
         let result = terminal.draw(|frame| {
-            render_tab_bar(frame, frame.area(), &agent_ids, Some(5), &no_matches());
+            render_tab_bar(frame, frame.area(), &tabs, Some(5), &no_matches());
         });
 
         assert!(
@@ -246,28 +293,32 @@ mod tests {
 
         let agent1 = agent_id("agent-1");
         let agent2 = agent_id("agent-2");
-        let agent_ids = vec![&agent1, &agent2];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+        ];
 
         // Render with None selection
         let mut terminal_none = create_test_terminal();
         terminal_none
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, None, &no_matches());
+                render_tab_bar(frame, frame.area(), &tabs, None, &no_matches());
             })
             .unwrap();
         let buffer_none = terminal_none.backend().buffer().clone();
 
-        // Render with Some(0) selection
+        // Render with Some(0) selection (Main Agent)
         let mut terminal_some = create_test_terminal();
         terminal_some
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, Some(0), &no_matches());
+                render_tab_bar(frame, frame.area(), &tabs, Some(0), &no_matches());
             })
             .unwrap();
         let buffer_some = terminal_some.backend().buffer().clone();
 
         // The two buffers should differ - None should not highlight any tab,
-        // while Some(0) should highlight the first tab
+        // while Some(0) should highlight Main Agent tab
         let none_has_yellow = buffer_none
             .content()
             .iter()
@@ -283,7 +334,7 @@ mod tests {
         );
         assert!(
             some_has_yellow,
-            "Some(0) selection should highlight first tab (has yellow)"
+            "Some(0) selection should highlight Main Agent tab (has yellow)"
         );
     }
 
@@ -294,7 +345,11 @@ mod tests {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("agent-1");
         let agent2 = agent_id("agent-2");
-        let agent_ids = vec![&agent1, &agent2];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+        ];
 
         // Create match set with agent-1 having matches
         let mut matches = HashSet::new();
@@ -302,7 +357,7 @@ mod tests {
 
         terminal
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, None, &matches);
+                render_tab_bar(frame, frame.area(), &tabs, None, &matches);
             })
             .unwrap();
 
@@ -325,14 +380,18 @@ mod tests {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("agent-1");
         let agent2 = agent_id("agent-2");
-        let agent_ids = vec![&agent1, &agent2];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+        ];
 
         // Empty match set - no matches
         let matches = HashSet::new();
 
         terminal
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, None, &matches);
+                render_tab_bar(frame, frame.area(), &tabs, None, &matches);
             })
             .unwrap();
 
@@ -356,7 +415,12 @@ mod tests {
         let agent1 = agent_id("agent-1");
         let agent2 = agent_id("agent-2");
         let agent3 = agent_id("agent-3");
-        let agent_ids = vec![&agent1, &agent2, &agent3];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+            ConversationTab::Subagent(&agent3),
+        ];
 
         // Both agent-1 and agent-3 have matches
         let mut matches = HashSet::new();
@@ -365,7 +429,7 @@ mod tests {
 
         terminal
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, None, &matches);
+                render_tab_bar(frame, frame.area(), &tabs, None, &matches);
             })
             .unwrap();
 
@@ -390,7 +454,11 @@ mod tests {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("agent-xxx");
         let agent2 = agent_id("agent-yyy");
-        let agent_ids = vec![&agent1, &agent2];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+        ];
 
         // Only agent-yyy has matches
         let mut matches = HashSet::new();
@@ -398,7 +466,7 @@ mod tests {
 
         terminal
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, None, &matches);
+                render_tab_bar(frame, frame.area(), &tabs, None, &matches);
             })
             .unwrap();
 
@@ -422,15 +490,19 @@ mod tests {
         let mut terminal = create_test_terminal();
         let agent1 = agent_id("agent-aaa");
         let agent2 = agent_id("agent-bbb");
-        let agent_ids = vec![&agent1, &agent2];
+        let tabs = vec![
+            ConversationTab::Main,
+            ConversationTab::Subagent(&agent1),
+            ConversationTab::Subagent(&agent2),
+        ];
 
-        // agent-aaa has matches and is selected
+        // agent-aaa (tab index 1) has matches and is selected
         let mut matches = HashSet::new();
         matches.insert(agent_id("agent-aaa"));
 
         terminal
             .draw(|frame| {
-                render_tab_bar(frame, frame.area(), &agent_ids, Some(0), &matches);
+                render_tab_bar(frame, frame.area(), &tabs, Some(1), &matches);
             })
             .unwrap();
 
