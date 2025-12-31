@@ -74,8 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Initialize tracing with configured log file path (FR-054/055)
-    cclv::logging::init(&config.log_file_path)
-        .map_err(|e| format!("Failed to initialize logging: {}", e))?;
+    cclv::logging::init(&config.log_file_path)?;
 
     info!(
         config = ?config,

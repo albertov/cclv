@@ -3,7 +3,34 @@
 //! Logs are written to a file instead of being captured in-app.
 //! Users can monitor logs via `tail -f` in a separate terminal.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use thiserror::Error;
+
+/// Error type for logging initialization failures.
+#[derive(Debug, Error)]
+pub enum LoggingError {
+    /// Failed to create log directory
+    #[error("Failed to create log directory at {path:?}: {source}")]
+    DirectoryCreation {
+        /// The directory path that failed to be created
+        path: PathBuf,
+        /// The underlying I/O error
+        #[source]
+        source: std::io::Error,
+    },
+
+    /// Invalid log file path (no filename component)
+    #[error("Invalid log file path: {0:?}")]
+    InvalidPath(PathBuf),
+
+    /// Log path has no parent directory
+    #[error("Log path has no parent directory: {0:?}")]
+    NoParentDirectory(PathBuf),
+
+    /// Tracing subscriber already initialized
+    #[error("Tracing subscriber already initialized")]
+    SubscriberAlreadySet,
+}
 
 /// Initialize the tracing subscriber with file-based logging.
 ///
@@ -18,32 +45,34 @@ use std::path::Path;
 ///
 /// # Returns
 /// * `Ok(())` if initialization succeeded
-/// * `Err(msg)` if the subscriber was already initialized or directory creation failed
-pub fn init(log_path: &Path) -> Result<(), String> {
+/// * `Err(LoggingError)` if the subscriber was already initialized or directory creation failed
+pub fn init(log_path: &Path) -> Result<(), LoggingError> {
     use tracing_subscriber::EnvFilter;
 
     // Create log directory if it doesn't exist
     if let Some(parent) = log_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create log directory: {}", e))?;
+        std::fs::create_dir_all(parent).map_err(|source| LoggingError::DirectoryCreation {
+            path: parent.to_path_buf(),
+            source,
+        })?;
     }
 
     // Get log file name and directory
     let file_name = log_path
         .file_name()
         .and_then(|n| n.to_str())
-        .ok_or_else(|| "Invalid log file path".to_string())?;
+        .ok_or_else(|| LoggingError::InvalidPath(log_path.to_path_buf()))?;
 
     let directory = log_path
         .parent()
-        .ok_or_else(|| "Log path has no parent directory".to_string())?;
+        .ok_or_else(|| LoggingError::NoParentDirectory(log_path.to_path_buf()))?;
 
     // Create file appender
     let file_appender = tracing_appender::rolling::never(directory, file_name);
 
     // Respect RUST_LOG, default to "info"
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     // Initialize subscriber with file output
     tracing_subscriber::fmt()
@@ -51,7 +80,7 @@ pub fn init(log_path: &Path) -> Result<(), String> {
         .with_writer(file_appender)
         .with_ansi(false) // No ANSI colors in log files
         .try_init()
-        .map_err(|e| format!("Failed to initialize tracing subscriber: {}", e))
+        .map_err(|_| LoggingError::SubscriberAlreadySet)
 }
 
 #[cfg(test)]
