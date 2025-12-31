@@ -2863,15 +2863,15 @@ fn bug_tab_click_region_mismatch() {
     let initial_output = buffer_to_string(app.terminal().backend().buffer());
     insta::assert_snapshot!("bug_tab_click_initial", initial_output.clone());
 
-    // Verify initial state shows Main Agent
+    // Verify initial state shows Main
     assert!(
-        initial_output.contains("Main Agent (2 entries)"),
-        "Should start with Main Agent tab active"
+        initial_output.contains("Main (2 entries)") || initial_output.contains("Main ["),
+        "Should start with Main tab active"
     );
 
-    // The tab bar shows: "│ Main Agent │ subagent_alpha │ subagent_beta │ subagent_gamma"
-    // Visual position of "subagent_alpha" starts around column 15
-    // We click at column 20, row 2 (where the tab bar is rendered, 0-indexed)
+    // The tab bar shows: "│ Main │ subagent_alpha │ subagent_beta │ subagent_gamma"
+    // Visual position of "subagent_alpha" starts around column 10
+    // We click at column 15, row 2 (where the tab bar is rendered, 0-indexed)
 
     let tab_before = app.app_state().selected_tab_index();
 

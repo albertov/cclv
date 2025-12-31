@@ -69,7 +69,7 @@ tail -f "$LATEST" | cclogview
 │ Claude Code Log Viewer                              claude-opus-4-5 [LIVE] │
 ├───────────────────────────────┬─────────────────────────────────────────────┤
 │                               │                                             │
-│  Main Agent                   │  Subagents  [agent-a7b2877] [agent-b3c4d5] │
+│  Main                         │  Subagents  [agent-a7b2877] [agent-b3c4d5] │
 │                               │                                             │
 │  👤 User: Fix the bug in...   │  👤 User: Research best practices...       │
 │                               │                                             │
@@ -273,7 +273,7 @@ Press `s` to toggle the statistics panel:
 ```
 ┌─ Statistics ─────────────────────┐
 │                                  │
-│  Filter: [Global] Main Subagent  │
+│  Filter: [Global] Main [Subagent]  │
 │                                  │
 │  Tokens                          │
 │  ├─ Input:  125,432              │

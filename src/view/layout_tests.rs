@@ -160,7 +160,7 @@ fn render_layout_creates_unified_layout_with_subagents() {
 
     // FR-083-088: Verify unified layout structure:
     // 1. Tab bar with "Conversations" title
-    // 2. "Main Agent" tab at position 0
+    // 2. "Main" tab at position 0
     // 3. Subagent tabs following
     // 4. Status bar (bottom)
 
@@ -176,10 +176,10 @@ fn render_layout_creates_unified_layout_with_subagents() {
         "Tab bar should have 'Conversations' title"
     );
 
-    // "Main Agent" tab should be present
+    // "Main" tab should be present
     assert!(
-        content.contains("Main Agent"),
-        "Main Agent tab should be rendered at position 0"
+        content.contains("Main"),
+        "Main tab should be rendered at position 0"
     );
 
     // At least one subagent should be present in tabs
@@ -211,7 +211,7 @@ fn render_layout_hides_subagent_pane_when_no_subagents() {
 
     // Main agent should be visible
     assert!(
-        content.contains("Main Agent"),
+        content.contains("Main"),
         "Main agent pane should be rendered"
     );
 
@@ -1166,7 +1166,7 @@ fn unified_layout_has_no_horizontal_split() {
 }
 
 /// FR-084: Test that tab bar includes main agent at position 0.
-/// Tab 0 should show "Main Agent" label, tabs 1..N are subagents.
+/// Tab 0 should show "Main" label, tabs 1..N are subagents.
 #[test]
 fn unified_tab_bar_includes_main_agent_at_position_zero() {
     let mut terminal = create_test_terminal();
@@ -1183,16 +1183,16 @@ fn unified_tab_bar_includes_main_agent_at_position_zero() {
 
     let rendered = format!("{:?}", terminal.backend().buffer());
 
-    // EXPECTATION: Tab bar should contain "Main Agent" label at first position
+    // EXPECTATION: Tab bar should contain "Main" label at first position
     // This will FAIL until we update render_subagent_pane to include main agent
     assert!(
-        rendered.contains("Main Agent") || rendered.contains("[Main]"),
+        rendered.contains("Main") || rendered.contains("[Main]"),
         "FR-084: Tab bar should show main agent at position 0"
     );
 }
 
 /// FR-085: Test that tab bar always shows (even when only main agent exists).
-/// With unified tabs, tab bar is always present showing at minimum "Main Agent".
+/// With unified tabs, tab bar is always present showing at minimum "Main".
 #[test]
 fn unified_tab_bar_shows_for_main_only_session() {
     let mut terminal = create_test_terminal();
@@ -1212,7 +1212,7 @@ fn unified_tab_bar_shows_for_main_only_session() {
     // Currently, tab bar only shows when has_subagents == true
     // This will FAIL until we always render tab bar
     assert!(
-        rendered.contains("Main Agent") || rendered.contains("[Main]"),
+        rendered.contains("Main") || rendered.contains("[Main]"),
         "FR-085: Tab bar should always show, even for main-only sessions"
     );
 }
@@ -1311,7 +1311,7 @@ fn unified_tabs_work_with_main_pane_focused() {
     // Currently, tab bar only shows when has_subagents && focus == Subagent
     // This will FAIL until we decouple tab bar from focus state
     assert!(
-        rendered.contains("Main Agent") || rendered.contains("[Main]"),
+        rendered.contains("Main") || rendered.contains("[Main]"),
         "FR-088: Tabs should work when Main pane is focused"
     );
 }

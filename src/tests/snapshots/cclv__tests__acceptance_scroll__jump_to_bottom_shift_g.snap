@@ -3,9 +3,9 @@ source: src/tests/acceptance_scroll.rs
 expression: bottom_output
 ---
 ┌Conversations─────────────────────────────────────────────────────────────────┐
-│ Main Agent                                                                   │
+│ Main                                                                         │
 └──────────────────────────────────────────────────────────────────────────────┘
-┌Main Agent [Opus] (20 entries) ▶──────────────────────────────────────────────┐
+┌Main [Opus] (20 entries) ▶────────────────────────────────────────────────────┐
 ││        "command": "bd show cclv-07v --json 2>/dev/null | head -100",        │
 ││        "description": "Show epic details"                                   │
 ││      }                                                                      │

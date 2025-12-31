@@ -98,7 +98,7 @@ A developer wants to understand the cost and efficiency of a session. They check
 **Acceptance Scenarios**:
 
 1. **Given** a loaded session, **When** user opens the stats panel, **Then** they see total input tokens, output tokens, and estimated cost
-2. **Given** stats are displayed, **When** user filters by "Main Agent", **Then** only main agent statistics are shown (excluding subagent activity)
+2. **Given** stats are displayed, **When** user filters by "Main", **Then** only main agent statistics are shown (excluding subagent activity)
 3. **Given** stats are displayed, **When** user views tool breakdown, **Then** they see each tool name with count of invocations (e.g., "Read: 15, Write: 8, Bash: 12")
 4. **Given** a session with multiple subagents, **When** user filters by a specific subagent ID, **Then** only that subagent's statistics are shown
 
@@ -157,7 +157,7 @@ A developer is looking for a specific piece of information in a long session. Th
 
 **Core Viewing**
 - **FR-001**: System MUST display the main agent's conversation in a dedicated pane
-- **FR-002**: System MUST show the model name being used by each agent in the conversation pane title, formatted as 'Agent Label [Model Display Name] (N entries)'. Example: 'Main Agent [Opus] (15 entries)' or 'Subagent toolu_abc [Haiku] (8 entries)'. Tab bar labels display only the agent identifier without model information.
+- **FR-002**: System MUST show the model name being used by each agent in the conversation pane title, formatted as 'Agent Label [Model Display Name] (N entries)'. Example: 'Main [Opus] (15 entries)' or 'toolu_abc [Haiku] (8 entries)'. Tab bar labels display only the agent identifier without model information.
 - **FR-003**: System MUST display subagent conversations in a tabbed pane, one tab per subagent
 - **FR-004**: System MUST create a new tab when a subagent spawn event is detected in the log
 - **FR-005**: System MUST keep subagent tabs open after the subagent completes

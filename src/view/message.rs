@@ -158,7 +158,7 @@ impl<'a> Widget for ConversationView<'a> {
                 .map(|m| format!(" [{}]", m.display_name()))
                 .unwrap_or_default();
             format!(
-                "Subagent {}{} ({} entries)",
+                "{}{} ({} entries)",
                 agent_id, model_info, entry_count
             )
         } else {
@@ -168,7 +168,7 @@ impl<'a> Widget for ConversationView<'a> {
                 .model()
                 .map(|m| format!(" [{}]", m.display_name()))
                 .unwrap_or_default();
-            format!("Main Agent{} ({} entries)", model_info, entry_count)
+            format!("Main{} ({} entries)", model_info, entry_count)
         };
 
         // Calculate viewport dimensions (area minus borders)

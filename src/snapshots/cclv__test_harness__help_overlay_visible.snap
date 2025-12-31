@@ -3,9 +3,9 @@ source: src/test_harness.rs
 expression: output
 ---
 ┌Conversations─────────────────────────────────────────────────────────────────┐
-│ Main Agent                                                                   │
+│ Main                                                                         │
 └───────────┌ Keyboard Shortcuts ──────────────────────────────────┐───────────┘
-┌Main Agent │Navigation                                            │───────────┐
+┌Main [Opus]│Navigation                                            │───────────┐
 │           │  j/↓         Scroll down                             │           │
 ││  2 Hello │  k/↑         Scroll up                               │           │
 │           │  h/←         Scroll left (for long lines)            │           │

@@ -3,9 +3,9 @@ source: src/tests/view_snapshots.rs
 expression: output_before
 ---
 ┌Conversations─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Main Agent │ toolu_013heDTEdCz8mvrxEGezZteB │ toolu_014WRyZPPnVxekx3ACaBtEz8 │ toolu_01UcpbyRyV4mTttzBQZ2tjiX                                                                                        │
+│ Main │ toolu_013heDTEdCz8mvrxEGezZteB │ toolu_014WRyZPPnVxekx3ACaBtEz8 │ toolu_01UcpbyRyV4mTttzBQZ2tjiX                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌Subagent toolu_013heDTEdCz8mvrxEGezZteB [Haiku] (79 entries)──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+┌toolu_013heDTEdCz8mvrxEGezZteB [Haiku] (79 entries)───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 ││  1 ## Review Task                                                                                                                                                                                   │
 ││                                                                                                                                                                                                     │
 ││    Review implementation for task: cclv-07v.8.12 - Export search-aware rendering for snapshot testing                                                                                               │

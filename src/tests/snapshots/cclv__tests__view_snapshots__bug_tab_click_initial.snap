@@ -3,9 +3,9 @@ source: src/tests/view_snapshots.rs
 expression: initial_output.clone()
 ---
 ┌Conversations─────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Main Agent │ subagent_alpha │ subagent_beta │ subagent_gamma                                                         │
+│ Main │ subagent_alpha │ subagent_beta │ subagent_gamma                                                               │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌Main Agent [Opus] (2 entries)─────────────────────────────────────────────────────────────────────────────────────────┐
+┌Main [Opus] (2 entries)───────────────────────────────────────────────────────────────────────────────────────────────┐
 ││  1 Test                                                                                                             │
 │                                                                                                                      │
 ││  2 Main agent response                                                                                              │

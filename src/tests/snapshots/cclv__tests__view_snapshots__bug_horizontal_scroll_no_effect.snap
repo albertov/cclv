@@ -3,9 +3,9 @@ source: src/tests/view_snapshots.rs
 expression: scrolled_output
 ---
 ┌Conversations─────────────────────────────────────────────┐
-│ Main Agent                                               │
+│ Main                                                     │
 └──────────────────────────────────────────────────────────┘
-┌◀ Main Agent [Opus] (1 entries) ▶─────────────────────────┐
+┌◀ Main [Opus] (1 entries) ▶───────────────────────────────┐
 ││  1                                                      │
 ││                                                         │
 ││    mplete/content/MARKER_END_OF_LINE.txt"               │

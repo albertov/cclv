@@ -3,7 +3,7 @@ source: src/tests/view_snapshots.rs
 expression: output
 ---
 ┌Conversations───────────────────────────────────┐
-│ Main Agent │ agent-1 │ agent-2                 │
+│ Main │ agent-1 │ agent-2                       │
 │                                                │
 │                                                │
 └────────────────────────────────────────────────┘

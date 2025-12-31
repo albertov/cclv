@@ -3,9 +3,9 @@ source: src/tests/acceptance_scroll.rs
 expression: second_page_output
 ---
 ┌Conversations─────────────────────────────────────────────────────────────────┐
-│ Main Agent                                                                   │
+│ Main                                                                         │
 └──────────────────────────────────────────────────────────────────────────────┘
-┌Main Agent [Opus] (20 entries) ▶──────────────────────────────────────────────┐
+┌Main [Opus] (20 entries) ▶────────────────────────────────────────────────────┐
 ││    3. **Check checklists**: Check if there are any checklists               │
 ││    4. **Load implementation context**: Read the spec files                  │
 ││    5. **Find ready work**: Use bd ready to find available work              │

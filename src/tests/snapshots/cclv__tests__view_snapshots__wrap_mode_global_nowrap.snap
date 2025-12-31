@@ -2,7 +2,7 @@
 source: src/tests/view_snapshots.rs
 expression: output
 ---
-┌Main Agent (1 entries) ▶──────────────────────────────────┐
+┌Main (1 entries) ▶────────────────────────────────────────┐
 ││  1 This is a very long line that definitely exceeds the │
 │                                                          │
 │                                                          │

@@ -3,9 +3,9 @@ source: src/tests/view_snapshots.rs
 expression: output
 ---
 ┌Conversations─────────────────────────────────────────────┐
-│ Main Agent                                               │
+│ Main                                                     │
 └──────────────────────────────────────────────────────────┘
-┌Main Agent [Opus] (1 entries)─────────────────────────────┐
+┌Main [Opus] (1 entries)───────────────────────────────────┐
 ││  1 This is a short line.                                │
 ││                                                         │
 ││    This is a very long line that should definitely wrap │

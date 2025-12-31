@@ -59,7 +59,7 @@ pub fn render_tab_bar(
             let label = match tab {
                 ConversationTab::Main => {
                     // Main agent - no match indicator (matches apply to subagents only)
-                    "Main Agent".to_string()
+                    "Main".to_string()
                 }
                 ConversationTab::Subagent(agent_id) => {
                     // Subagent - show match indicator if matches exist
@@ -143,10 +143,10 @@ mod tests {
             .map(|c| c.symbol())
             .collect::<String>();
 
-        // Should contain both Main Agent and the subagent ID
+        // Should contain both Main and the subagent ID
         assert!(
-            buffer_str.contains("Main Agent"),
-            "Tab bar should display 'Main Agent'"
+            buffer_str.contains("Main"),
+            "Tab bar should display 'Main'"
         );
         assert!(
             buffer_str.contains("agent-abc"),
@@ -180,10 +180,10 @@ mod tests {
             .map(|c| c.symbol())
             .collect::<String>();
 
-        // Main Agent and all three subagent IDs should be present
+        // Main and all three subagent IDs should be present
         assert!(
-            buffer_str.contains("Main Agent"),
-            "Should contain Main Agent"
+            buffer_str.contains("Main"),
+            "Should contain Main"
         );
         assert!(buffer_str.contains("agent-1"), "Should contain agent-1");
         assert!(buffer_str.contains("agent-2"), "Should contain agent-2");
@@ -558,10 +558,10 @@ mod tests {
             .map(|c| c.symbol())
             .collect::<String>();
 
-        // FR-086: Main Agent should appear in tab bar
+        // FR-086: Main should appear in tab bar
         assert!(
-            buffer_str.contains("Main Agent"),
-            "Tab bar should display 'Main Agent' at position 0"
+            buffer_str.contains("Main"),
+            "Tab bar should display 'Main' at position 0"
         );
     }
 
@@ -587,8 +587,8 @@ mod tests {
 
         // FR-084/088: Tab bar should NOT be empty when only main agent exists
         assert!(
-            buffer_str.contains("Main Agent"),
-            "Tab bar should show 'Main Agent' even with no subagents"
+            buffer_str.contains("Main"),
+            "Tab bar should show 'Main' even with no subagents"
         );
     }
 
@@ -649,8 +649,8 @@ mod tests {
 
         // All tabs should be present
         assert!(
-            buffer_str.contains("Main Agent"),
-            "Should contain Main Agent"
+            buffer_str.contains("Main"),
+            "Should contain Main"
         );
         assert!(
             buffer_str.contains("subagent-alpha"),
@@ -661,12 +661,12 @@ mod tests {
             "Should contain subagent-beta"
         );
 
-        // Main Agent should appear before subagents in buffer
-        let main_pos = buffer_str.find("Main Agent").unwrap();
+        // Main should appear before subagents in buffer
+        let main_pos = buffer_str.find("Main").unwrap();
         let alpha_pos = buffer_str.find("subagent-alpha").unwrap();
         assert!(
             main_pos < alpha_pos,
-            "Main Agent should appear before subagents in tab order"
+            "Main should appear before subagents in tab order"
         );
     }
 }
