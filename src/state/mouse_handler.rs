@@ -71,24 +71,59 @@ pub fn detect_tab_click(
         return TabClickResult::NoTab;
     }
 
-    // Calculate which tab was clicked
-    // Each tab gets equal width
-    let tab_count = agent_ids.len() as u16;
-    let tab_width = tab_area.width / tab_count;
+    // Calculate actual tab widths based on rendered layout
+    // ratatui's Tabs widget renders tabs left-aligned with format:
+    // "│ {label} │ {label} │ {label} ..."
+    // Each tab consists of:
+    // - Divider: "│" (1 char)
+    // - Space: " " (1 char)
+    // - Label text: variable length
+    // - Space: " " (1 char)
+    //
+    // Total width per tab: 1 + 1 + label.len() + 1 = label.len() + 3
+    //
+    // NOTE: The visual tab bar includes "Main Agent" at index 0, followed by subagents.
+    // The agent_ids parameter only contains subagents, but we need to account for the
+    // Main Agent tab in our position calculations.
 
-    // Guard: if tabs are too narrow to render (width rounds to zero), no click
-    if tab_width == 0 {
-        return TabClickResult::NoTab;
+    // Build cumulative position array for each tab's start position
+    // Index 0 = Main Agent, Index 1+ = Subagents
+    let total_tabs = 1 + agent_ids.len(); // Main + subagents
+    let mut cumulative_positions = Vec::with_capacity(total_tabs + 1);
+    cumulative_positions.push(0u16);
+
+    // Main Agent tab: "│ Main Agent "
+    let main_agent_width = "Main Agent".len() as u16 + 3;
+    cumulative_positions.push(main_agent_width);
+
+    // Subagent tabs
+    for agent_id in agent_ids {
+        let label_len = agent_id.as_str().len() as u16;
+        let tab_width = label_len + 3; // "│ {label} "
+        let next_pos = cumulative_positions
+            .last()
+            .unwrap()
+            .saturating_add(tab_width);
+        cumulative_positions.push(next_pos);
     }
 
     // Relative position within tab area
     let relative_x = click_x - tab_area.x;
 
-    // Which tab index (0-based)
-    let tab_index = (relative_x / tab_width) as usize;
+    // Find which tab region contains the click
+    // We need to find the largest index i where cumulative_positions[i] <= relative_x
+    let mut tab_index = 0;
+    for (i, &pos) in cumulative_positions.iter().enumerate() {
+        if relative_x >= pos {
+            tab_index = i;
+        } else {
+            break;
+        }
+    }
 
-    // Bounds check
-    if tab_index >= agent_ids.len() {
+    // tab_index is now the last position that starts before or at relative_x
+    // But we need to check if we're actually within the total tab count
+    if tab_index >= total_tabs {
         TabClickResult::NoTab
     } else {
         TabClickResult::TabClicked(tab_index)
@@ -257,7 +292,8 @@ pub fn handle_mouse_click(
             if index == 0 {
                 state.selected_conversation = crate::state::ConversationSelection::Main;
             } else if let Some(agent_id) = agent_ids.get(index - 1) {
-                state.selected_conversation = crate::state::ConversationSelection::Subagent((*agent_id).clone());
+                state.selected_conversation =
+                    crate::state::ConversationSelection::Subagent((*agent_id).clone());
             }
             state
         }

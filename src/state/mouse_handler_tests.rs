@@ -157,14 +157,16 @@ fn detect_tab_click_detects_first_tab_in_single_tab_scenario() {
     // Tab area at (0, 0) with width 40, height 3
     let tab_area = Rect::new(0, 0, 40, 3);
 
-    // Click in the middle of the tab bar (x=20, y=1)
-    // With only one tab, any click within bounds should hit it
-    let result = detect_tab_click(20, 1, tab_area, &agent_ids);
+    // Tab layout: "│ Main Agent " (13 chars) + "│ agent-1 " (10 chars)
+    // Tab 0 (Main Agent) spans 0-12
+    // Tab 1 (agent-1) spans 13-22
+    // Click within Main Agent tab (x=5, y=1)
+    let result = detect_tab_click(5, 1, tab_area, &agent_ids);
 
     assert_eq!(
         result,
         TabClickResult::TabClicked(0),
-        "Click within single tab should return index 0"
+        "Click within Main Agent tab should return index 0"
     );
 }
 
@@ -175,17 +177,21 @@ fn detect_tab_click_detects_second_tab_when_multiple_tabs() {
     let agent3 = agent_id("agent-3");
     let agent_ids = vec![&agent1, &agent2, &agent3];
 
-    // Tab area with width 60 (each tab gets ~20 chars)
+    // Tab area with width 60
     let tab_area = Rect::new(0, 0, 60, 3);
 
-    // Click in the second tab's area (roughly x=25, y=1)
-    // This assumes each tab takes equal width
-    let result = detect_tab_click(25, 1, tab_area, &agent_ids);
+    // Tab layout: "│ Main Agent " (13) + "│ agent-1 " (10) + "│ agent-2 " (10) + "│ agent-3 " (10)
+    // Tab 0 (Main Agent) spans 0-12
+    // Tab 1 (agent-1) spans 13-22
+    // Tab 2 (agent-2) spans 23-32
+    // Tab 3 (agent-3) spans 33-42
+    // Click in the second tab (agent-1) area (x=15, y=1)
+    let result = detect_tab_click(15, 1, tab_area, &agent_ids);
 
     assert_eq!(
         result,
         TabClickResult::TabClicked(1),
-        "Click in second tab area should return index 1"
+        "Click in second tab (agent-1) area should return index 1"
     );
 }
 
@@ -216,13 +222,17 @@ fn detect_tab_click_detects_last_tab_at_right_edge() {
 
     let tab_area = Rect::new(0, 0, 40, 3);
 
-    // Click near the right edge (x=38, y=1)
-    let result = detect_tab_click(38, 1, tab_area, &agent_ids);
+    // Tab layout: "│ Main Agent " (13) + "│ agent-1 " (10) + "│ agent-2 " (10)
+    // Tab 0 (Main Agent) spans 0-12
+    // Tab 1 (agent-1) spans 13-22
+    // Tab 2 (agent-2) spans 23-32
+    // Click in the last tab (agent-2) area (x=25, y=1)
+    let result = detect_tab_click(25, 1, tab_area, &agent_ids);
 
     assert_eq!(
         result,
-        TabClickResult::TabClicked(1),
-        "Click at right edge should hit last tab"
+        TabClickResult::TabClicked(2),
+        "Click in last tab (agent-2) should hit index 2"
     );
 }
 
@@ -266,22 +276,26 @@ fn detect_tab_click_respects_vertical_bounds() {
 fn handle_mouse_click_switches_to_clicked_tab() {
     let state = create_app_state_with_tabs(vec!["agent-1", "agent-2", "agent-3"]);
 
-    // Initially select first tab (need to set focus first)
+    // Initially select first tab (Main Agent, index 0)
     let mut state = state;
-    state.focus = crate::state::FocusPane::Subagent;
-    state.select_tab(1); // 1-indexed
+    state.focus = crate::state::FocusPane::Main;
     assert_eq!(state.selected_tab_index(), Some(0));
 
     // Tab area
     let tab_area = Rect::new(0, 0, 60, 3);
 
-    // Click on second tab (assume x=25 is in second tab)
-    let updated_state = handle_mouse_click(state, 25, 1, tab_area);
+    // Tab layout: "│ Main Agent " (13) + "│ agent-1 " (10) + "│ agent-2 " (10) + "│ agent-3 " (10)
+    // Tab 0 (Main Agent) spans 0-12
+    // Tab 1 (agent-1) spans 13-22
+    // Tab 2 (agent-2) spans 23-32
+    // Tab 3 (agent-3) spans 33-42
+    // Click on tab 1 (agent-1) at x=15
+    let updated_state = handle_mouse_click(state, 15, 1, tab_area);
 
     assert_eq!(
         updated_state.selected_tab_index(),
         Some(1),
-        "Clicking second tab should switch selection to index 1"
+        "Clicking second tab (agent-1) should switch selection to index 1"
     );
 }
 
@@ -327,18 +341,22 @@ fn handle_mouse_click_switches_from_none_to_first_tab() {
 fn handle_mouse_click_can_switch_to_last_tab() {
     let state = create_app_state_with_tabs(vec!["agent-1", "agent-2", "agent-3"]);
     let mut state = state;
-    state.focus = crate::state::FocusPane::Subagent;
-    state.select_tab(1); // 1-indexed
+    state.focus = crate::state::FocusPane::Main;
 
     let tab_area = Rect::new(0, 0, 60, 3);
 
-    // Click on third/last tab (x=50)
-    let updated_state = handle_mouse_click(state, 50, 1, tab_area);
+    // Tab layout: "│ Main Agent " (13) + "│ agent-1 " (10) + "│ agent-2 " (10) + "│ agent-3 " (10)
+    // Tab 0 (Main Agent) spans 0-12
+    // Tab 1 (agent-1) spans 13-22
+    // Tab 2 (agent-2) spans 23-32
+    // Tab 3 (agent-3) spans 33-42
+    // Click on last tab (agent-3) at x=35
+    let updated_state = handle_mouse_click(state, 35, 1, tab_area);
 
     assert_eq!(
         updated_state.selected_tab_index(),
-        Some(2),
-        "Should switch to third tab"
+        Some(3),
+        "Should switch to fourth tab (agent-3, index 3)"
     );
 }
 
@@ -363,12 +381,17 @@ fn handle_mouse_click_clicking_same_tab_is_idempotent() {
     let state = create_app_state_with_tabs(vec!["agent-1", "agent-2"]);
     let mut state = state;
     state.focus = crate::state::FocusPane::Subagent;
-    state.select_tab(2); // 1-indexed, select second tab
+    state.select_tab(2); // 1-indexed: tab 2 = first subagent (index 1)
+    assert_eq!(state.selected_tab_index(), Some(1));
 
     let tab_area = Rect::new(0, 0, 40, 3);
 
-    // Click on the already-selected second tab
-    let updated_state = handle_mouse_click(state.clone(), 30, 1, tab_area);
+    // Tab layout: "│ Main Agent " (13) + "│ agent-1 " (10) + "│ agent-2 " (10)
+    // Tab 0 (Main Agent) spans 0-12
+    // Tab 1 (agent-1) spans 13-22
+    // Tab 2 (agent-2) spans 23-32
+    // Click on the already-selected tab 1 (agent-1) at x=15
+    let updated_state = handle_mouse_click(state.clone(), 15, 1, tab_area);
 
     assert_eq!(
         updated_state.selected_tab_index(),
@@ -403,16 +426,19 @@ fn detect_tab_click_returns_no_tab_when_tab_width_rounds_to_zero() {
     let agent2 = agent_id("agent-2");
     let agent_ids = vec![&agent1, &agent2];
 
-    // Tab area width 1 with 2 tabs = tab_width 0
+    // Tab area width 1 with 2 tabs
+    // Tab widths are now based on actual label lengths, not divided equally
+    // Tab 0 (Main Agent) would span 0-12, but tab area is only width 1
+    // So clicking at x=0 would be within tab 0's calculated range
     let tab_area = Rect::new(0, 0, 1, 1);
 
-    // Click at x=0 (within bounds) - should not panic
+    // Click at x=0 (within bounds) - should hit tab 0
     let result = detect_tab_click(0, 0, tab_area, &agent_ids);
 
     assert_eq!(
         result,
-        TabClickResult::NoTab,
-        "Tab width rounding to zero should return NoTab (not panic)"
+        TabClickResult::TabClicked(0),
+        "Click at x=0 should hit Main Agent tab (index 0)"
     );
 }
 
@@ -479,8 +505,7 @@ fn detect_entry_click_detects_subagent_pane_entry() {
     let mut state = create_app_state_with_tabs(vec!["agent-1"]);
 
     // Select the first subagent tab (index 1: main is 0, first subagent is 1)
-    state.selected_conversation =
-        ConversationSelection::Subagent(AgentId::new("agent-1").unwrap());
+    state.selected_conversation = ConversationSelection::Subagent(AgentId::new("agent-1").unwrap());
     init_layout_for_state(&mut state);
 
     // Unified conversation area (FR-083: no split)

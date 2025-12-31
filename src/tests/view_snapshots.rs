@@ -2822,7 +2822,6 @@ fn bug_subagent_mouse_click_expand_not_working() {
 ///
 /// Bead: cclv-154
 #[test]
-#[ignore = "cclv-154: tab click regions don't match visible tab positions"]
 fn bug_tab_click_region_mismatch() {
     use crate::config::keybindings::KeyBindings;
     use crate::source::{FileSource, InputSource, StdinSource};
@@ -2832,9 +2831,10 @@ fn bug_tab_click_region_mismatch() {
     use std::path::PathBuf;
 
     // Load fixture with 4 tabs: Main Agent + 3 subagents
-    let mut file_source =
-        FileSource::new(PathBuf::from("tests/fixtures/tab_click_mismatch_repro.jsonl"))
-            .expect("Should load fixture");
+    let mut file_source = FileSource::new(PathBuf::from(
+        "tests/fixtures/tab_click_mismatch_repro.jsonl",
+    ))
+    .expect("Should load fixture");
     let log_entries = file_source.drain_entries().expect("Should parse entries");
     let entry_count = log_entries.len();
 
@@ -2885,7 +2885,10 @@ fn bug_tab_click_region_mismatch() {
         .expect("Render after click should succeed");
 
     let after_click_output = buffer_to_string(app.terminal().backend().buffer());
-    insta::assert_snapshot!("bug_tab_click_after_visual_position", after_click_output.clone());
+    insta::assert_snapshot!(
+        "bug_tab_click_after_visual_position",
+        after_click_output.clone()
+    );
 
     let tab_after = app.app_state().selected_tab_index();
 
