@@ -39,6 +39,30 @@ use std::time::Duration;
 use thiserror::Error;
 use tracing::{debug, warn};
 
+// Height calculator for layout computation
+use crate::model::ConversationEntry;
+use crate::state::WrapMode;
+use crate::view_state::layout_params::LayoutParams;
+use crate::view_state::types::LineHeight;
+
+/// Stub height calculator for production use.
+///
+/// Returns a constant height of 5 lines for all valid entries, 0 for malformed.
+/// This is a temporary implementation to enable scrolling functionality.
+///
+/// TODO(future): Replace with actual line counting based on content length,
+/// wrap mode, and viewport width for accurate heights.
+fn calculate_entry_height(
+    entry: &ConversationEntry,
+    _expanded: bool,
+    _wrap: WrapMode,
+) -> LineHeight {
+    match entry {
+        ConversationEntry::Valid(_) => LineHeight::new(5).unwrap(),
+        ConversationEntry::Malformed(_) => LineHeight::ZERO,
+    }
+}
+
 /// Errors that can occur during TUI operations
 #[derive(Debug, Error)]
 pub enum TuiError {
@@ -108,6 +132,25 @@ impl TuiApp<CrosstermBackend<Stdout>> {
         let line_counter = entries.len();
         let mut app_state = AppState::new();
         app_state.add_entries(entries);
+
+        // Recompute layout after adding entries (cclv-5ur.7)
+        // Get terminal dimensions for layout params
+        let width = terminal.size().map(|r| r.width).unwrap_or(80);
+        let params = LayoutParams::new(width, app_state.global_wrap);
+
+        // Recompute layout for main conversation
+        if let Some(main_view) = app_state.main_conversation_view_mut() {
+            main_view.recompute_layout(params, calculate_entry_height);
+        }
+
+        // Recompute layout for all subagent conversations
+        let subagent_count = app_state.session_view().subagent_ids().count();
+        for idx in 0..subagent_count {
+            if let Some(sub_view) = app_state.subagent_conversation_view_mut(idx) {
+                sub_view.recompute_layout(params, calculate_entry_height);
+            }
+        }
+
         let key_bindings = KeyBindings::default();
 
         Ok(Self {
@@ -676,6 +719,23 @@ where
         // Move entries from buffer to session
         let entries = std::mem::take(&mut self.pending_entries);
         self.app_state.add_entries(entries);
+
+        // Recompute layout after adding streaming entries (cclv-5ur.7)
+        let width = self.terminal.size().map(|r| r.width).unwrap_or(80);
+        let params = LayoutParams::new(width, self.app_state.global_wrap);
+
+        // Recompute layout for main conversation
+        if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+            main_view.recompute_layout(params, calculate_entry_height);
+        }
+
+        // Recompute layout for all subagent conversations
+        let subagent_count = self.app_state.session_view().subagent_ids().count();
+        for idx in 0..subagent_count {
+            if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                sub_view.recompute_layout(params, calculate_entry_height);
+            }
+        }
     }
 }
 
