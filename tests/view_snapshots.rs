@@ -4,8 +4,13 @@
 //! These tests capture the visual representation of widgets and protect against
 //! accidental UI changes.
 
-use cclv::model::{AgentId, PricingConfig, SessionStats, StatsFilter, TokenUsage, ToolName};
-use cclv::view::{tabs, StatsPanel};
+use cclv::model::{
+    AgentConversation, AgentId, ContentBlock, ConversationEntry, EntryMetadata, EntryType,
+    EntryUuid, LogEntry, Message, MessageContent, PricingConfig, Role, Session, SessionId,
+    SessionStats, StatsFilter, ToolCall, ToolName, TokenUsage, ToolUseId,
+};
+use cclv::state::{ScrollState, WrapMode};
+use cclv::view::{tabs, ConversationView, MessageStyles, StatsPanel};
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
 use std::collections::{HashMap, HashSet};
@@ -253,4 +258,278 @@ fn snapshot_tab_bar_no_selection() {
     let output = buffer_to_string(terminal.backend().buffer());
     insta::assert_snapshot!("tab_bar_no_selection", output);
 }
+
+// ===== Message Rendering Snapshot Tests =====
+
+/// Create a test LogEntry with given content and type.
+fn create_test_log_entry(
+    uuid: &str,
+    role: Role,
+    content: MessageContent,
+    entry_type: EntryType,
+) -> LogEntry {
+    use chrono::Utc;
+
+    let message = Message::new(role, content);
+    LogEntry::new(
+        EntryUuid::new(uuid).unwrap(),
+        None,
+        SessionId::new("test-session").unwrap(),
+        None,
+        Utc::now(),
+        entry_type,
+        message,
+        EntryMetadata::default(),
+    )
+}
+
+/// Create a test conversation with given entries.
+fn create_test_conversation(entries: Vec<LogEntry>) -> AgentConversation {
+    let session_id = SessionId::new("test-session").unwrap();
+    let mut session = Session::new(session_id);
+
+    for entry in entries {
+        session.add_conversation_entry(ConversationEntry::Valid(Box::new(entry)));
+    }
+
+    // Return the main agent conversation
+    session.main_agent().clone()
+}
+
+#[test]
+fn snapshot_message_collapsed_multiline() {
+    // Create a message with multiple lines that should be collapsed
+    let long_text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8";
+    let entry = create_test_log_entry(
+        "msg-1",
+        Role::User,
+        MessageContent::Text(long_text.to_string()),
+        EntryType::User,
+    );
+
+    let conversation = create_test_conversation(vec![entry]);
+    let scroll_state = ScrollState::default();
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(60, 15);
+    terminal
+        .draw(|frame| {
+            let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+                .global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+    insta::assert_snapshot!("message_collapsed_multiline", output);
+}
+
+#[test]
+fn snapshot_message_expanded_multiline() {
+    // Create a message with multiple lines and expand it
+    let long_text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8";
+    let entry = create_test_log_entry(
+        "msg-expanded",
+        Role::User,
+        MessageContent::Text(long_text.to_string()),
+        EntryType::User,
+    );
+
+    let conversation = create_test_conversation(vec![entry.clone()]);
+    let mut scroll_state = ScrollState::default();
+    // Expand the message
+    scroll_state.toggle_expand(entry.uuid());
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(60, 20);
+    terminal
+        .draw(|frame| {
+            let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+                .global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+    insta::assert_snapshot!("message_expanded_multiline", output);
+}
+
+#[test]
+fn snapshot_message_with_code_block() {
+    // Create a message with markdown code block
+    let markdown_text = r#"Here's some code:
+
+```rust
+fn main() {
+    println!("Hello, world!");
+}
+```
+
+That's the code."#;
+
+    let entry = create_test_log_entry(
+        "msg-code",
+        Role::Assistant,
+        MessageContent::Text(markdown_text.to_string()),
+        EntryType::Assistant,
+    );
+
+    let conversation = create_test_conversation(vec![entry.clone()]);
+    let mut scroll_state = ScrollState::default();
+    // Expand to see full code block
+    scroll_state.toggle_expand(entry.uuid());
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(70, 25);
+    terminal
+        .draw(|frame| {
+            let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+                .global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+    insta::assert_snapshot!("message_with_code_block", output);
+}
+
+#[test]
+fn snapshot_message_with_tool_use() {
+    // Create a message with ToolUse content block
+    let tool_call = ToolCall::new(
+        ToolUseId::new("tool-read-1").unwrap(),
+        ToolName::Read,
+        serde_json::json!({
+            "file_path": "/home/user/test.rs",
+            "limit": 100
+        }),
+    );
+
+    let blocks = vec![
+        ContentBlock::Text {
+            text: "Let me read that file for you.".to_string(),
+        },
+        ContentBlock::ToolUse(tool_call),
+    ];
+
+    let entry = create_test_log_entry(
+        "msg-tool-use",
+        Role::Assistant,
+        MessageContent::Blocks(blocks),
+        EntryType::Assistant,
+    );
+
+    let conversation = create_test_conversation(vec![entry.clone()]);
+    let mut scroll_state = ScrollState::default();
+    scroll_state.toggle_expand(entry.uuid());
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(80, 20);
+    terminal
+        .draw(|frame| {
+            let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+                .global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+    insta::assert_snapshot!("message_with_tool_use", output);
+}
+
+#[test]
+fn snapshot_message_with_tool_result() {
+    // Create a message with ToolResult content block
+    let tool_result_content = r#"File contents:
+fn main() {
+    println!("Hello, world!");
+}
+
+Total lines: 3"#;
+
+    let blocks = vec![ContentBlock::ToolResult {
+        tool_use_id: ToolUseId::new("tool-123").unwrap(),
+        content: tool_result_content.to_string(),
+        is_error: false,
+    }];
+
+    let entry = create_test_log_entry(
+        "msg-tool-result",
+        Role::User,
+        MessageContent::Blocks(blocks),
+        EntryType::User, // Tool results are typically User role
+    );
+
+    let conversation = create_test_conversation(vec![entry.clone()]);
+    let mut scroll_state = ScrollState::default();
+    scroll_state.toggle_expand(entry.uuid());
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(80, 20);
+    terminal
+        .draw(|frame| {
+            let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+                .global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+    insta::assert_snapshot!("message_with_tool_result", output);
+}
+
+#[test]
+fn snapshot_message_with_thinking_block() {
+    // Create a message with Thinking content block
+    let thinking_text = "Let me analyze this problem step by step:\n1. First, I need to understand the requirements\n2. Then identify the key components\n3. Finally, propose a solution";
+
+    let blocks = vec![
+        ContentBlock::Thinking {
+            thinking: thinking_text.to_string(),
+        },
+        ContentBlock::Text {
+            text: "Based on my analysis, here's what I recommend...".to_string(),
+        },
+    ];
+
+    let entry = create_test_log_entry(
+        "msg-thinking",
+        Role::Assistant,
+        MessageContent::Blocks(blocks),
+        EntryType::Assistant,
+    );
+
+    let conversation = create_test_conversation(vec![entry.clone()]);
+    let mut scroll_state = ScrollState::default();
+    scroll_state.toggle_expand(entry.uuid());
+    let styles = MessageStyles::new();
+
+    let mut terminal = create_terminal(80, 20);
+    terminal
+        .draw(|frame| {
+            let widget = ConversationView::new(&conversation, &scroll_state, &styles, false)
+                .global_wrap(WrapMode::Wrap);
+            frame.render_widget(widget, frame.area());
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+    insta::assert_snapshot!("message_with_thinking_block", output);
+}
+
+// ===== Search Highlighting Snapshot Tests =====
+//
+// LIMITATION: Search highlighting tests are not possible via the public API.
+// The `render_conversation_view_with_search` function is private and not exported
+// from the view module. Search highlighting is integrated at the layout level,
+// not at the ConversationView widget level.
+//
+// To properly test search highlighting (FR-011-014), tests would need to either:
+// 1. Export render_conversation_view_with_search as a public function
+// 2. Add a with_search() builder method to ConversationView
+// 3. Test at the layout level via full AppState rendering
+//
+// For now, search highlighting is tested indirectly through integration tests
+// and manual testing. This is documented as a known limitation of the snapshot
+// test suite.
 
