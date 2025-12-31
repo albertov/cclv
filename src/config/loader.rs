@@ -121,8 +121,27 @@ impl Default for ResolvedConfig {
 /// # Errors
 ///
 /// Returns error if file exists but has read or parse errors.
-pub fn load_config_file(_path: impl Into<PathBuf>) -> Result<Option<ConfigFile>, ConfigError> {
-    todo!("load_config_file")
+pub fn load_config_file(path: impl Into<PathBuf>) -> Result<Option<ConfigFile>, ConfigError> {
+    let path = path.into();
+
+    // Missing file is not an error - use defaults
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    // Read file contents
+    let contents = std::fs::read_to_string(&path).map_err(|e| ConfigError::ReadError {
+        path: path.clone(),
+        reason: e.to_string(),
+    })?;
+
+    // Parse TOML
+    let config: ConfigFile = toml::from_str(&contents).map_err(|e| ConfigError::ParseError {
+        path: path.clone(),
+        reason: e.to_string(),
+    })?;
+
+    Ok(Some(config))
 }
 
 /// Resolve default config file path.
@@ -130,7 +149,7 @@ pub fn load_config_file(_path: impl Into<PathBuf>) -> Result<Option<ConfigFile>,
 /// Returns `~/.config/cclv/config.toml` on Unix, appropriate path on other platforms.
 /// Returns `None` if home directory cannot be determined.
 pub fn default_config_path() -> Option<PathBuf> {
-    todo!("default_config_path")
+    dirs::config_dir().map(|dir| dir.join("cclv").join("config.toml"))
 }
 
 /// Load configuration with precedence handling.
@@ -150,9 +169,25 @@ pub fn default_config_path() -> Option<PathBuf> {
 ///
 /// Returns error only if a config file exists but cannot be read or parsed.
 pub fn load_config_with_precedence(
-    _config_path: Option<PathBuf>,
+    config_path: Option<PathBuf>,
 ) -> Result<Option<ConfigFile>, ConfigError> {
-    todo!("load_config_with_precedence")
+    // 1. Explicit path (like CLI --config)
+    if let Some(path) = config_path {
+        return load_config_file(path);
+    }
+
+    // 2. CCLV_CONFIG environment variable
+    if let Ok(env_path) = std::env::var("CCLV_CONFIG") {
+        return load_config_file(PathBuf::from(env_path));
+    }
+
+    // 3. Default path
+    if let Some(default_path) = default_config_path() {
+        return load_config_file(default_path);
+    }
+
+    // No config path available
+    Ok(None)
 }
 
 /// Apply environment variable overrides to resolved config.
@@ -167,8 +202,13 @@ pub fn load_config_with_precedence(
 /// # Returns
 ///
 /// Config with environment overrides applied.
-pub fn apply_env_overrides(_config: ResolvedConfig) -> ResolvedConfig {
-    todo!("apply_env_overrides")
+pub fn apply_env_overrides(mut config: ResolvedConfig) -> ResolvedConfig {
+    // Override theme if CCLV_THEME is set
+    if let Ok(theme) = std::env::var("CCLV_THEME") {
+        config.theme = theme;
+    }
+
+    config
 }
 
 /// Merge config file into defaults to create resolved config.
@@ -182,8 +222,26 @@ pub fn apply_env_overrides(_config: ResolvedConfig) -> ResolvedConfig {
 /// # Returns
 ///
 /// Fully resolved configuration.
-pub fn merge_config(_config_file: Option<ConfigFile>) -> ResolvedConfig {
-    todo!("merge_config")
+pub fn merge_config(config_file: Option<ConfigFile>) -> ResolvedConfig {
+    let defaults = ResolvedConfig::default();
+
+    let Some(config) = config_file else {
+        return defaults;
+    };
+
+    ResolvedConfig {
+        theme: config.theme.unwrap_or(defaults.theme),
+        follow: config.follow.unwrap_or(defaults.follow),
+        show_stats: config.show_stats.unwrap_or(defaults.show_stats),
+        collapse_threshold: config
+            .collapse_threshold
+            .unwrap_or(defaults.collapse_threshold),
+        summary_lines: config.summary_lines.unwrap_or(defaults.summary_lines),
+        line_wrap: config.line_wrap.unwrap_or(defaults.line_wrap),
+        log_buffer_capacity: config
+            .log_buffer_capacity
+            .unwrap_or(defaults.log_buffer_capacity),
+    }
 }
 
 #[cfg(test)]
