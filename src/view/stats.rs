@@ -124,6 +124,27 @@ impl<'a> Widget for StatsPanel<'a> {
 
 // ===== Formatting Helpers =====
 
+/// Format tool usage breakdown with top N limiting.
+///
+/// Returns lines displaying tool names with counts, sorted by count descending.
+/// If tools exceed max_display, shows "... and X more" line.
+///
+/// # Arguments
+/// * `tool_counts` - Map of tool names to invocation counts
+/// * `max_display` - Maximum number of tools to display before truncating
+///
+/// # Examples
+/// ```
+/// // With 3 tools, max 10: shows all 3
+/// // With 12 tools, max 10: shows top 10 + "... and 2 more"
+/// ```
+fn format_tool_breakdown(
+    _tool_counts: &std::collections::HashMap<crate::model::ToolName, u32>,
+    _max_display: usize,
+) -> Vec<Line<'static>> {
+    todo!("format_tool_breakdown")
+}
+
 /// Format a token count with thousands separators.
 ///
 /// Examples:
@@ -624,5 +645,154 @@ mod tests {
         }
 
         lines.join("\n")
+    }
+
+    // ===== format_tool_breakdown tests =====
+
+    #[test]
+    fn format_tool_breakdown_sorts_by_count_descending() {
+        use crate::model::ToolName;
+        use std::collections::HashMap;
+
+        let mut tool_counts = HashMap::new();
+        tool_counts.insert(ToolName::Read, 5);
+        tool_counts.insert(ToolName::Write, 15);
+        tool_counts.insert(ToolName::Bash, 10);
+
+        let lines = format_tool_breakdown(&tool_counts, 10);
+
+        // Extract just the text content from lines
+        let text: Vec<String> = lines.iter().map(|l| {
+            l.spans.iter().map(|s| s.content.as_ref()).collect::<String>()
+        }).collect();
+
+        // Should be sorted: Write (15), Bash (10), Read (5)
+        assert_eq!(text.len(), 3);
+        assert!(text[0].contains("Write"));
+        assert!(text[0].contains("15"));
+        assert!(text[1].contains("Bash"));
+        assert!(text[1].contains("10"));
+        assert!(text[2].contains("Read"));
+        assert!(text[2].contains("5"));
+    }
+
+    #[test]
+    fn format_tool_breakdown_shows_overflow_indicator_when_exceeds_limit() {
+        use crate::model::ToolName;
+        use std::collections::HashMap;
+
+        let mut tool_counts = HashMap::new();
+        // Create 12 tools with different counts
+        tool_counts.insert(ToolName::Read, 100);
+        tool_counts.insert(ToolName::Write, 90);
+        tool_counts.insert(ToolName::Bash, 80);
+        tool_counts.insert(ToolName::Edit, 70);
+        tool_counts.insert(ToolName::Grep, 60);
+        tool_counts.insert(ToolName::Glob, 50);
+        tool_counts.insert(ToolName::Task, 40);
+        tool_counts.insert(ToolName::WebSearch, 30);
+        tool_counts.insert(ToolName::WebFetch, 20);
+        tool_counts.insert(ToolName::MultiEdit, 10);
+        tool_counts.insert(ToolName::Other("Custom1".to_string()), 5);
+        tool_counts.insert(ToolName::Other("Custom2".to_string()), 1);
+
+        let lines = format_tool_breakdown(&tool_counts, 10);
+
+        // Should show top 10 + overflow line = 11 lines total
+        assert_eq!(lines.len(), 11);
+
+        // Last line should be overflow indicator
+        let last_line_text: String = lines[10]
+            .spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect();
+
+        assert!(
+            last_line_text.contains("... and 2 more"),
+            "Expected overflow indicator '... and 2 more', got: {}",
+            last_line_text
+        );
+    }
+
+    #[test]
+    fn format_tool_breakdown_shows_all_tools_when_within_limit() {
+        use crate::model::ToolName;
+        use std::collections::HashMap;
+
+        let mut tool_counts = HashMap::new();
+        tool_counts.insert(ToolName::Read, 10);
+        tool_counts.insert(ToolName::Write, 5);
+        tool_counts.insert(ToolName::Bash, 3);
+
+        let lines = format_tool_breakdown(&tool_counts, 10);
+
+        // Should show all 3, no overflow
+        assert_eq!(lines.len(), 3);
+
+        // No line should contain "... and"
+        for line in &lines {
+            let text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
+            assert!(
+                !text.contains("... and"),
+                "Should not show overflow when within limit"
+            );
+        }
+    }
+
+    #[test]
+    fn format_tool_breakdown_handles_empty_tool_counts() {
+        use std::collections::HashMap;
+
+        let tool_counts = HashMap::new();
+        let lines = format_tool_breakdown(&tool_counts, 10);
+
+        // Should return empty vec
+        assert_eq!(lines.len(), 0);
+    }
+
+    #[test]
+    fn format_tool_breakdown_formats_each_line_correctly() {
+        use crate::model::ToolName;
+        use std::collections::HashMap;
+
+        let mut tool_counts = HashMap::new();
+        tool_counts.insert(ToolName::Read, 42);
+
+        let lines = format_tool_breakdown(&tool_counts, 10);
+
+        assert_eq!(lines.len(), 1);
+
+        let text: String = lines[0]
+            .spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect();
+
+        // Should be formatted as "  Read: 42"
+        assert!(text.contains("Read"));
+        assert!(text.contains("42"));
+        assert!(text.starts_with("  "), "Should have 2-space indent");
+    }
+
+    #[test]
+    fn format_tool_breakdown_uses_tool_name_as_str() {
+        use crate::model::ToolName;
+        use std::collections::HashMap;
+
+        let mut tool_counts = HashMap::new();
+        tool_counts.insert(ToolName::Other("CustomTool".to_string()), 7);
+
+        let lines = format_tool_breakdown(&tool_counts, 10);
+
+        let text: String = lines[0]
+            .spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect();
+
+        // Should use ToolName::as_str() which returns "CustomTool"
+        assert!(text.contains("CustomTool"));
+        assert!(text.contains("7"));
     }
 }
