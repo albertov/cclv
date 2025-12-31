@@ -1013,4 +1013,83 @@ mod tests {
             content
         );
     }
+
+    // ===== Filter indicator tests =====
+
+    #[test]
+    fn stats_panel_shows_global_filter_in_title() {
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+
+        let stats = SessionStats::default();
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Title should indicate Global filter
+        assert!(
+            content.contains("Statistics"),
+            "Expected 'Statistics' title for Global filter, got:\n{}",
+            content
+        );
+        // Global has no suffix in title (just "Statistics")
+        assert!(
+            !content.contains("(Main Agent)") && !content.contains("(Subagent)"),
+            "Global filter should not have agent suffix in title, got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_shows_main_agent_filter_in_title() {
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+
+        let stats = SessionStats::default();
+        let filter = StatsFilter::MainAgent;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Title should indicate Main Agent filter
+        assert!(
+            content.contains("(Main Agent)"),
+            "Expected '(Main Agent)' in title for MainAgent filter, got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_shows_subagent_filter_in_title() {
+        use crate::model::AgentId;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+
+        let stats = SessionStats::default();
+        let agent_id = AgentId::new("agent-123").unwrap();
+        let filter = StatsFilter::Subagent(agent_id);
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Title should indicate Subagent filter
+        assert!(
+            content.contains("(Subagent)"),
+            "Expected '(Subagent)' in title for Subagent filter, got:\n{}",
+            content
+        );
+    }
 }
