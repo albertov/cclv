@@ -58,6 +58,12 @@ use crate::view_state::types::LineHeight;
 /// - Expanded vs collapsed state
 /// - Malformed entries (return 5 lines for error display)
 ///
+/// # Arguments
+/// - `entry`: The conversation entry to calculate height for
+/// - `expanded`: Whether entry is expanded (true) or collapsed (false)
+/// - `wrap`: Text wrapping mode (Wrap or NoWrap)
+/// - `width`: Viewport width in characters for wrapping calculations
+///
 /// # Contract (from data-model.md HeightCalculator)
 /// - MUST return `LineHeight` with at least 1 for valid entries
 /// - MUST return fixed height (5 lines) for malformed entries
@@ -67,9 +73,10 @@ pub fn calculate_entry_height(
     entry: &ConversationEntry,
     expanded: bool,
     wrap: WrapMode,
+    width: u16,
 ) -> LineHeight {
     // Delegate to canonical implementation in view_state layer
-    crate::view_state::layout::calculate_height(entry, expanded, wrap)
+    crate::view_state::layout::calculate_height(entry, expanded, wrap, width)
 }
 
 /// Errors that can occur during TUI operations

@@ -49,6 +49,7 @@ fn stub_height_calculator(
     _entry: &ConversationEntry,
     _expanded: bool,
     _wrap: WrapMode,
+    _width: u16,
 ) -> LineHeight {
     LineHeight::ONE
 }

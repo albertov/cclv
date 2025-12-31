@@ -46,6 +46,7 @@ fn variable_height_calculator(
     entry: &ConversationEntry,
     expanded: bool,
     _wrap: WrapMode,
+    _width: u16,
 ) -> LineHeight {
     match entry {
         ConversationEntry::Valid(_) => {

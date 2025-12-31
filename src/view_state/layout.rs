@@ -64,7 +64,8 @@ impl Default for EntryLayout {
 /// - Malformed entries return fixed height (~5 lines for error display)
 /// - Collapsed entries return fixed small height (2-3 lines)
 /// - Expanded entries compute actual rendered height based on content
-pub type HeightCalculator = fn(&ConversationEntry, bool, WrapMode) -> LineHeight;
+/// - Width: viewport width for text wrapping calculations
+pub type HeightCalculator = fn(&ConversationEntry, bool, WrapMode, u16) -> LineHeight;
 
 /// Calculate the rendered height of an entry in terminal lines.
 ///
@@ -76,6 +77,12 @@ pub type HeightCalculator = fn(&ConversationEntry, bool, WrapMode) -> LineHeight
 /// - Expanded vs collapsed state
 /// - Malformed entries (return 5 lines for error display)
 ///
+/// # Arguments
+/// - `entry`: The conversation entry to calculate height for
+/// - `expanded`: Whether entry is expanded (true) or collapsed (false)
+/// - `wrap_mode`: Text wrapping mode (Wrap or NoWrap)
+/// - `width`: Viewport width in characters for wrapping calculations
+///
 /// # Contract (from data-model.md HeightCalculator)
 /// - MUST return `LineHeight` with at least 1 for valid entries
 /// - MUST return fixed height (5 lines) for malformed entries
@@ -85,6 +92,7 @@ pub fn calculate_height(
     entry: &ConversationEntry,
     expanded: bool,
     wrap_mode: WrapMode,
+    width: u16,
 ) -> LineHeight {
     use crate::model::MessageContent;
 
@@ -105,11 +113,11 @@ pub fn calculate_height(
             let mut content_lines = 0u16;
             match message.content() {
                 MessageContent::Text(text) => {
-                    content_lines = count_text_lines(text, wrap_mode);
+                    content_lines = count_text_lines(text, wrap_mode, width);
                 }
                 MessageContent::Blocks(blocks) => {
                     for block in blocks {
-                        content_lines += count_block_lines(block, wrap_mode);
+                        content_lines += count_block_lines(block, wrap_mode, width);
                     }
                 }
             }
@@ -140,9 +148,14 @@ pub fn calculate_height(
 
 /// Count lines in a text string accounting for newlines and wrapping.
 ///
+/// # Arguments
+/// - `text`: The text to count lines for
+/// - `wrap`: Wrap mode (Wrap or NoWrap)
+/// - `width`: Viewport width for wrapping calculations
+///
 /// NOTE: Empty text returns 0 to match renderer behavior where `"".lines()`
 /// produces zero iterations. The separator line is added separately.
-fn count_text_lines(text: &str, wrap: WrapMode) -> u16 {
+fn count_text_lines(text: &str, wrap: WrapMode, width: u16) -> u16 {
     if text.is_empty() {
         return 0; // Empty text produces 0 content lines (matches "".lines() behavior)
     }
@@ -153,8 +166,8 @@ fn count_text_lines(text: &str, wrap: WrapMode) -> u16 {
     match wrap {
         WrapMode::NoWrap => line_count as u16,
         WrapMode::Wrap => {
-            // Estimate wrapped lines at 80 column width
-            const WRAP_WIDTH: usize = 80;
+            // Use actual viewport width for wrapping
+            let wrap_width = width.max(1) as usize; // Ensure width is at least 1
             let mut wrapped_lines = 0;
             for line in lines {
                 let line_width = line.chars().count();
@@ -162,7 +175,7 @@ fn count_text_lines(text: &str, wrap: WrapMode) -> u16 {
                     wrapped_lines += 1;
                 } else {
                     // Calculate how many lines this wraps to
-                    wrapped_lines += line_width.div_ceil(WRAP_WIDTH).max(1);
+                    wrapped_lines += line_width.div_ceil(wrap_width).max(1);
                 }
             }
             wrapped_lines as u16
@@ -171,17 +184,17 @@ fn count_text_lines(text: &str, wrap: WrapMode) -> u16 {
 }
 
 /// Count lines in a content block.
-fn count_block_lines(block: &crate::model::ContentBlock, wrap: WrapMode) -> u16 {
+fn count_block_lines(block: &crate::model::ContentBlock, wrap: WrapMode, width: u16) -> u16 {
     use crate::model::ContentBlock;
 
     match block {
-        ContentBlock::Text { text } => count_text_lines(text, wrap),
-        ContentBlock::Thinking { thinking } => count_text_lines(thinking, wrap),
-        ContentBlock::ToolResult { content, .. } => count_text_lines(content, wrap),
+        ContentBlock::Text { text } => count_text_lines(text, wrap, width),
+        ContentBlock::Thinking { thinking } => count_text_lines(thinking, wrap, width),
+        ContentBlock::ToolResult { content, .. } => count_text_lines(content, wrap, width),
         ContentBlock::ToolUse(tool_call) => {
             // Tool use renders as: tool name + input (typically 2-3 lines)
             let input_str = tool_call.input().to_string();
-            2 + count_text_lines(&input_str, wrap)
+            2 + count_text_lines(&input_str, wrap, width)
         }
     }
 }
@@ -321,7 +334,7 @@ mod tests {
         #[test]
         fn malformed_entry_returns_nonzero_height() {
             let entry = make_malformed_entry();
-            let height = calculate_height(&entry, false, WrapMode::Wrap);
+            let height = calculate_height(&entry, false, WrapMode::Wrap, 80);
             // Malformed entries now return ~5 lines to account for error display
             assert!(!height.is_zero(), "Malformed entries should have height > 0");
             assert_eq!(height.get(), 5, "Malformed entries render with 5 lines");
@@ -330,8 +343,8 @@ mod tests {
         #[test]
         fn malformed_entry_height_independent_of_expand() {
             let entry = make_malformed_entry();
-            let collapsed = calculate_height(&entry, false, WrapMode::Wrap);
-            let expanded = calculate_height(&entry, true, WrapMode::Wrap);
+            let collapsed = calculate_height(&entry, false, WrapMode::Wrap, 80);
+            let expanded = calculate_height(&entry, true, WrapMode::Wrap, 80);
             // Malformed entries always render the same height
             assert_eq!(collapsed, expanded);
             assert_eq!(collapsed.get(), 5);
@@ -340,7 +353,7 @@ mod tests {
         #[test]
         fn valid_collapsed_entry_returns_fixed_height() {
             let entry = make_valid_entry("Hello, world!");
-            let height = calculate_height(&entry, false, WrapMode::Wrap);
+            let height = calculate_height(&entry, false, WrapMode::Wrap, 80);
 
             // Collapsed entries show 2-3 lines
             assert!(!height.is_zero());
@@ -351,7 +364,7 @@ mod tests {
         #[test]
         fn valid_expanded_entry_returns_at_least_one() {
             let entry = make_valid_entry("Short");
-            let height = calculate_height(&entry, true, WrapMode::Wrap);
+            let height = calculate_height(&entry, true, WrapMode::Wrap, 80);
 
             assert!(!height.is_zero());
             assert!(height.get() >= 1);
@@ -360,7 +373,7 @@ mod tests {
         #[test]
         fn empty_content_expanded_includes_separator() {
             let entry = make_valid_entry("");
-            let height = calculate_height(&entry, true, WrapMode::Wrap);
+            let height = calculate_height(&entry, true, WrapMode::Wrap, 80);
 
             // Empty content = 0 content lines + 1 separator = 1 line total
             // (matches renderer where "".lines() produces 0 iterations)
@@ -371,7 +384,7 @@ mod tests {
         fn multiline_content_expanded_returns_multiple_lines() {
             let multiline_text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
             let entry = make_valid_entry(multiline_text);
-            let height = calculate_height(&entry, true, WrapMode::Wrap);
+            let height = calculate_height(&entry, true, WrapMode::Wrap, 80);
 
             // Should have at least as many lines as newlines + 1
             assert!(height.get() >= 5);
@@ -383,8 +396,8 @@ mod tests {
             let long_entry =
                 make_valid_entry("Very long text that spans multiple lines when expanded");
 
-            let short_height = calculate_height(&short_entry, false, WrapMode::Wrap);
-            let long_height = calculate_height(&long_entry, false, WrapMode::Wrap);
+            let short_height = calculate_height(&short_entry, false, WrapMode::Wrap, 80);
+            let long_height = calculate_height(&long_entry, false, WrapMode::Wrap, 80);
 
             // Collapsed height should be the same
             assert_eq!(short_height, long_height);
@@ -394,8 +407,8 @@ mod tests {
         fn deterministic_same_inputs_same_output() {
             let entry = make_valid_entry("Test content");
 
-            let height1 = calculate_height(&entry, true, WrapMode::Wrap);
-            let height2 = calculate_height(&entry, true, WrapMode::Wrap);
+            let height1 = calculate_height(&entry, true, WrapMode::Wrap, 80);
+            let height2 = calculate_height(&entry, true, WrapMode::Wrap, 80);
 
             assert_eq!(height1, height2);
         }
@@ -404,8 +417,8 @@ mod tests {
         fn expanded_mode_affects_height() {
             let entry = make_valid_entry("Line 1\nLine 2\nLine 3");
 
-            let collapsed_height = calculate_height(&entry, false, WrapMode::Wrap);
-            let expanded_height = calculate_height(&entry, true, WrapMode::Wrap);
+            let collapsed_height = calculate_height(&entry, false, WrapMode::Wrap, 80);
+            let expanded_height = calculate_height(&entry, true, WrapMode::Wrap, 80);
 
             // Expanded should generally be taller than collapsed for multi-line content
             assert!(expanded_height.get() >= collapsed_height.get());

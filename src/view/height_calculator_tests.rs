@@ -42,7 +42,7 @@ fn make_malformed_entry() -> ConversationEntry {
 #[test]
 fn malformed_entry_returns_nonzero_height() {
     let entry = make_malformed_entry();
-    let height = calculate_entry_height(&entry, false, WrapMode::Wrap);
+    let height = calculate_entry_height(&entry, false, WrapMode::Wrap, 80);
     assert!(
         height.get() > 0,
         "Malformed entries must return non-zero height for rendering"
@@ -52,8 +52,8 @@ fn malformed_entry_returns_nonzero_height() {
 #[test]
 fn malformed_entry_height_same_regardless_of_expanded() {
     let entry = make_malformed_entry();
-    let collapsed = calculate_entry_height(&entry, false, WrapMode::Wrap);
-    let expanded = calculate_entry_height(&entry, true, WrapMode::Wrap);
+    let collapsed = calculate_entry_height(&entry, false, WrapMode::Wrap, 80);
+    let expanded = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
     assert_eq!(
         collapsed, expanded,
         "Malformed entry height should be same whether expanded or not"
@@ -65,7 +65,7 @@ fn malformed_entry_height_same_regardless_of_expanded() {
 #[test]
 fn valid_entry_returns_at_least_one_line() {
     let entry = make_text_entry("");
-    let height = calculate_entry_height(&entry, true, WrapMode::Wrap);
+    let height = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
     assert!(
         height.get() >= 1,
         "Valid entries must return at least LineHeight::ONE, got {}",
@@ -79,8 +79,8 @@ fn empty_text_collapsed_returns_different_than_multiline_expanded() {
     let empty = make_text_entry("");
     let multiline = make_text_entry("Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10");
 
-    let empty_collapsed = calculate_entry_height(&empty, false, WrapMode::Wrap);
-    let multiline_expanded = calculate_entry_height(&multiline, true, WrapMode::Wrap);
+    let empty_collapsed = calculate_entry_height(&empty, false, WrapMode::Wrap, 80);
+    let multiline_expanded = calculate_entry_height(&multiline, true, WrapMode::Wrap, 80);
 
     // Stub returns 5 for both, so this assertion will FAIL proving stub is wrong
     assert_ne!(
@@ -94,7 +94,7 @@ fn empty_text_collapsed_returns_different_than_multiline_expanded() {
 #[test]
 fn single_line_text_returns_appropriate_height() {
     let entry = make_text_entry("Hello");
-    let height = calculate_entry_height(&entry, true, WrapMode::Wrap);
+    let height = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
     // Should be at least 1 line, likely 2+ for role header + content
     assert!(
         height.get() >= 1,
@@ -110,8 +110,8 @@ fn long_line_wrapped_returns_more_lines_than_no_wrap() {
     let long_text = "a".repeat(200); // 200 chars, will wrap multiple times at 80 cols
     let entry = make_text_entry(&long_text);
 
-    let wrapped = calculate_entry_height(&entry, true, WrapMode::Wrap);
-    let no_wrap = calculate_entry_height(&entry, true, WrapMode::NoWrap);
+    let wrapped = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
+    let no_wrap = calculate_entry_height(&entry, true, WrapMode::NoWrap, 80);
 
     // With wrapping at 80 cols, 200 chars should wrap to at least 3 lines (200/80 = 2.5)
     // Stub returns constant 5 for both, so this will FAIL on stub (not greater)
@@ -131,8 +131,8 @@ fn collapsed_entry_returns_smaller_height_than_expanded() {
     let multiline = "Line 1\n\nLine 2\n\nLine 3\n\nLine 4\n\nLine 5";
     let entry = make_text_entry(multiline);
 
-    let collapsed = calculate_entry_height(&entry, false, WrapMode::Wrap);
-    let expanded = calculate_entry_height(&entry, true, WrapMode::Wrap);
+    let collapsed = calculate_entry_height(&entry, false, WrapMode::Wrap, 80);
+    let expanded = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
 
     // Collapsed should show summary only (typically 1-3 lines)
     // Expanded should show full content
@@ -147,7 +147,7 @@ fn collapsed_entry_returns_smaller_height_than_expanded() {
 #[test]
 fn collapsed_entry_returns_summary_height() {
     let entry = make_text_entry("Some text");
-    let collapsed = calculate_entry_height(&entry, false, WrapMode::Wrap);
+    let collapsed = calculate_entry_height(&entry, false, WrapMode::Wrap, 80);
 
     // Collapsed should return a small summary height (1-3 lines typically)
     assert!(
@@ -164,7 +164,7 @@ fn multiline_text_returns_height_accounting_for_lines() {
     let text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
     let entry = make_text_entry(text);
 
-    let height = calculate_entry_height(&entry, true, WrapMode::Wrap);
+    let height = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
 
     // Should account for all lines plus role header
     // Minimum 5 lines of content (may be more with headers/formatting)
@@ -181,9 +181,9 @@ fn multiline_text_returns_height_accounting_for_lines() {
 fn height_calculation_is_deterministic() {
     let entry = make_text_entry("Deterministic test");
 
-    let height1 = calculate_entry_height(&entry, true, WrapMode::Wrap);
-    let height2 = calculate_entry_height(&entry, true, WrapMode::Wrap);
-    let height3 = calculate_entry_height(&entry, true, WrapMode::Wrap);
+    let height1 = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
+    let height2 = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
+    let height3 = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
 
     assert_eq!(
         height1, height2,
@@ -200,11 +200,11 @@ fn different_wrap_modes_may_produce_different_heights() {
     let long_text = "a".repeat(150);
     let entry = make_text_entry(&long_text);
 
-    let wrap = calculate_entry_height(&entry, true, WrapMode::Wrap);
-    let _no_wrap = calculate_entry_height(&entry, true, WrapMode::NoWrap);
+    let wrap = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
+    let _no_wrap = calculate_entry_height(&entry, true, WrapMode::NoWrap, 80);
 
     // Determinism: same mode always gives same result
-    let wrap2 = calculate_entry_height(&entry, true, WrapMode::Wrap);
+    let wrap2 = calculate_entry_height(&entry, true, WrapMode::Wrap, 80);
     assert_eq!(wrap, wrap2, "Wrap mode should be deterministic");
 
     // Note: wrap >= no_wrap is expected for long lines

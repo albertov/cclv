@@ -251,7 +251,8 @@ pub fn handle_entry_click(mut state: AppState, entry_click: EntryClickResult) ->
     // Height calculator stub
     let height_calc = |_entry: &crate::model::ConversationEntry,
                        _expanded: bool,
-                       _wrap: WrapMode|
+                       _wrap: WrapMode,
+                       _width: u16|
      -> LineHeight {
         LineHeight::new(5).unwrap() // Stub height
     };

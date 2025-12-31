@@ -132,6 +132,7 @@ fn simple_height_calculator(
     entry: &ConversationEntry,
     _expanded: bool,
     _wrap: WrapMode,
+    _width: u16,
 ) -> LineHeight {
     match entry {
         ConversationEntry::Valid(_) => LineHeight::new(3).unwrap(),
@@ -164,7 +165,7 @@ fn line_height_zero_sentinel_exists() {
 proptest! {
     #[test]
     fn malformed_entries_always_get_zero_height(entry in arb_malformed_entry()) {
-        let height = simple_height_calculator(&entry, false, WrapMode::Wrap);
+        let height = simple_height_calculator(&entry, false, WrapMode::Wrap, 80);
         prop_assert!(
             height.is_zero(),
             "Malformed entry height must be ZERO, got {}",

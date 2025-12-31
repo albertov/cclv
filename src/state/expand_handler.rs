@@ -29,7 +29,8 @@ pub fn handle_expand_action(mut state: AppState, action: KeyAction) -> AppState 
     // Height calculator stub for now
     let height_calc = |_entry: &crate::model::ConversationEntry,
                        _expanded: bool,
-                       _wrap: WrapMode|
+                       _wrap: WrapMode,
+                       _width: u16|
      -> LineHeight {
         LineHeight::new(5).unwrap() // Stub height
     };

@@ -83,7 +83,7 @@ fn init_layout_for_state(state: &mut AppState, height_per_entry: u16) {
 
     let params = LayoutParams::new(80, WrapMode::Wrap);
     let height_calc =
-        |_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode| {
+        |_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16| {
             LineHeight::new(height_per_entry).unwrap()
         };
 
@@ -678,7 +678,7 @@ fn detect_entry_click_uses_actual_entry_heights_from_layout() {
     // Force layout computation with variable heights
     // Entry 0: 10 lines, Entry 1: 5 lines, Entry 2: 8 lines
     let params = LayoutParams::new(80, WrapMode::Wrap);
-    let height_calc = |entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode| {
+    let height_calc = |entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16| {
         // Use entry index to determine height
         let idx = match entry {
             ConversationEntry::Valid(log_entry) => {
@@ -763,7 +763,7 @@ fn detect_entry_click_accounts_for_scroll_offset() {
     // Layout with fixed height: each entry is 10 lines
     let params = LayoutParams::new(80, WrapMode::Wrap);
     let height_calc =
-        |_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode| LineHeight::new(10).unwrap();
+        |_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16| LineHeight::new(10).unwrap();
 
     // Trigger layout and set scroll position
     if let Some(session_view) = state.log_view_mut().current_session_mut() {
@@ -820,7 +820,7 @@ fn detect_entry_click_returns_no_entry_when_clicking_beyond_content() {
     // Layout with height 5
     let params = LayoutParams::new(80, WrapMode::Wrap);
     let height_calc =
-        |_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode| LineHeight::new(5).unwrap();
+        |_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16| LineHeight::new(5).unwrap();
 
     if let Some(session_view) = state.log_view_mut().current_session_mut() {
         session_view.main_mut().recompute_layout(params, height_calc);

@@ -350,7 +350,7 @@ fn snapshot_message_expanded_multiline() {
             EntryIndex::new(0),
             params,
             ViewportDimensions::new(80, 24),
-            |_, _, _| LineHeight::new(100).unwrap(), // Mock height calculation
+            |_, _, _, _| LineHeight::new(100).unwrap(), // Mock height calculation
         )
         .expect("Should be able to toggle expand");
     let styles = MessageStyles::new();
@@ -397,7 +397,7 @@ That's the code."#;
         EntryIndex::new(0),
         params,
         ViewportDimensions::new(80, 24),
-        |_, _, _| LineHeight::new(100).unwrap(),
+        |_, _, _, _| LineHeight::new(100).unwrap(),
     );
     let styles = MessageStyles::new();
 
@@ -448,7 +448,7 @@ fn snapshot_message_with_tool_use() {
         EntryIndex::new(0),
         params,
         ViewportDimensions::new(80, 24),
-        |_, _, _| LineHeight::new(100).unwrap(),
+        |_, _, _, _| LineHeight::new(100).unwrap(),
     );
     let styles = MessageStyles::new();
 
@@ -496,7 +496,7 @@ Total lines: 3"#;
         EntryIndex::new(0),
         params,
         ViewportDimensions::new(80, 24),
-        |_, _, _| LineHeight::new(100).unwrap(),
+        |_, _, _, _| LineHeight::new(100).unwrap(),
     );
     let styles = MessageStyles::new();
 
@@ -542,7 +542,7 @@ fn snapshot_message_with_thinking_block() {
         EntryIndex::new(0),
         params,
         ViewportDimensions::new(80, 24),
-        |_, _, _| LineHeight::new(100).unwrap(),
+        |_, _, _, _| LineHeight::new(100).unwrap(),
     );
     let styles = MessageStyles::new();
 

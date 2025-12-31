@@ -42,12 +42,12 @@ fn make_entry(uuid: &str) -> ConversationEntry {
 }
 
 /// Height calculator that returns a fixed height
-fn fixed_height(_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode) -> LineHeight {
+fn fixed_height(_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16) -> LineHeight {
     LineHeight::new(10).unwrap()
 }
 
 /// Height calculator with variable heights based on entry index
-fn variable_height(entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode) -> LineHeight {
+fn variable_height(entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16) -> LineHeight {
     // Extract index from UUID pattern "entry-N"
     if let ConversationEntry::Valid(log_entry) = entry {
         let uuid_str = log_entry.uuid().as_str();

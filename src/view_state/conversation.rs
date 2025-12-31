@@ -259,7 +259,7 @@ impl ConversationViewState {
     ///   Receives: entry, expanded state, effective wrap mode
     pub fn recompute_layout<F>(&mut self, params: LayoutParams, height_calculator: F)
     where
-        F: Fn(&ConversationEntry, bool, WrapMode) -> LineHeight,
+        F: Fn(&ConversationEntry, bool, WrapMode, u16) -> LineHeight,
     {
         use super::layout::EntryLayout;
 
@@ -268,7 +268,7 @@ impl ConversationViewState {
         for entry_view in &mut self.entries {
             let expanded = entry_view.is_expanded();
             let wrap = entry_view.effective_wrap(params.global_wrap);
-            let height = height_calculator(entry_view.entry(), expanded, wrap);
+            let height = height_calculator(entry_view.entry(), expanded, wrap, params.width);
             let layout = EntryLayout::new(height, LineOffset::new(cumulative_y));
             entry_view.set_layout(layout);
             cumulative_y += height.get() as usize;
@@ -292,7 +292,7 @@ impl ConversationViewState {
         params: LayoutParams,
         height_calculator: F,
     ) where
-        F: Fn(&ConversationEntry, bool, WrapMode) -> LineHeight,
+        F: Fn(&ConversationEntry, bool, WrapMode, u16) -> LineHeight,
     {
         use super::layout::EntryLayout;
 
@@ -311,7 +311,7 @@ impl ConversationViewState {
         for entry_view in &mut self.entries[idx..] {
             let expanded = entry_view.is_expanded();
             let wrap = entry_view.effective_wrap(params.global_wrap);
-            let height = height_calculator(entry_view.entry(), expanded, wrap);
+            let height = height_calculator(entry_view.entry(), expanded, wrap, params.width);
             let layout = EntryLayout::new(height, LineOffset::new(cumulative_y));
             entry_view.set_layout(layout);
             cumulative_y += height.get() as usize;
@@ -340,7 +340,7 @@ impl ConversationViewState {
         height_calculator: F,
     ) -> Option<bool>
     where
-        F: Fn(&ConversationEntry, bool, WrapMode) -> LineHeight,
+        F: Fn(&ConversationEntry, bool, WrapMode, u16) -> LineHeight,
     {
         // Capture scroll anchor BEFORE toggling if entry is above viewport
         let scroll_anchor = self.compute_scroll_anchor_before_toggle(index, viewport);
@@ -399,7 +399,7 @@ impl ConversationViewState {
         height_calculator: F,
     ) -> Option<Option<WrapMode>>
     where
-        F: Fn(&ConversationEntry, bool, WrapMode) -> LineHeight,
+        F: Fn(&ConversationEntry, bool, WrapMode, u16) -> LineHeight,
     {
         let entry = self.entries.get_mut(index.get())?;
         let previous = entry.wrap_override();
@@ -606,8 +606,8 @@ mod tests {
     // Mock height calculator: returns fixed height for testing
     fn fixed_height_calculator(
         height: u16,
-    ) -> impl Fn(&ConversationEntry, bool, WrapMode) -> LineHeight {
-        move |_entry, _expanded, _wrap| LineHeight::new(height).unwrap()
+    ) -> impl Fn(&ConversationEntry, bool, WrapMode, u16) -> LineHeight {
+        move |_entry, _expanded, _wrap, _width| LineHeight::new(height).unwrap()
     }
 
     // === ConversationViewState::new Tests ===
@@ -882,7 +882,7 @@ mod tests {
         // Change entry 1 to height 20
         state.entries[1].set_expanded(true); // Simulate expansion
 
-        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode| {
+        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
             if expanded {
                 LineHeight::new(20).unwrap()
             } else {
@@ -994,7 +994,7 @@ mod tests {
         let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
-        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode| {
+        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
             if expanded {
                 LineHeight::new(20).unwrap()
             } else {
@@ -1039,7 +1039,7 @@ mod tests {
         let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
-        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode| {
+        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
             if expanded {
                 LineHeight::new(5).unwrap()
             } else {
@@ -1546,7 +1546,7 @@ mod tests {
 
         // Variable height based on wrap mode
         let variable_height =
-            |_entry: &ConversationEntry, _expanded: bool, wrap: WrapMode| match wrap {
+            |_entry: &ConversationEntry, _expanded: bool, wrap: WrapMode, _width: u16| match wrap {
                 WrapMode::Wrap => LineHeight::new(10).unwrap(),
                 WrapMode::NoWrap => LineHeight::new(5).unwrap(),
             };

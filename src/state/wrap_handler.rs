@@ -17,7 +17,7 @@ use crate::state::{AppState, FocusPane, WrapMode};
 pub fn handle_toggle_wrap(mut state: AppState) -> AppState {
     // Stub height calculator - will be properly wired when rendering is migrated
     let stub_calculator =
-        |_entry: &crate::model::ConversationEntry, _expanded: bool, _wrap: WrapMode| {
+        |_entry: &crate::model::ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16| {
             crate::view_state::types::LineHeight::new(10).unwrap()
         };
 
