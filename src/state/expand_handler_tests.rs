@@ -65,10 +65,10 @@ fn test_toggle_expand_calls_toggle_entry_expanded() {
     }
 
     // Invoke handler
-    let result = handle_expand_action(state, crate::model::KeyAction::ToggleExpand, 80);
+    handle_expand_action(&mut state, crate::model::KeyAction::ToggleExpand, 80);
 
     // Verify: Entry 1 should be toggled (expanded)
-    if let Some(view) = result.main_conversation_view() {
+    if let Some(view) = state.main_conversation_view() {
         let entry = view.get(EntryIndex::new(1)).expect("entry exists");
         assert!(
             entry.is_expanded(),
@@ -98,10 +98,10 @@ fn test_expand_all_uses_toggle_entry_expanded() {
     }
 
     // Expand all
-    let result = handle_expand_action(state, crate::model::KeyAction::ExpandMessage, 80);
+    handle_expand_action(&mut state, crate::model::KeyAction::ExpandMessage, 80);
 
     // Verify: All entries should be expanded
-    if let Some(view) = result.main_conversation_view() {
+    if let Some(view) = state.main_conversation_view() {
         for i in 0..3 {
             let entry = view.get(EntryIndex::new(i)).expect("entry exists");
             assert!(entry.is_expanded(), "Entry {} should be expanded", i);
@@ -129,10 +129,10 @@ fn test_toggle_maintains_height_index_invariant() {
     }
 
     // Toggle expand
-    let result = handle_expand_action(state, crate::model::KeyAction::ToggleExpand, 80);
+    handle_expand_action(&mut state, crate::model::KeyAction::ToggleExpand, 80);
 
     // Verify HeightIndex invariant
-    if let Some(view) = result.main_conversation_view() {
+    if let Some(view) = state.main_conversation_view() {
         for i in 0..view.len() {
             let entry = view.get(EntryIndex::new(i)).expect("entry exists");
             let entry_height = entry.height().get() as usize;

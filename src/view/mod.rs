@@ -349,8 +349,8 @@ where
                         size.width.max(1), // Guard against zero width (cclv-5ur.58)
                         size.height.saturating_sub(5),
                     );
-                    self.app_state = scroll_handler::handle_scroll_action(
-                        self.app_state.clone(),
+                    scroll_handler::handle_scroll_action(
+                        &mut self.app_state,
                         KeyAction::ScrollToBottom,
                         viewport,
                     );
@@ -368,8 +368,8 @@ where
                     size.width.max(1), // Guard against zero width (cclv-5ur.58)
                     size.height.saturating_sub(5),
                 );
-                self.app_state = scroll_handler::handle_scroll_action(
-                    self.app_state.clone(),
+                scroll_handler::handle_scroll_action(
+                    &mut self.app_state,
                     KeyAction::ScrollToBottom,
                     viewport,
                 );
@@ -468,11 +468,7 @@ where
                         size.height.saturating_sub(5), // Reserve space for header/footer
                     );
 
-                    // Clone app_state, apply scroll action, then replace
-                    // This is safe because AppState is cheap to clone (Rc internals)
-                    let new_state =
-                        scroll_handler::handle_scroll_action(self.app_state.clone(), action, viewport);
-                    self.app_state = new_state;
+                    scroll_handler::handle_scroll_action(&mut self.app_state, action, viewport);
                 }
             }
 
@@ -578,12 +574,11 @@ where
                     Ok(size) if size.width > 0 => size.width,
                     _ => 80, // Fallback for errors OR zero width (cclv-5ur.58)
                 };
-                let new_state = expand_handler::handle_expand_action(
-                    self.app_state.clone(),
+                expand_handler::handle_expand_action(
+                    &mut self.app_state,
                     action,
                     viewport_width,
                 );
-                self.app_state = new_state;
             }
 
             // Search actions - delegate to pure search input handler
@@ -621,10 +616,10 @@ where
 
             // Match navigation - delegate to pure match navigation handler
             KeyAction::NextMatch => {
-                self.app_state = next_match(self.app_state.clone());
+                next_match(&mut self.app_state);
             }
             KeyAction::PrevMatch => {
-                self.app_state = prev_match(self.app_state.clone());
+                prev_match(&mut self.app_state);
             }
 
             // Line wrapping - per-item toggle (w key)
@@ -634,7 +629,7 @@ where
                     Ok(size) if size.width > 0 => size.width,
                     _ => 80, // Fallback for errors OR zero width (cclv-5ur.58)
                 };
-                self.app_state = handle_toggle_wrap(self.app_state.clone(), viewport_width);
+                handle_toggle_wrap(&mut self.app_state, viewport_width);
             }
 
             // Line wrapping - global toggle (W key)
@@ -736,12 +731,11 @@ where
                     size.height.saturating_sub(5), // Reserve space for header/footer
                 );
 
-                let new_state = crate::state::mouse_handler::handle_mouse_scroll(
-                    self.app_state.clone(),
+                crate::state::mouse_handler::handle_mouse_scroll(
+                    &mut self.app_state,
                     true, // is_scroll_up
                     viewport,
                 );
-                self.app_state = new_state;
                 return;
             }
             MouseEventKind::ScrollDown => {
@@ -758,12 +752,11 @@ where
                     size.height.saturating_sub(5), // Reserve space for header/footer
                 );
 
-                let new_state = crate::state::mouse_handler::handle_mouse_scroll(
-                    self.app_state.clone(),
+                crate::state::mouse_handler::handle_mouse_scroll(
+                    &mut self.app_state,
                     false, // is_scroll_up
                     viewport,
                 );
-                self.app_state = new_state;
                 return;
             }
             MouseEventKind::Down(MouseButton::Left) => {
@@ -777,13 +770,12 @@ where
 
         // Handle tab clicks if we have a tab area
         if let Some(tab_area) = self.last_tab_area {
-            let new_state = crate::state::mouse_handler::handle_mouse_click(
-                self.app_state.clone(),
+            crate::state::mouse_handler::handle_mouse_click(
+                &mut self.app_state,
                 mouse.column,
                 mouse.row,
                 tab_area,
             );
-            self.app_state = new_state;
         }
 
         // Handle entry clicks if we have conversation area (FR-083: unified tabs, no split panes)
@@ -799,8 +791,8 @@ where
                 Ok(size) if size.width > 0 => size.width,
                 _ => 80, // Fallback for errors OR zero width (cclv-5ur.58)
             };
-            self.app_state = crate::state::mouse_handler::handle_entry_click(
-                self.app_state.clone(),
+            crate::state::mouse_handler::handle_entry_click(
+                &mut self.app_state,
                 entry_result,
                 viewport_width,
             );
@@ -841,8 +833,8 @@ where
                 size.width.max(1), // Guard against zero width (cclv-5ur.58)
                 size.height.saturating_sub(5),
             );
-            self.app_state = scroll_handler::handle_scroll_action(
-                self.app_state.clone(),
+            scroll_handler::handle_scroll_action(
+                &mut self.app_state,
                 KeyAction::ScrollToBottom,
                 viewport,
             );
@@ -1368,8 +1360,8 @@ mod tests {
         // This is what poll_input() does after adding entries
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
             let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
-            app.app_state = scroll_handler::handle_scroll_action(
-                app.app_state.clone(),
+            scroll_handler::handle_scroll_action(
+                &mut app.app_state,
                 KeyAction::ScrollToBottom,
                 viewport,
             );
@@ -1400,8 +1392,8 @@ mod tests {
         // Try to trigger auto-scroll (should be skipped when auto_scroll=false)
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
             let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
-            app.app_state = scroll_handler::handle_scroll_action(
-                app.app_state.clone(),
+            scroll_handler::handle_scroll_action(
+                &mut app.app_state,
                 KeyAction::ScrollToBottom,
                 viewport,
             );
@@ -1429,8 +1421,8 @@ mod tests {
         // Try to trigger auto-scroll (should be skipped when not live_mode)
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
             let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
-            app.app_state = scroll_handler::handle_scroll_action(
-                app.app_state.clone(),
+            scroll_handler::handle_scroll_action(
+                &mut app.app_state,
                 KeyAction::ScrollToBottom,
                 viewport,
             );

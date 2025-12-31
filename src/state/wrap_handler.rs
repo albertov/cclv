@@ -11,10 +11,10 @@ use crate::state::{AppState, FocusPane, WrapMode};
 /// Toggle semantics: if no override, set opposite of global; if override exists, clear it.
 ///
 /// # Arguments
-/// * `state` - Current application state to transform
+/// * `state` - Current application state to mutate
 /// * `viewport_width` - Viewport width in characters for layout calculations
 ///
-/// Returns a new AppState with the wrap toggle applied (or unchanged if no message focused).
+/// Mutates state in-place with the wrap toggle applied (or unchanged if no message focused).
 ///
 /// # Routing Logic
 ///
@@ -23,10 +23,10 @@ use crate::state::{AppState, FocusPane, WrapMode};
 /// - Tab 1+ = Subagent conversations (index - 1 in sorted subagent list)
 ///
 /// This matches the routing in scroll_handler.rs and expand_handler.rs to ensure consistency.
-pub fn handle_toggle_wrap(mut state: AppState, _viewport_width: u16) -> AppState {
+pub fn handle_toggle_wrap(state: &mut AppState, _viewport_width: u16) {
     // Early return for non-toggleable panes
     match state.focus {
-        FocusPane::Stats | FocusPane::Search => return state,
+        FocusPane::Stats | FocusPane::Search => return,
         _ => {}
     }
 
@@ -38,7 +38,7 @@ pub fn handle_toggle_wrap(mut state: AppState, _viewport_width: u16) -> AppState
     let conversation = if let Some(conv) = state.selected_conversation_view_mut() {
         conv
     } else {
-        return state; // No conversation selected, nothing to toggle
+        return; // No conversation selected, nothing to toggle
     };
 
     if let Some(index) = conversation.focused_message() {
@@ -56,8 +56,6 @@ pub fn handle_toggle_wrap(mut state: AppState, _viewport_width: u16) -> AppState
 
         conversation.set_entry_wrap_override(index.get(), new_override, &search_state);
     }
-
-    state
 }
 
 // ===== Tests =====

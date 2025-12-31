@@ -215,12 +215,11 @@ pub fn detect_entry_click(
 /// Handle an entry click event and toggle expand/collapse.
 ///
 /// # Arguments
-/// * `state` - Current application state
+/// * `state` - Current application state to mutate
 /// * `entry_click` - Result from detect_entry_click indicating which entry was clicked
 /// * `_viewport_width` - Unused (kept for API compatibility)
 ///
-/// # Returns
-/// Updated AppState with entry expansion toggled if an entry was clicked.
+/// Mutates state in-place with entry expansion toggled if an entry was clicked.
 ///
 /// # Behavior
 /// - If entry was clicked, toggles expansion state via ConversationViewState
@@ -229,10 +228,10 @@ pub fn detect_entry_click(
 /// - If click was outside entries, state is unchanged
 /// - Uses HeightIndex-aware toggle_entry_expanded for O(log n) updates
 pub fn handle_entry_click(
-    mut state: AppState,
+    state: &mut AppState,
     entry_click: EntryClickResult,
     _viewport_width: u16,
-) -> AppState {
+) {
     // Clone search state before getting mutable borrows
     let search_state = state.search.clone();
 
@@ -243,7 +242,6 @@ pub fn handle_entry_click(
                 let conv_view = session_view.main_mut();
                 conv_view.toggle_entry_expanded(index, &search_state);
             }
-            state
         }
         EntryClickResult::SubagentPaneEntry(index) => {
             // Toggle expand via selected subagent's ConversationViewState
@@ -254,33 +252,31 @@ pub fn handle_entry_click(
                     conv_view.toggle_entry_expanded(index, &search_state);
                 }
             }
-            state
         }
-        EntryClickResult::NoEntry => state,
+        EntryClickResult::NoEntry => {}
     }
 }
 
 /// Handle a mouse click event and update AppState accordingly.
 ///
 /// # Arguments
-/// * `state` - Current application state
+/// * `state` - Current application state to mutate
 /// * `click_x` - Mouse click column position
 /// * `click_y` - Mouse click row position
 /// * `tab_area` - The rectangular area containing the tab bar
 ///
-/// # Returns
-/// Updated AppState with tab selection changed if a tab was clicked.
+/// Mutates state in-place with tab selection changed if a tab was clicked.
 ///
 /// # Behavior
 /// - If click is on a tab, switches to that tab (updates selected_tab)
 /// - If click is outside tabs, state is unchanged
 /// - Uses agent_ids from state.session() to determine tab layout
 pub fn handle_mouse_click(
-    mut state: AppState,
+    state: &mut AppState,
     click_x: u16,
     click_y: u16,
     tab_area: ratatui::layout::Rect,
-) -> AppState {
+) {
     // Get agent IDs from the session view-state
     let mut agent_ids: Vec<_> = state.session_view().subagent_ids().collect();
     agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
@@ -298,21 +294,19 @@ pub fn handle_mouse_click(
                 state.selected_conversation =
                     crate::state::ConversationSelection::Subagent((*agent_id).clone());
             }
-            state
         }
-        TabClickResult::NoTab => state,
+        TabClickResult::NoTab => {}
     }
 }
 
 /// Handle a mouse scroll event and update AppState accordingly.
 ///
 /// # Arguments
-/// * `state` - Current application state
+/// * `state` - Current application state to mutate
 /// * `is_scroll_up` - true for scroll up, false for scroll down
 /// * `viewport` - Viewport dimensions (width and height) for scroll calculations
 ///
-/// # Returns
-/// Updated AppState with scroll position changed based on focused pane.
+/// Mutates state in-place with scroll position changed based on focused pane.
 ///
 /// # Behavior
 /// - Determines which pane to scroll based on current focus
@@ -321,10 +315,10 @@ pub fn handle_mouse_click(
 /// - No scroll when focus is FocusPane::Stats or FocusPane::Search
 /// - Delegates to scroll_handler for actual scroll logic
 pub fn handle_mouse_scroll(
-    state: AppState,
+    state: &mut AppState,
     is_scroll_up: bool,
     viewport: crate::view_state::types::ViewportDimensions,
-) -> AppState {
+) {
     use crate::model::KeyAction;
 
     // Delegate to scroll_handler with appropriate action
@@ -334,7 +328,7 @@ pub fn handle_mouse_scroll(
         KeyAction::ScrollDown
     };
 
-    crate::state::scroll_handler::handle_scroll_action(state, action, viewport)
+    crate::state::scroll_handler::handle_scroll_action(state, action, viewport);
 }
 
 // ===== Tests =====

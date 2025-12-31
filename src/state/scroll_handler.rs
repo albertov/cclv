@@ -12,19 +12,19 @@ use crate::view_state::scroll::ScrollPosition;
 /// Handle a scroll keyboard action, dispatching to the appropriate conversation view.
 ///
 /// # Arguments
-/// * `state` - Current application state to transform
+/// * `state` - Current application state to mutate
 /// * `action` - The scroll action to handle
 /// * `viewport` - Viewport dimensions (width and height) for scroll calculations
 ///
-/// Returns a new AppState with the scroll action applied via ScrollPosition.
+/// Mutates state in-place with the scroll action applied via ScrollPosition.
 pub fn handle_scroll_action(
-    mut state: AppState,
+    state: &mut AppState,
     action: KeyAction,
     viewport: crate::view_state::types::ViewportDimensions,
-) -> AppState {
+) {
     // Early return for non-scrollable panes
     match state.focus {
-        FocusPane::Stats | FocusPane::Search => return state,
+        FocusPane::Stats | FocusPane::Search => return,
         _ => {}
     }
 
@@ -32,18 +32,18 @@ pub fn handle_scroll_action(
     let conversation = if let Some(conv) = state.selected_conversation_view_mut() {
         conv
     } else {
-        return state; // No conversation selected, nothing to scroll
+        return; // No conversation selected, nothing to scroll
     };
 
     // Handle horizontal scrolling
     match action {
         KeyAction::ScrollLeft => {
             conversation.scroll_left(1);
-            return state;
+            return;
         }
         KeyAction::ScrollRight => {
             conversation.scroll_right(1);
-            return state;
+            return;
         }
         _ => {} // Continue to vertical scrolling
     }
@@ -130,7 +130,7 @@ pub fn handle_scroll_action(
             ScrollPosition::Bottom
         }
         // Non-scroll actions are no-ops
-        _ => return state,
+        _ => return,
     };
 
     // Apply the new scroll position
@@ -169,8 +169,6 @@ pub fn handle_scroll_action(
     // - If at bottom → enable auto_scroll (for End key, or scroll down reaching bottom)
     // - If not at bottom → disable auto_scroll (for any scroll away from bottom)
     state.auto_scroll = at_bottom;
-
-    state
 }
 
 // ===== Tests =====

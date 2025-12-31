@@ -10,11 +10,11 @@ use crate::view_state::types::EntryIndex;
 /// Handle a message expand/collapse keyboard action.
 ///
 /// # Arguments
-/// * `state` - Current application state to transform
+/// * `state` - Current application state to mutate
 /// * `action` - The expand/collapse action to handle
 /// * `viewport_width` - Viewport width in characters for layout calculations
 ///
-/// Returns a new AppState with the expand/collapse action applied.
+/// Mutates state in-place with the expand/collapse action applied.
 ///
 /// # Routing Logic
 ///
@@ -24,13 +24,13 @@ use crate::view_state::types::EntryIndex;
 ///
 /// This matches the routing in scroll_handler.rs to ensure consistency.
 pub fn handle_expand_action(
-    mut state: AppState,
+    state: &mut AppState,
     action: KeyAction,
     _viewport_width: u16,
-) -> AppState {
+) {
     // Early return for non-expandable panes
     match state.focus {
-        FocusPane::Stats | FocusPane::Search => return state,
+        FocusPane::Stats | FocusPane::Search => return,
         _ => {}
     }
 
@@ -41,7 +41,7 @@ pub fn handle_expand_action(
     let conversation = if let Some(conv) = state.selected_conversation_view_mut() {
         conv
     } else {
-        return state; // No conversation selected, nothing to expand/collapse
+        return; // No conversation selected, nothing to expand/collapse
     };
 
     // Apply the action to the selected conversation view
@@ -79,8 +79,6 @@ pub fn handle_expand_action(
         }
         _ => {}
     }
-
-    state
 }
 
 // ===== Tests =====

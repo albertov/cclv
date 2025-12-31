@@ -18,7 +18,7 @@ use crate::view_state::types::EntryIndex;
 /// - Wraps from last match to first (0)
 /// - Switches focus to Main or Subagent pane based on match location
 /// - Selects correct subagent tab if match is in a subagent
-pub fn next_match(mut state: AppState) -> AppState {
+pub fn next_match(state: &mut AppState) {
     // Only operate when in Active search state
     if let SearchState::Active {
         query,
@@ -28,7 +28,7 @@ pub fn next_match(mut state: AppState) -> AppState {
     {
         // Cannot navigate if no matches
         if matches.is_empty() {
-            return state;
+            return;
         }
 
         // Calculate next match index with wrap-around
@@ -52,10 +52,7 @@ pub fn next_match(mut state: AppState) -> AppState {
         };
 
         // Switch focus/tab to match location and scroll to match
-        switch_to_match_location(state, &target_agent_id, &target_entry_uuid)
-    } else {
-        // Not in Active state - do nothing
-        state
+        switch_to_match_location(state, &target_agent_id, &target_entry_uuid);
     }
 }
 
@@ -67,7 +64,7 @@ pub fn next_match(mut state: AppState) -> AppState {
 /// - Wraps from first match (0) to last
 /// - Switches focus to Main or Subagent pane based on match location
 /// - Selects correct subagent tab if match is in a subagent
-pub fn prev_match(mut state: AppState) -> AppState {
+pub fn prev_match(state: &mut AppState) {
     // Only operate when in Active search state
     if let SearchState::Active {
         query,
@@ -77,7 +74,7 @@ pub fn prev_match(mut state: AppState) -> AppState {
     {
         // Cannot navigate if no matches
         if matches.is_empty() {
-            return state;
+            return;
         }
 
         // Calculate previous match index with wrap-around
@@ -101,10 +98,7 @@ pub fn prev_match(mut state: AppState) -> AppState {
         };
 
         // Switch focus/tab to match location and scroll to match
-        switch_to_match_location(state, &target_agent_id, &target_entry_uuid)
-    } else {
-        // Not in Active state - do nothing
-        state
+        switch_to_match_location(state, &target_agent_id, &target_entry_uuid);
     }
 }
 
@@ -115,10 +109,10 @@ pub fn prev_match(mut state: AppState) -> AppState {
 /// If agent_id is Some, switches to Subagent pane and selects the correct tab.
 /// Also scrolls the conversation to show the match entry (US5/FR-013).
 fn switch_to_match_location(
-    mut state: AppState,
+    state: &mut AppState,
     agent_id: &Option<AgentId>,
     entry_uuid: &EntryUuid,
-) -> AppState {
+) {
     match agent_id {
         None => {
             // Match is in main agent - switch to Main pane
@@ -135,9 +129,7 @@ fn switch_to_match_location(
     }
 
     // Scroll to the match entry (US5/FR-013)
-    scroll_to_entry(&mut state, entry_uuid);
-
-    state
+    scroll_to_entry(state, entry_uuid);
 }
 
 /// Scroll the selected conversation to show the entry with the given UUID.

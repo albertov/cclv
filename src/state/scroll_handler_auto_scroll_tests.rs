@@ -81,11 +81,11 @@ fn scroll_up_from_bottom_disables_auto_scroll() {
 
     // Scroll up by 1 line
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 24);
-    let new_state = handle_scroll_action(state, KeyAction::ScrollUp, viewport);
+    handle_scroll_action(&mut state, KeyAction::ScrollUp, viewport);
 
     // FR-036: Auto-scroll should be disabled when user scrolls away from bottom
     assert!(
-        !new_state.auto_scroll,
+        !state.auto_scroll,
         "auto_scroll should be false after scrolling up from bottom"
     );
 }
@@ -106,11 +106,11 @@ fn scroll_up_from_middle_disables_auto_scroll() {
 
     // Scroll up by 1 line
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 24);
-    let new_state = handle_scroll_action(state, KeyAction::ScrollUp, viewport);
+    handle_scroll_action(&mut state, KeyAction::ScrollUp, viewport);
 
     // FR-036: Auto-scroll should be disabled when scrolling away from bottom
     assert!(
-        !new_state.auto_scroll,
+        !state.auto_scroll,
         "auto_scroll should be false after scrolling up from middle"
     );
 }
@@ -131,11 +131,11 @@ fn scroll_down_not_at_bottom_disables_auto_scroll() {
 
     // Scroll down by 1 line (still not at bottom)
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 24);
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
+    handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
     // FR-036: Auto-scroll should be disabled when user scrolls (even down, if not at bottom)
     assert!(
-        !new_state.auto_scroll,
+        !state.auto_scroll,
         "auto_scroll should be false after scrolling down (not reaching bottom)"
     );
 }
@@ -156,11 +156,11 @@ fn page_up_disables_auto_scroll() {
 
     // Page up
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 24);
-    let new_state = handle_scroll_action(state, KeyAction::PageUp, viewport);
+    handle_scroll_action(&mut state, KeyAction::PageUp, viewport);
 
     // FR-036: Auto-scroll should be disabled
     assert!(
-        !new_state.auto_scroll,
+        !state.auto_scroll,
         "auto_scroll should be false after PageUp"
     );
 }
@@ -181,11 +181,11 @@ fn page_down_not_reaching_bottom_disables_auto_scroll() {
 
     // Page down (won't reach bottom with 100 entries)
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 24);
-    let new_state = handle_scroll_action(state, KeyAction::PageDown, viewport);
+    handle_scroll_action(&mut state, KeyAction::PageDown, viewport);
 
     // FR-036: Auto-scroll should be disabled
     assert!(
-        !new_state.auto_scroll,
+        !state.auto_scroll,
         "auto_scroll should be false after PageDown not reaching bottom"
     );
 }
@@ -206,11 +206,11 @@ fn home_key_disables_auto_scroll() {
 
     // Press Home to jump to top
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 24);
-    let new_state = handle_scroll_action(state, KeyAction::ScrollToTop, viewport);
+    handle_scroll_action(&mut state, KeyAction::ScrollToTop, viewport);
 
     // FR-036: Auto-scroll should be disabled
     assert!(
-        !new_state.auto_scroll,
+        !state.auto_scroll,
         "auto_scroll should be false after Home (jump to top)"
     );
 }
@@ -225,11 +225,11 @@ fn end_key_enables_auto_scroll() {
 
     // Press End to jump to bottom
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 24);
-    let new_state = handle_scroll_action(state, KeyAction::ScrollToBottom, viewport);
+    handle_scroll_action(&mut state, KeyAction::ScrollToBottom, viewport);
 
     // FR-036: Auto-scroll should be re-enabled when user goes to bottom
     assert!(
-        new_state.auto_scroll,
+        state.auto_scroll,
         "auto_scroll should be true after End (jump to bottom)"
     );
 }
@@ -262,11 +262,11 @@ fn scroll_down_reaching_bottom_enables_auto_scroll() {
 
     // Scroll down to reach bottom
     let viewport = crate::view_state::types::ViewportDimensions::new(80, viewport_height as u16);
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
+    handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
     // FR-036: Auto-scroll should be enabled when reaching bottom
     assert!(
-        new_state.auto_scroll,
+        state.auto_scroll,
         "auto_scroll should be true after scrolling down to bottom"
     );
 }
@@ -287,11 +287,11 @@ fn already_at_bottom_keeps_auto_scroll_true() {
 
     // Try to scroll down (no-op since already at bottom)
     let viewport = crate::view_state::types::ViewportDimensions::new(80, 24);
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
+    handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
     // FR-036: Auto-scroll should remain true when already at bottom
     assert!(
-        new_state.auto_scroll,
+        state.auto_scroll,
         "auto_scroll should remain true when already at bottom"
     );
 }
