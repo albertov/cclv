@@ -530,4 +530,143 @@ mod tests {
         assert_eq!(parse_entry_type(""), None);
         assert_eq!(parse_entry_type("USER"), None); // Case sensitive
     }
+
+    // ===== ContentBlock Variant Tests =====
+
+    #[test]
+    fn parse_entry_with_tool_use_block() {
+        let raw = r#"{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-123","name":"Read","input":{"file_path":"test.txt"}}]},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse entry with ToolUse block");
+        let entry = result.unwrap();
+        match entry.message().content() {
+            MessageContent::Blocks(blocks) => {
+                assert_eq!(blocks.len(), 1);
+                match &blocks[0] {
+                    ContentBlock::ToolUse(call) => {
+                        assert_eq!(call.id().as_str(), "tool-123");
+                        assert_eq!(call.name(), &ToolName::Read);
+                        assert_eq!(call.input()["file_path"], "test.txt");
+                    }
+                    _ => panic!("Expected ToolUse block"),
+                }
+            }
+            _ => panic!("Expected Blocks content"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_with_tool_result_block_success() {
+        let raw = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-456","content":"file contents here","is_error":false}]},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse entry with ToolResult block");
+        let entry = result.unwrap();
+        match entry.message().content() {
+            MessageContent::Blocks(blocks) => {
+                assert_eq!(blocks.len(), 1);
+                match &blocks[0] {
+                    ContentBlock::ToolResult {
+                        tool_use_id,
+                        content,
+                        is_error,
+                    } => {
+                        assert_eq!(tool_use_id.as_str(), "tool-456");
+                        assert_eq!(content, "file contents here");
+                        assert!(!is_error, "Should not be error");
+                    }
+                    _ => panic!("Expected ToolResult block"),
+                }
+            }
+            _ => panic!("Expected Blocks content"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_with_tool_result_block_error() {
+        let raw = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-789","content":"Error: file not found","is_error":true}]},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse entry with ToolResult error");
+        let entry = result.unwrap();
+        match entry.message().content() {
+            MessageContent::Blocks(blocks) => {
+                assert_eq!(blocks.len(), 1);
+                match &blocks[0] {
+                    ContentBlock::ToolResult {
+                        tool_use_id,
+                        content,
+                        is_error,
+                    } => {
+                        assert_eq!(tool_use_id.as_str(), "tool-789");
+                        assert_eq!(content, "Error: file not found");
+                        assert!(is_error, "Should be error");
+                    }
+                    _ => panic!("Expected ToolResult block"),
+                }
+            }
+            _ => panic!("Expected Blocks content"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_with_tool_result_defaults_is_error_to_false() {
+        let raw = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-999","content":"output"}]},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse ToolResult without is_error field");
+        let entry = result.unwrap();
+        match entry.message().content() {
+            MessageContent::Blocks(blocks) => {
+                match &blocks[0] {
+                    ContentBlock::ToolResult { is_error, .. } => {
+                        assert!(!is_error, "is_error should default to false");
+                    }
+                    _ => panic!("Expected ToolResult block"),
+                }
+            }
+            _ => panic!("Expected Blocks content"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_with_thinking_block() {
+        let raw = r#"{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Let me analyze this problem..."}]},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse entry with Thinking block");
+        let entry = result.unwrap();
+        match entry.message().content() {
+            MessageContent::Blocks(blocks) => {
+                assert_eq!(blocks.len(), 1);
+                match &blocks[0] {
+                    ContentBlock::Thinking { thinking } => {
+                        assert_eq!(thinking, "Let me analyze this problem...");
+                    }
+                    _ => panic!("Expected Thinking block"),
+                }
+            }
+            _ => panic!("Expected Blocks content"),
+        }
+    }
+
+    #[test]
+    fn parse_entry_with_mixed_content_blocks() {
+        let raw = r#"{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll read the file"},{"type":"thinking","thinking":"Using Read tool"},{"type":"tool_use","id":"t1","name":"Read","input":{"file":"a.txt"}},{"type":"text","text":"Done"}]},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse entry with mixed blocks");
+        let entry = result.unwrap();
+        match entry.message().content() {
+            MessageContent::Blocks(blocks) => {
+                assert_eq!(blocks.len(), 4);
+                assert!(matches!(blocks[0], ContentBlock::Text { .. }));
+                assert!(matches!(blocks[1], ContentBlock::Thinking { .. }));
+                assert!(matches!(blocks[2], ContentBlock::ToolUse(_)));
+                assert!(matches!(blocks[3], ContentBlock::Text { .. }));
+            }
+            _ => panic!("Expected Blocks content"),
+        }
+    }
 }

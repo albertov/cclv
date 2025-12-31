@@ -72,6 +72,22 @@ impl LogEntry {
         }
     }
 
+    /// Parse a single JSONL line into a LogEntry.
+    ///
+    /// This is the public API for parsing a single log entry from JSONL.
+    /// For batch parsing, use the parser module's parse_entry with line numbers.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ParseError` if:
+    /// - JSON is malformed
+    /// - Required fields are missing
+    /// - Timestamps are invalid
+    /// - UUIDs or IDs are empty
+    pub fn parse(_raw: &str) -> Result<Self, crate::model::ParseError> {
+        todo!("LogEntry::parse")
+    }
+
     // ===== Accessors (read-only) =====
 
     pub fn uuid(&self) -> &EntryUuid {
@@ -512,5 +528,85 @@ mod tests {
         );
 
         assert!(entry.is_subagent());
+    }
+
+    // ===== LogEntry::parse API Tests =====
+
+    #[test]
+    fn log_entry_parse_accepts_valid_minimal_entry() {
+        let raw = r#"{"type":"user","message":{"role":"user","content":"Hello"},"sessionId":"session-123","uuid":"uuid-001","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = LogEntry::parse(raw);
+
+        assert!(result.is_ok(), "Should parse valid minimal entry");
+        let entry = result.unwrap();
+        assert_eq!(entry.uuid().as_str(), "uuid-001");
+        assert_eq!(entry.session_id().as_str(), "session-123");
+        assert_eq!(entry.entry_type(), EntryType::User);
+    }
+
+    #[test]
+    fn log_entry_parse_accepts_entry_with_all_fields() {
+        let raw = r#"{"type":"assistant","message":{"role":"assistant","content":"Response"},"sessionId":"s1","uuid":"u2","parentUuid":"u1","agentId":"agent-1","timestamp":"2025-12-25T10:00:00Z","cwd":"/home","gitBranch":"main","version":"1.0.0","isSidechain":true}"#;
+        let result = LogEntry::parse(raw);
+
+        assert!(result.is_ok(), "Should parse entry with all fields");
+        let entry = result.unwrap();
+        assert_eq!(entry.parent_uuid().unwrap().as_str(), "u1");
+        assert_eq!(entry.agent_id().unwrap().as_str(), "agent-1");
+        assert_eq!(entry.metadata().git_branch, Some("main".to_string()));
+        assert!(entry.metadata().is_sidechain);
+    }
+
+    #[test]
+    fn log_entry_parse_rejects_malformed_json() {
+        let raw = r#"{"type":"user","message":{"role":"user""#;
+        let result = LogEntry::parse(raw);
+
+        assert!(result.is_err(), "Should reject malformed JSON");
+        match result.unwrap_err() {
+            crate::model::ParseError::InvalidJson { line, message } => {
+                assert_eq!(line, 1, "Single entry should report line 1");
+                assert!(!message.is_empty(), "Should have error message");
+            }
+            _ => panic!("Expected InvalidJson error"),
+        }
+    }
+
+    #[test]
+    fn log_entry_parse_rejects_missing_uuid() {
+        let raw = r#"{"type":"user","message":{"role":"user","content":"Test"},"sessionId":"s1","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = LogEntry::parse(raw);
+
+        assert!(result.is_err(), "Should reject missing uuid");
+    }
+
+    #[test]
+    fn log_entry_parse_rejects_empty_uuid() {
+        let raw = r#"{"type":"user","message":{"role":"user","content":"Test"},"sessionId":"s1","uuid":"","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = LogEntry::parse(raw);
+
+        assert!(result.is_err(), "Should reject empty uuid");
+        match result.unwrap_err() {
+            crate::model::ParseError::MissingField { line, field } => {
+                assert_eq!(line, 1, "Single entry should report line 1");
+                assert_eq!(field, "uuid");
+            }
+            _ => panic!("Expected MissingField error for empty uuid"),
+        }
+    }
+
+    #[test]
+    fn log_entry_parse_rejects_invalid_timestamp() {
+        let raw = r#"{"type":"user","message":{"role":"user","content":"Test"},"sessionId":"s1","uuid":"u1","timestamp":"not-a-timestamp"}"#;
+        let result = LogEntry::parse(raw);
+
+        assert!(result.is_err(), "Should reject invalid timestamp");
+        match result.unwrap_err() {
+            crate::model::ParseError::InvalidTimestamp { line, raw } => {
+                assert_eq!(line, 1, "Single entry should report line 1");
+                assert_eq!(raw, "not-a-timestamp");
+            }
+            _ => panic!("Expected InvalidTimestamp error"),
+        }
     }
 }
