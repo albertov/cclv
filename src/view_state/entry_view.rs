@@ -1,7 +1,5 @@
 //! Entry view with per-entry state and layout.
 
-#![allow(dead_code)] // TDD: Stubs will be implemented after tests
-
 use crate::model::ConversationEntry;
 use crate::state::WrapMode;
 use super::layout::EntryLayout;
@@ -48,73 +46,88 @@ pub struct EntryView {
 
 impl EntryView {
     /// Create new EntryView with default state (collapsed, no wrap override).
-    pub fn new(_entry: ConversationEntry, _index: EntryIndex) -> Self {
-        todo!("EntryView::new")
+    pub fn new(entry: ConversationEntry, index: EntryIndex) -> Self {
+        Self {
+            entry,
+            index,
+            layout: EntryLayout::default(),
+            expanded: false,
+            wrap_override: None,
+        }
     }
 
     /// Create EntryView with precomputed layout.
     /// Used internally during layout computation.
+    #[allow(dead_code)] // Will be used by ConversationViewState
     pub(crate) fn with_layout(
-        _entry: ConversationEntry,
-        _index: EntryIndex,
-        _layout: EntryLayout,
+        entry: ConversationEntry,
+        index: EntryIndex,
+        layout: EntryLayout,
     ) -> Self {
-        todo!("EntryView::with_layout")
+        Self {
+            entry,
+            index,
+            layout,
+            expanded: false,
+            wrap_override: None,
+        }
     }
 
     /// Get the entry index (0-based).
     pub fn index(&self) -> EntryIndex {
-        todo!("EntryView::index")
+        self.index
     }
 
     /// Get the display index (1-based for UI).
     pub fn display_index(&self) -> usize {
-        todo!("EntryView::display_index")
+        self.index.display()
     }
 
     /// Get reference to the domain entry.
     pub fn entry(&self) -> &ConversationEntry {
-        todo!("EntryView::entry")
+        &self.entry
     }
 
     /// Get reference to the layout.
     pub fn layout(&self) -> &EntryLayout {
-        todo!("EntryView::layout")
+        &self.layout
     }
 
     /// Update the layout (called during relayout).
-    pub(crate) fn set_layout(&mut self, _layout: EntryLayout) {
-        todo!("EntryView::set_layout")
+    #[allow(dead_code)] // Will be used by ConversationViewState
+    pub(crate) fn set_layout(&mut self, layout: EntryLayout) {
+        self.layout = layout;
     }
 
     /// Check if this entry is expanded.
     pub fn is_expanded(&self) -> bool {
-        todo!("EntryView::is_expanded")
+        self.expanded
     }
 
     /// Set the expanded state.
-    pub fn set_expanded(&mut self, _expanded: bool) {
-        todo!("EntryView::set_expanded")
+    pub fn set_expanded(&mut self, expanded: bool) {
+        self.expanded = expanded;
     }
 
     /// Toggle expanded state and return the new state.
     pub fn toggle_expanded(&mut self) -> bool {
-        todo!("EntryView::toggle_expanded")
+        self.expanded = !self.expanded;
+        self.expanded
     }
 
     /// Get the wrap mode override.
     pub fn wrap_override(&self) -> Option<WrapMode> {
-        todo!("EntryView::wrap_override")
+        self.wrap_override
     }
 
     /// Set the wrap mode override.
-    pub fn set_wrap_override(&mut self, _mode: Option<WrapMode>) {
-        todo!("EntryView::set_wrap_override")
+    pub fn set_wrap_override(&mut self, mode: Option<WrapMode>) {
+        self.wrap_override = mode;
     }
 
     /// Get the effective wrap mode (override or global fallback).
-    pub fn effective_wrap(&self, _global: WrapMode) -> WrapMode {
-        todo!("EntryView::effective_wrap")
+    pub fn effective_wrap(&self, global: WrapMode) -> WrapMode {
+        self.wrap_override.unwrap_or(global)
     }
 }
 
