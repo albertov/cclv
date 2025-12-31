@@ -2518,7 +2518,6 @@ fn bug_subagent_scroll_does_not_work() {
 ///
 /// Fixture: tests/fixtures/cc-session-log.jsonl
 #[test]
-#[ignore = "cclv-5ur.47: subagent entry expand/collapse does not work (mouse or keyboard)"]
 fn bug_subagent_entry_expand_collapse_not_working() {
     use cclv::config::keybindings::KeyBindings;
     use cclv::source::{FileSource, InputSource, StdinSource};
