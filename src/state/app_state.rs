@@ -3,7 +3,7 @@
 //! AppState is the root state type containing all UI state.
 //! All state transitions are pure functions following Elm architecture.
 
-use crate::model::StatsFilter;
+use crate::model::{AgentId, StatsFilter};
 use crate::state::SearchState;
 use crate::view_state::log::LogViewState;
 
@@ -272,6 +272,57 @@ impl AppState {
         agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
         let agent_id = agent_ids.get(tab_index).cloned()?;
         Some(session.subagent_mut(&agent_id))
+    }
+
+    /// Get immutable reference to currently selected conversation view-state.
+    ///
+    /// Routes to the appropriate conversation based on selected_tab:
+    /// - Tab 0: Main agent conversation
+    /// - Tab 1+: Subagent at sorted index (tab - 1)
+    ///
+    /// Returns None if no session exists or selected tab is out of range.
+    ///
+    /// # Routing Logic
+    ///
+    /// This encapsulates the tab→conversation routing logic used throughout the application.
+    /// The routing matches the rendering logic to ensure input handlers and display stay synchronized.
+    pub fn selected_conversation_view(
+        &self,
+    ) -> Option<&crate::view_state::conversation::ConversationViewState> {
+        todo!("selected_conversation_view")
+    }
+
+    /// Get mutable reference to currently selected conversation view-state.
+    ///
+    /// Routes to the appropriate conversation based on selected_tab:
+    /// - Tab 0: Main agent conversation
+    /// - Tab 1+: Subagent at sorted index (tab - 1)
+    ///
+    /// Returns None if no session exists or selected tab is out of range.
+    ///
+    /// # Routing Logic
+    ///
+    /// This encapsulates the tab→conversation routing logic used throughout the application.
+    /// The routing matches the rendering logic to ensure input handlers and display stay synchronized.
+    pub fn selected_conversation_view_mut(
+        &mut self,
+    ) -> Option<&mut crate::view_state::conversation::ConversationViewState> {
+        todo!("selected_conversation_view_mut")
+    }
+
+    /// Get AgentId of currently selected tab.
+    ///
+    /// Returns:
+    /// - None if tab 0 is selected (main agent has no AgentId)
+    /// - Some(AgentId) if tab 1+ is selected (subagent)
+    /// - None if selected_tab is invalid or no session exists
+    ///
+    /// # Routing Logic
+    ///
+    /// This encapsulates the tab→agent routing logic. Main agent (tab 0) has no AgentId,
+    /// while subagents (tab 1+) map to AgentId at sorted index (tab - 1).
+    pub fn selected_agent_id(&self) -> Option<AgentId> {
+        todo!("selected_agent_id")
     }
 
     /// Check if new messages indicator should be shown.
@@ -556,3 +607,7 @@ impl WrapContext {
 #[cfg(test)]
 #[path = "app_state_unified_tabs_test.rs"]
 mod unified_tabs_test;
+
+#[cfg(test)]
+#[path = "app_state_routing_test.rs"]
+mod routing_test;
