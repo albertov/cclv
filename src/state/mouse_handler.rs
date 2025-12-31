@@ -100,8 +100,7 @@ pub fn detect_tab_click(
 /// # Arguments
 /// * `click_x` - Mouse click column position (0-based)
 /// * `click_y` - Mouse click row position (0-based)
-/// * `main_pane_area` - The rectangular area for the main conversation pane
-/// * `subagent_pane_area` - Optional rectangular area for the subagent pane
+/// * `conversation_area` - The rectangular area for the unified conversation pane (FR-083)
 /// * `state` - Current application state (for entry layout calculation)
 ///
 /// # Returns
@@ -110,114 +109,71 @@ pub fn detect_tab_click(
 /// * `EntryClickResult::NoEntry` - Click outside any entry
 ///
 /// # Behavior
-/// - Determines which pane was clicked
-/// - Calculates entry layouts to map Y position to entry index
-/// - Accounts for scroll offset and entry heights
+/// - Uses central routing (selected_conversation_view) to get the correct conversation
+/// - Accounts for scroll offset and entry heights via hit_test
 /// - Inner area has 1px border on each side
+/// - Returns MainPaneEntry when main tab selected, SubagentPaneEntry when subagent tab selected
 pub fn detect_entry_click(
     click_x: u16,
     click_y: u16,
-    main_pane_area: ratatui::layout::Rect,
-    subagent_pane_area: Option<ratatui::layout::Rect>,
+    conversation_area: ratatui::layout::Rect,
     state: &AppState,
 ) -> EntryClickResult {
-    // Check if click is in subagent pane
-    if let Some(subagent_area) = subagent_pane_area {
-        if click_x >= subagent_area.x
-            && click_x < subagent_area.x + subagent_area.width
-            && click_y >= subagent_area.y
-            && click_y < subagent_area.y + subagent_area.height
-        {
-            // Click is in subagent pane - check if it's within inner area (accounting for border)
-            let inner_x = subagent_area.x + 1;
-            let inner_y = subagent_area.y + 1;
-            let inner_width = subagent_area.width.saturating_sub(2);
-            let inner_height = subagent_area.height.saturating_sub(2);
-
-            if click_x >= inner_x
-                && click_x < inner_x + inner_width
-                && click_y >= inner_y
-                && click_y < inner_y + inner_height
-            {
-                // Use hit_test from ConversationViewState for accurate entry detection
-                // Use central routing to get selected conversation view
-                if let Some(conv_view) = state.selected_conversation_view() {
-                    use crate::view_state::hit_test::HitTestResult;
-
-                    // Get scroll offset
-                    let scroll_offset = conv_view.scroll().resolve(
-                        conv_view.total_height(),
-                        inner_height as usize,
-                        |idx| conv_view.entry_cumulative_y(idx),
-                    );
-
-                    // Calculate viewport-relative Y position
-                    let viewport_y = click_y.saturating_sub(inner_y);
-                    let viewport_x = click_x.saturating_sub(inner_x);
-
-                    // Hit-test using ConversationViewState
-                    match conv_view.hit_test(viewport_y, viewport_x, scroll_offset) {
-                        HitTestResult::Hit { entry_index, .. } => {
-                            return EntryClickResult::SubagentPaneEntry(entry_index.get());
-                        }
-                        HitTestResult::Miss => {
-                            return EntryClickResult::NoEntry;
-                        }
-                    }
-                }
-            }
-            return EntryClickResult::NoEntry;
-        }
-    }
-
-    // Check if click is in main pane
-    if click_x >= main_pane_area.x
-        && click_x < main_pane_area.x + main_pane_area.width
-        && click_y >= main_pane_area.y
-        && click_y < main_pane_area.y + main_pane_area.height
+    // Check if click is within conversation area bounds
+    if click_x < conversation_area.x
+        || click_x >= conversation_area.x + conversation_area.width
+        || click_y < conversation_area.y
+        || click_y >= conversation_area.y + conversation_area.height
     {
-        // Click is in main pane - check if it's within inner area (accounting for border)
-        let inner_x = main_pane_area.x + 1;
-        let inner_y = main_pane_area.y + 1;
-        let inner_width = main_pane_area.width.saturating_sub(2);
-        let inner_height = main_pane_area.height.saturating_sub(2);
-
-        if click_x >= inner_x
-            && click_x < inner_x + inner_width
-            && click_y >= inner_y
-            && click_y < inner_y + inner_height
-        {
-            // Use hit_test from ConversationViewState for accurate entry detection
-            use crate::view_state::hit_test::HitTestResult;
-
-            let conv_view = state.session_view().main();
-
-            // Get scroll offset
-            let scroll_offset = conv_view.scroll().resolve(
-                conv_view.total_height(),
-                inner_height as usize,
-                |idx| conv_view.entry_cumulative_y(idx),
-            );
-
-            // Calculate viewport-relative Y position
-            let viewport_y = click_y.saturating_sub(inner_y);
-            let viewport_x = click_x.saturating_sub(inner_x);
-
-            // Hit-test using ConversationViewState
-            match conv_view.hit_test(viewport_y, viewport_x, scroll_offset) {
-                HitTestResult::Hit { entry_index, .. } => {
-                    return EntryClickResult::MainPaneEntry(entry_index.get());
-                }
-                HitTestResult::Miss => {
-                    return EntryClickResult::NoEntry;
-                }
-            }
-        }
         return EntryClickResult::NoEntry;
     }
 
-    // Click is outside both panes
-    EntryClickResult::NoEntry
+    // Check if click is within inner area (accounting for border)
+    let inner_x = conversation_area.x + 1;
+    let inner_y = conversation_area.y + 1;
+    let inner_width = conversation_area.width.saturating_sub(2);
+    let inner_height = conversation_area.height.saturating_sub(2);
+
+    if click_x < inner_x
+        || click_x >= inner_x + inner_width
+        || click_y < inner_y
+        || click_y >= inner_y + inner_height
+    {
+        return EntryClickResult::NoEntry;
+    }
+
+    // Use central routing to get the selected conversation view
+    let conv_view = match state.selected_conversation_view() {
+        Some(view) => view,
+        None => return EntryClickResult::NoEntry,
+    };
+
+    use crate::view_state::hit_test::HitTestResult;
+
+    // Get scroll offset
+    let scroll_offset = conv_view.scroll().resolve(
+        conv_view.total_height(),
+        inner_height as usize,
+        |idx| conv_view.entry_cumulative_y(idx),
+    );
+
+    // Calculate viewport-relative position
+    let viewport_y = click_y.saturating_sub(inner_y);
+    let viewport_x = click_x.saturating_sub(inner_x);
+
+    // Hit-test using ConversationViewState
+    match conv_view.hit_test(viewport_y, viewport_x, scroll_offset) {
+        HitTestResult::Hit { entry_index, .. } => {
+            // Determine which result variant based on selected tab
+            // Main tab (0) -> MainPaneEntry, Subagent tabs (1+) -> SubagentPaneEntry
+            if state.selected_agent_id().is_some() {
+                EntryClickResult::SubagentPaneEntry(entry_index.get())
+            } else {
+                EntryClickResult::MainPaneEntry(entry_index.get())
+            }
+        }
+        HitTestResult::Miss => EntryClickResult::NoEntry,
+    }
 }
 
 /// Handle an entry click event and toggle expand/collapse.

@@ -425,7 +425,7 @@ fn detect_entry_click_returns_no_entry_when_click_outside_bounds() {
     let main_area = Rect::new(0, 0, 40, 20);
 
     // Click outside the area (x=50, y=25)
-    let result = detect_entry_click(50, 25, main_area, None, &state);
+    let result = detect_entry_click(50, 25, main_area, &state);
 
     assert_eq!(
         result,
@@ -462,7 +462,7 @@ fn detect_entry_click_detects_main_pane_first_entry() {
     // Main pane at (0, 0) with width 40, height 20
     // Click on first entry (inside border: y=1)
     let main_area = Rect::new(0, 0, 40, 20);
-    let result = detect_entry_click(5, 1, main_area, None, &state);
+    let result = detect_entry_click(5, 1, main_area, &state);
 
     assert_eq!(
         result,
@@ -485,7 +485,7 @@ fn detect_entry_click_detects_subagent_pane_entry() {
     let conversation_area = Rect::new(0, 0, 80, 20);
 
     // Click inside the unified area (inside border: y=1)
-    let result = detect_entry_click(5, 1, conversation_area, None, &state);
+    let result = detect_entry_click(5, 1, conversation_area, &state);
 
     assert_eq!(
         result,
@@ -517,7 +517,7 @@ fn detect_entry_click_accounts_for_border() {
     let main_area = Rect::new(0, 0, 40, 20);
 
     // Click on border (y=0) should return NoEntry
-    let result = detect_entry_click(5, 0, main_area, None, &state);
+    let result = detect_entry_click(5, 0, main_area, &state);
     assert_eq!(
         result,
         EntryClickResult::NoEntry,
@@ -538,7 +538,7 @@ fn detect_entry_click_handles_empty_conversation() {
 
     // Click inside the entry (accounting for border at y=1)
     let click_y = 1 + (entry_height / 2);
-    let result = detect_entry_click(5, click_y, main_area, None, &state);
+    let result = detect_entry_click(5, click_y, main_area, &state);
 
     assert_eq!(
         result,
@@ -586,7 +586,7 @@ fn detect_entry_click_maps_different_y_positions_to_different_entries() {
 
     // Click inside entry 0 (border starts at y=1)
     let click_y0 = 1 + pos0 + (h0 / 2);
-    let result_top = detect_entry_click(5, click_y0, main_area, None, &state);
+    let result_top = detect_entry_click(5, click_y0, main_area, &state);
     assert_eq!(
         result_top,
         EntryClickResult::MainPaneEntry(0),
@@ -595,7 +595,7 @@ fn detect_entry_click_maps_different_y_positions_to_different_entries() {
 
     // Click at start of entry 1
     let click_y1_start = 1 + pos1;
-    let result_mid = detect_entry_click(5, click_y1_start, main_area, None, &state);
+    let result_mid = detect_entry_click(5, click_y1_start, main_area, &state);
     assert_eq!(
         result_mid,
         EntryClickResult::MainPaneEntry(1),
@@ -604,7 +604,7 @@ fn detect_entry_click_maps_different_y_positions_to_different_entries() {
 
     // Click in middle of entry 1
     let click_y1_mid = 1 + pos1 + (h1 / 2);
-    let result_bottom = detect_entry_click(5, click_y1_mid, main_area, None, &state);
+    let result_bottom = detect_entry_click(5, click_y1_mid, main_area, &state);
     assert_eq!(
         result_bottom,
         EntryClickResult::MainPaneEntry(1),
@@ -642,28 +642,28 @@ fn detect_entry_click_with_single_entry_always_returns_index_0() {
 
     // Click at start of entry (border at y=1)
     assert_eq!(
-        detect_entry_click(5, 1, main_area, None, &state),
+        detect_entry_click(5, 1, main_area, &state),
         EntryClickResult::MainPaneEntry(0)
     );
 
     // Click in middle of entry
     let click_mid = 1 + (entry_height / 2);
     assert_eq!(
-        detect_entry_click(5, click_mid, main_area, None, &state),
+        detect_entry_click(5, click_mid, main_area, &state),
         EntryClickResult::MainPaneEntry(0)
     );
 
     // Click at last line of entry
     let click_last = 1 + entry_height - 1;
     assert_eq!(
-        detect_entry_click(5, click_last, main_area, None, &state),
+        detect_entry_click(5, click_last, main_area, &state),
         EntryClickResult::MainPaneEntry(0)
     );
 
     // Click beyond entry height
     let click_beyond = 1 + entry_height + 5;
     assert_eq!(
-        detect_entry_click(5, click_beyond, main_area, None, &state),
+        detect_entry_click(5, click_beyond, main_area, &state),
         EntryClickResult::NoEntry,
         "Click beyond entry height should return NoEntry"
     );
@@ -707,7 +707,7 @@ fn detect_entry_click_uses_actual_entry_heights_from_layout() {
 
     // Click in middle of entry 0 (border at y=1)
     let click_e0 = 1 + pos0 + (h0 / 2);
-    let result = detect_entry_click(5, click_e0, main_area, None, &state);
+    let result = detect_entry_click(5, click_e0, main_area, &state);
     assert_eq!(
         result,
         EntryClickResult::MainPaneEntry(0),
@@ -716,7 +716,7 @@ fn detect_entry_click_uses_actual_entry_heights_from_layout() {
 
     // Click at start of entry 1
     let click_e1 = 1 + pos1;
-    let result = detect_entry_click(5, click_e1, main_area, None, &state);
+    let result = detect_entry_click(5, click_e1, main_area, &state);
     assert_eq!(
         result,
         EntryClickResult::MainPaneEntry(1),
@@ -725,7 +725,7 @@ fn detect_entry_click_uses_actual_entry_heights_from_layout() {
 
     // Click at start of entry 2
     let click_e2 = 1 + pos2;
-    let result = detect_entry_click(5, click_e2, main_area, None, &state);
+    let result = detect_entry_click(5, click_e2, main_area, &state);
     assert_eq!(
         result,
         EntryClickResult::MainPaneEntry(2),
@@ -780,7 +780,7 @@ fn detect_entry_click_accounts_for_scroll_offset() {
     }
 
     // Click near top of viewport (border at y=1) should hit entry 2
-    let result = detect_entry_click(5, 2, main_area, None, &state);
+    let result = detect_entry_click(5, 2, main_area, &state);
     assert_eq!(
         result,
         EntryClickResult::MainPaneEntry(2),
@@ -789,7 +789,7 @@ fn detect_entry_click_accounts_for_scroll_offset() {
 
     // Click further down should hit entry 3
     let click_e3 = 1 + h2 + 1; // border + entry2_height + into entry3
-    let result = detect_entry_click(5, click_e3, main_area, None, &state);
+    let result = detect_entry_click(5, click_e3, main_area, &state);
     assert_eq!(
         result,
         EntryClickResult::MainPaneEntry(3),
@@ -821,7 +821,7 @@ fn detect_entry_click_returns_no_entry_when_clicking_beyond_content() {
     // Click well beyond entry height
     let entry_height = get_entry_height(&state, 0);
     let click_beyond = 1 + entry_height + 10;
-    let result = detect_entry_click(5, click_beyond, main_area, None, &state);
+    let result = detect_entry_click(5, click_beyond, main_area, &state);
     assert_eq!(
         result,
         EntryClickResult::NoEntry,

@@ -756,13 +756,12 @@ where
             self.app_state = new_state;
         }
 
-        // Handle entry clicks if we have pane areas
-        if let Some(main_area) = self.last_main_area {
+        // Handle entry clicks if we have conversation area (FR-083: unified tabs, no split panes)
+        if let Some(conversation_area) = self.last_main_area {
             let entry_result = crate::state::mouse_handler::detect_entry_click(
                 mouse.column,
                 mouse.row,
-                main_area,
-                self.last_subagent_area,
+                conversation_area,
                 &self.app_state,
             );
             // Get viewport width from terminal
