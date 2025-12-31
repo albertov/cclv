@@ -740,3 +740,89 @@ fn bug_entry_indices_not_visible_in_rendered_output() {
         output
     );
 }
+
+/// Bug reproduction: cclv-07v.12.21.3
+/// Excessive blank lines appear at top of viewport when rendering real log data.
+///
+/// Uses actual Claude Code log fixture to reproduce the bug that only manifests
+/// with real session data (not synthetic test entries).
+///
+/// EXPECTED: Content starts immediately after header (0-1 blank lines max).
+/// ACTUAL: 4 blank lines before first content at scroll position 0.
+#[test]
+#[ignore = "cclv-07v.12.21.3: excessive blank lines before/between entries"]
+fn bug_excessive_blank_lines_in_entry_rendering() {
+    use cclv::model::Session;
+    use cclv::source::FileSource;
+    use cclv::state::AppState;
+    use cclv::view::TuiApp;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+
+    // Load real fixture that reproduces the bug
+    let mut file_source =
+        FileSource::new(PathBuf::from("tests/fixtures/blank_lines_repro.jsonl"))
+            .expect("Should load fixture");
+    let entries = file_source.drain_entries().expect("Should parse entries");
+
+    let entry_count = entries.len();
+    assert!(entry_count > 0, "Fixture should have entries");
+
+    // Build session
+    let mut session = Session::new(entries[0].session_id().clone());
+    for entry in entries {
+        session.add_entry(entry);
+    }
+
+    // Create app and render
+    let backend = TestBackend::new(80, 40);
+    let terminal = Terminal::new(backend).unwrap();
+    let app_state = AppState::new(session);
+
+    let key_bindings = cclv::config::keybindings::KeyBindings::default();
+    let input_source = cclv::source::InputSource::Stdin(
+        cclv::source::StdinSource::from_reader(&b""[..]),
+    );
+
+    let mut app = TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+    app.render_test().expect("Should render");
+
+    let buffer = app.terminal().backend().buffer();
+    let output = buffer_to_string(buffer);
+
+    // Parse output to find content lines (lines inside the border)
+    let lines: Vec<&str> = output.lines().collect();
+
+    // Count leading blank lines after header (first line with ┌)
+    let mut leading_blanks = 0;
+    let mut found_header = false;
+
+    for line in &lines {
+        if line.starts_with('┌') {
+            found_header = true;
+            continue;
+        }
+        if found_header && line.starts_with('│') && !line.starts_with("└") {
+            let content = line.trim_start_matches('│').trim_end_matches('│').trim();
+            if content.is_empty() {
+                leading_blanks += 1;
+            } else {
+                break; // Found first content line
+            }
+        }
+    }
+
+    // BUG: With real log data, we see 4 blank lines before first content
+    // Expected: 0-1 blank lines before first content
+    // Actual: 4 blank lines at top of viewport
+    assert!(
+        leading_blanks <= 1,
+        "Should have at most 1 leading blank line after header.\n\
+         Found {} leading blank lines.\n\
+         This bug only manifests with real log data containing system entries.\n\
+         Output:\n{}",
+        leading_blanks,
+        output
+    );
+}
