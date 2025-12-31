@@ -240,12 +240,6 @@ impl SessionViewState {
     /// Also relayouts main and all existing subagent conversations with
     /// the new dimensions.
     pub fn set_viewport(&mut self, width: u16, wrap: WrapMode) {
-        use std::io::Write;
-        let _ = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/cclv_debug.log")
-            .and_then(|mut f| writeln!(f, "DEBUG set_viewport: width={}", width));
         self.viewport_width = width;
         self.global_wrap = wrap;
 

@@ -26,8 +26,32 @@ AppState uses `#[derive(Clone)]` which does DEEP COPIES of:
 
 ## Flamegraph Analysis
 
-**IMPORTANT**: The flamegraph captures the ENTIRE benchmark process, not just the measured closure.
-This includes setup (fixture load, state clones for iter_batched) and measurement.
+### Profiling Methodology Caveat
+
+**WARNING: `--profile-time` is misleading for iter_batched benchmarks!**
+
+We tried two profiling approaches:
+
+1. **Full benchmark** (`cargo flamegraph --bench scroll_benchmark`):
+   - Captures entire process including cargo build, fixture load, all iterations
+   - iter_batched separates setup from measurement, but perf profiles everything
+   - Shows ~155k samples, mix of setup and measurement
+
+2. **Profile-time mode** (`-- --profile-time 10`):
+   - Runs benchmark in tight loop for specified seconds
+   - **DOES NOT separate setup from measurement** - runs both together
+   - Shows ~1.3k samples with misleading `recompute_lines` at 11%
+
+The `--profile-time` flamegraph showed `EntryView::recompute_lines` at 11%, which initially
+suggested syntax highlighting was being re-run during scroll. **This was wrong.**
+
+Investigation revealed:
+- Debug logging showed 13,054 calls to `set_viewport()` during benchmark
+- This is 122 sessions × ~107 iterations of setup
+- Each `new_for_bench()` call triggers `set_viewport_all()` → `relayout()` on all sessions
+- The `recompute_lines` overhead is **setup cost**, not scroll cost
+
+**Syntax highlighting is cached in `EntryView.rendered_lines` and NOT re-computed on scroll.**
 
 ### What's in the MEASURED path (the actual bottleneck):
 
@@ -42,15 +66,8 @@ This includes setup (fixture load, state clones for iter_batched) and measuremen
 | Category | % | Notes |
 |----------|---|-------|
 | Syntax highlighting | 13% | One-time cost in `compute_entry_lines()` |
-| | | Cached in `EntryView.rendered_lines: Vec<Line>` |
-| | | Called only in `new()` and `relayout()` |
-| Rendering | 3% | Draws pre-computed lines to buffer |
-
-The syntect/tui_markdown overhead (13%) is from:
-1. Initial fixture load (`load_fixture()`) - runs once
-2. Setup phase of iter_batched - clones the already-highlighted lines
-
-**Syntax highlighting is NOT re-computed on scroll** - it's cached in EntryView.
+| Relayout | 11% | `set_viewport_all()` in `new_for_bench()` |
+| | | Loops over 122 sessions × subagents per iteration |
 
 ## Hypotheses
 
@@ -70,18 +87,20 @@ The syntect/tui_markdown overhead (13%) is from:
 ### H3: Rendering overhead is the actual bottleneck [ELIMINATED]
 - Bead: cclv-4pp.3
 - Eliminated: Rendering is only ~3%, syntax highlighting is cached (not re-run on scroll)
-- The 13% syntect is setup cost, not scroll cost
+- The 13% syntect in flamegraph is setup cost, not scroll cost
 
 ## Evidence Log
 
 | ID | Source | Finding | Supports | Refutes |
 |----|--------|---------|----------|---------|
 | E1 | cclv-4pp.5 | Flamegraph: ConversationViewState::clone 15%, to_vec_in 15%, drop 10% | H4 | H1, H2, H3 |
+| E2 | Debug log | 13,054 set_viewport calls = setup overhead, not scroll | H4 | - |
 
 ## Dead Ends
 - H1: Vec allocation - NOT the bottleneck (E1)
 - H2: Fenwick tree - NOT visible in profile (E1)
-- H3: Rendering/highlighting - NOT in hot path, cached in EntryView (E1)
+- H3: Rendering/highlighting - NOT in hot path, cached in EntryView (E1, E2)
+- `--profile-time` flamegraph - misleading, includes setup (E2)
 
 ## Recommended Fix
 
@@ -98,8 +117,17 @@ Further optimization to reach <2ms target would require:
 - Possible architectural changes (Rc for expensive data, incremental updates)
 
 ## Investigation Artifacts
-- `cclv-4pp-flamegraph.svg` - Generated with debug symbols
+- `cclv-4pp-flamegraph.svg` - Full benchmark flamegraph with debug symbols
 - Cargo.toml `[profile.bench]` added for future profiling
+- `/tmp/cclv_debug.log` - Debug output showing set_viewport call counts
+
+## Profiling Recommendations
+
+For future profiling of iter_batched benchmarks:
+1. **Don't use `--profile-time`** - it conflates setup with measurement
+2. Use full `cargo flamegraph` but mentally subtract setup costs
+3. Add targeted debug logging to verify what's actually in the hot path
+4. Consider creating a minimal reproduction that isolates just the measured code
 
 ## Next Steps
 1. Implement the &mut AppState fix
