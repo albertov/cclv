@@ -1,5 +1,6 @@
 //! Statistics panel widget for displaying session metrics.
 
+use super::helpers::{empty_line, key_value_line};
 use crate::model::{PricingConfig, SessionStats, StatsFilter};
 use ratatui::{
     buffer::Buffer,
@@ -112,7 +113,7 @@ impl<'a> Widget for StatsPanel<'a> {
             )));
         }
 
-        lines.push(Line::from(""));
+        lines.push(empty_line());
 
         // Cost section - show actual cost from result entry if available, otherwise estimated
         if let Some(actual_cost) = self.stats.actual_cost_usd {
@@ -135,7 +136,7 @@ impl<'a> Widget for StatsPanel<'a> {
             );
             lines.push(Line::from(format!("  {}", format_cost(cost))));
         }
-        lines.push(Line::from(""));
+        lines.push(empty_line());
 
         // Tool usage section
         if !self.stats.filtered_tool_counts(self.filter).is_empty() {
@@ -149,7 +150,7 @@ impl<'a> Widget for StatsPanel<'a> {
             let tool_lines =
                 format_tool_breakdown(self.stats.filtered_tool_counts(self.filter), 10);
             lines.extend(tool_lines);
-            lines.push(Line::from(""));
+            lines.push(empty_line());
         }
 
         // Subagents section
@@ -160,11 +161,8 @@ impl<'a> Widget for StatsPanel<'a> {
                     .add_modifier(Modifier::BOLD),
             ),
         );
-        lines.push(Line::from(format!(
-            "  Count: {}",
-            self.stats.subagent_count
-        )));
-        lines.push(Line::from(""));
+        lines.push(key_value_line("Count", self.stats.subagent_count));
+        lines.push(empty_line());
 
         // Entries section
         lines.push(
@@ -174,7 +172,7 @@ impl<'a> Widget for StatsPanel<'a> {
                     .add_modifier(Modifier::BOLD),
             ),
         );
-        lines.push(Line::from(format!("  Count: {}", self.stats.entry_count)));
+        lines.push(key_value_line("Count", self.stats.entry_count));
 
         // Render the paragraph
         let paragraph = Paragraph::new(lines);
@@ -249,7 +247,7 @@ fn format_tool_breakdown(
 
     // Take top N tools
     for (tool_name, count) in tools.iter().take(max_display) {
-        lines.push(Line::from(format!("  {}: {}", tool_name.as_str(), count)));
+        lines.push(key_value_line(tool_name.as_str(), count));
     }
 
     // Add overflow indicator if needed

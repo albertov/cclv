@@ -5,6 +5,7 @@
 //! 2. Session totals (all agents in current session combined)
 //! 3. Global totals (all sessions - future multi-session support)
 
+use super::helpers::empty_line;
 use crate::model::{PricingConfig, SessionStats, StatsFilter};
 use ratatui::{
     buffer::Buffer,
@@ -255,7 +256,7 @@ fn render_stat_scope(
         "  Out: {}",
         format_tokens(usage.output_tokens)
     )));
-    lines.push(Line::from(""));
+    lines.push(empty_line());
 
     // Cost section
     let cost = calculate_cost(&usage, pricing, model_id);
@@ -267,7 +268,7 @@ fn render_stat_scope(
         ),
     );
     lines.push(Line::from(format!("  {}", format_cost(cost))));
-    lines.push(Line::from(""));
+    lines.push(empty_line());
 
     // Top 5 tools (compact)
     let tool_counts = stats.filtered_tool_counts(filter);

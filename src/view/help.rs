@@ -4,6 +4,7 @@
 //! Triggered by '?' key, dismissed by 'Esc' or '?'.
 
 use super::constants::{HELP_POPUP_HEIGHT_PERCENT, HELP_POPUP_WIDTH_PERCENT};
+use super::helpers::empty_line;
 use ratatui::{
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
@@ -130,7 +131,7 @@ fn build_help_content() -> Vec<Line<'static>> {
             Span::styled("  G/End       ", key_style),
             Span::styled("Go to bottom", desc_style),
         ]),
-        Line::from(""),
+        empty_line(),
         // Pane Focus (cli.md lines 133-140)
         Line::from(vec![Span::styled("Pane Focus", category_style)]),
         Line::from(vec![
@@ -149,7 +150,7 @@ fn build_help_content() -> Vec<Line<'static>> {
             Span::styled("  3           ", key_style),
             Span::styled("Focus stats panel", desc_style),
         ]),
-        Line::from(""),
+        empty_line(),
         // Tabs (Subagent Pane) (cli.md lines 142-150)
         Line::from(vec![Span::styled("Tabs (Subagent Pane)", category_style)]),
         Line::from(vec![
@@ -164,7 +165,7 @@ fn build_help_content() -> Vec<Line<'static>> {
             Span::styled("  1-9         ", key_style),
             Span::styled("Select tab by number", desc_style),
         ]),
-        Line::from(""),
+        empty_line(),
         // Message Interaction (cli.md lines 152-158)
         Line::from(vec![Span::styled("Message Interaction", category_style)]),
         Line::from(vec![
@@ -179,7 +180,7 @@ fn build_help_content() -> Vec<Line<'static>> {
             Span::styled("  c           ", key_style),
             Span::styled("Collapse all messages", desc_style),
         ]),
-        Line::from(""),
+        empty_line(),
         // Search (cli.md lines 160-168)
         Line::from(vec![Span::styled("Search", category_style)]),
         Line::from(vec![
@@ -202,7 +203,7 @@ fn build_help_content() -> Vec<Line<'static>> {
             Span::styled("  N/Shift+n   ", key_style),
             Span::styled("Previous match", desc_style),
         ]),
-        Line::from(""),
+        empty_line(),
         // Stats (cli.md lines 170-177)
         Line::from(vec![Span::styled("Stats", category_style)]),
         Line::from(vec![
@@ -221,14 +222,14 @@ fn build_help_content() -> Vec<Line<'static>> {
             Span::styled("  #           ", key_style),
             Span::styled("Filter: Current subagent", desc_style),
         ]),
-        Line::from(""),
+        empty_line(),
         // Live Mode
         Line::from(vec![Span::styled("Live Mode", category_style)]),
         Line::from(vec![
             Span::styled("  a           ", key_style),
             Span::styled("Toggle auto-scroll", desc_style),
         ]),
-        Line::from(""),
+        empty_line(),
         // Application (cli.md lines 186-192)
         Line::from(vec![Span::styled("Application", category_style)]),
         Line::from(vec![

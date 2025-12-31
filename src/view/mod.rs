@@ -2,6 +2,7 @@
 
 pub mod constants;
 mod help;
+mod helpers;
 mod layout;
 pub mod live_indicator;
 mod message;
@@ -14,6 +15,7 @@ mod styles;
 pub mod tabs;
 
 pub use help::render_help_overlay;
+pub use helpers::{empty_line, key_value_line};
 pub use live_indicator::LiveIndicator;
 pub use message::{extract_entry_text, has_code_blocks, ConversationView};
 pub use search_input::SearchInput;
