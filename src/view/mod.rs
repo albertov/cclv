@@ -1083,6 +1083,7 @@ fn restore_terminal() -> Result<(), TuiError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{THEME_BASE16_OCEAN, THEME_MONOKAI, THEME_SOLARIZED_DARK, THEME_SOLARIZED_LIGHT};
     use crossterm::event::KeyModifiers;
 
     #[test]
@@ -2553,23 +2554,23 @@ mod tests {
     #[test]
     fn cli_args_new_stores_theme() {
         let args = CliArgs::new(
-            "monokai".to_string(),
+            THEME_MONOKAI.to_string(),
             false,
             200_000,
             crate::model::PricingConfig::default(),
         );
-        assert_eq!(args.theme, "monokai", "CliArgs should store theme value");
+        assert_eq!(args.theme, THEME_MONOKAI, "CliArgs should store theme value");
     }
 
     #[test]
     fn cli_args_new_stores_all_fields() {
         let args = CliArgs::new(
-            "solarized-dark".to_string(),
+            THEME_SOLARIZED_DARK.to_string(),
             true,
             200_000,
             crate::model::PricingConfig::default(),
         );
-        assert_eq!(args.theme, "solarized-dark", "Theme should be stored");
+        assert_eq!(args.theme, THEME_SOLARIZED_DARK, "Theme should be stored");
         assert!(args.stats, "Stats flag should be stored");
     }
 
@@ -2577,10 +2578,10 @@ mod tests {
     fn cli_args_supports_all_valid_themes() {
         // Per CLI contract, these are the valid theme names
         let valid_themes = vec![
-            "base16-ocean",
-            "solarized-dark",
-            "solarized-light",
-            "monokai",
+            THEME_BASE16_OCEAN,
+            THEME_SOLARIZED_DARK,
+            THEME_SOLARIZED_LIGHT,
+            THEME_MONOKAI,
         ];
 
         for theme in valid_themes {
