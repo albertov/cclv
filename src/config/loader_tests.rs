@@ -1,0 +1,364 @@
+//! Tests for configuration file loading.
+
+use super::*;
+use std::env;
+use std::fs;
+
+#[test]
+fn default_config_path_returns_some_path() {
+    let path = default_config_path();
+    assert!(
+        path.is_some(),
+        "default_config_path should return Some on supported platforms"
+    );
+}
+
+#[test]
+fn default_config_path_contains_cclv_config_toml() {
+    let path = default_config_path().expect("Should have default path");
+    let path_str = path.to_string_lossy();
+    assert!(
+        path_str.contains("cclv") && path_str.ends_with("config.toml"),
+        "Path should contain 'cclv' and end with 'config.toml', got: {}",
+        path_str
+    );
+}
+
+#[test]
+fn load_config_file_returns_ok_none_for_missing_file() {
+    let result = load_config_file("/nonexistent/path/to/config.toml");
+    assert_eq!(
+        result,
+        Ok(None),
+        "Missing config file should return Ok(None), not an error"
+    );
+}
+
+#[test]
+fn load_config_file_parses_valid_toml() {
+    // Create temporary config file
+    let temp_dir = env::temp_dir();
+    let config_path = temp_dir.join("cclv_test_config.toml");
+
+    let toml_content = r#"
+theme = "solarized-dark"
+follow = false
+show_stats = true
+collapse_threshold = 20
+summary_lines = 5
+line_wrap = false
+log_buffer_capacity = 500
+"#;
+
+    fs::write(&config_path, toml_content).expect("Failed to write test config");
+
+    let result = load_config_file(&config_path);
+    assert!(result.is_ok(), "Should successfully parse valid TOML");
+
+    let config = result.unwrap();
+    assert!(
+        config.is_some(),
+        "Should return Some(ConfigFile) for existing file"
+    );
+
+    let config = config.unwrap();
+    assert_eq!(config.theme, Some("solarized-dark".to_string()));
+    assert_eq!(config.follow, Some(false));
+    assert_eq!(config.show_stats, Some(true));
+    assert_eq!(config.collapse_threshold, Some(20));
+    assert_eq!(config.summary_lines, Some(5));
+    assert_eq!(config.line_wrap, Some(false));
+    assert_eq!(config.log_buffer_capacity, Some(500));
+
+    // Cleanup
+    fs::remove_file(config_path).ok();
+}
+
+#[test]
+fn load_config_file_returns_error_for_invalid_toml() {
+    let temp_dir = env::temp_dir();
+    let config_path = temp_dir.join("cclv_test_invalid.toml");
+
+    let invalid_toml = "this is not valid TOML ][}{";
+    fs::write(&config_path, invalid_toml).expect("Failed to write invalid test config");
+
+    let result = load_config_file(&config_path);
+    assert!(
+        result.is_err(),
+        "Invalid TOML should return Err(ConfigError::ParseError)"
+    );
+
+    match result {
+        Err(ConfigError::ParseError { path, reason: _ }) => {
+            assert_eq!(path, config_path);
+        }
+        _ => panic!("Expected ParseError, got {:?}", result),
+    }
+
+    // Cleanup
+    fs::remove_file(config_path).ok();
+}
+
+#[test]
+fn load_config_file_handles_partial_config() {
+    let temp_dir = env::temp_dir();
+    let config_path = temp_dir.join("cclv_test_partial.toml");
+
+    let partial_toml = r#"
+theme = "monokai"
+# Other fields omitted
+"#;
+
+    fs::write(&config_path, partial_toml).expect("Failed to write partial test config");
+
+    let result = load_config_file(&config_path);
+    assert!(result.is_ok(), "Should parse partial config");
+
+    let config = result.unwrap().unwrap();
+    assert_eq!(config.theme, Some("monokai".to_string()));
+    assert_eq!(config.follow, None);
+    assert_eq!(config.show_stats, None);
+
+    // Cleanup
+    fs::remove_file(config_path).ok();
+}
+
+#[test]
+fn merge_config_uses_defaults_when_none() {
+    let resolved = merge_config(None);
+    let defaults = ResolvedConfig::default();
+
+    assert_eq!(resolved.theme, defaults.theme);
+    assert_eq!(resolved.follow, defaults.follow);
+    assert_eq!(resolved.show_stats, defaults.show_stats);
+    assert_eq!(resolved.collapse_threshold, defaults.collapse_threshold);
+    assert_eq!(resolved.summary_lines, defaults.summary_lines);
+    assert_eq!(resolved.line_wrap, defaults.line_wrap);
+    assert_eq!(
+        resolved.log_buffer_capacity,
+        defaults.log_buffer_capacity
+    );
+}
+
+#[test]
+fn merge_config_overrides_with_config_file_values() {
+    let config_file = ConfigFile {
+        theme: Some("solarized-light".to_string()),
+        follow: Some(false),
+        show_stats: Some(true),
+        collapse_threshold: Some(15),
+        summary_lines: Some(2),
+        line_wrap: Some(false),
+        log_buffer_capacity: Some(2000),
+        keybindings: None,
+        pricing: None,
+    };
+
+    let resolved = merge_config(Some(config_file));
+
+    assert_eq!(resolved.theme, "solarized-light");
+    assert_eq!(resolved.follow, false);
+    assert_eq!(resolved.show_stats, true);
+    assert_eq!(resolved.collapse_threshold, 15);
+    assert_eq!(resolved.summary_lines, 2);
+    assert_eq!(resolved.line_wrap, false);
+    assert_eq!(resolved.log_buffer_capacity, 2000);
+}
+
+#[test]
+fn merge_config_uses_defaults_for_none_fields() {
+    let config_file = ConfigFile {
+        theme: Some("custom".to_string()),
+        follow: None,
+        show_stats: None,
+        collapse_threshold: None,
+        summary_lines: None,
+        line_wrap: None,
+        log_buffer_capacity: None,
+        keybindings: None,
+        pricing: None,
+    };
+
+    let resolved = merge_config(Some(config_file));
+    let defaults = ResolvedConfig::default();
+
+    assert_eq!(resolved.theme, "custom");
+    assert_eq!(resolved.follow, defaults.follow);
+    assert_eq!(resolved.show_stats, defaults.show_stats);
+    assert_eq!(resolved.collapse_threshold, defaults.collapse_threshold);
+    assert_eq!(resolved.summary_lines, defaults.summary_lines);
+    assert_eq!(resolved.line_wrap, defaults.line_wrap);
+    assert_eq!(
+        resolved.log_buffer_capacity,
+        defaults.log_buffer_capacity
+    );
+}
+
+#[test]
+fn apply_env_overrides_respects_cclv_theme() {
+    let base = ResolvedConfig::default();
+
+    // Set env var
+    env::set_var("CCLV_THEME", "test-theme");
+
+    let result = apply_env_overrides(base.clone());
+
+    assert_eq!(
+        result.theme, "test-theme",
+        "CCLV_THEME should override theme"
+    );
+
+    // Clean up
+    env::remove_var("CCLV_THEME");
+}
+
+#[test]
+fn apply_env_overrides_leaves_other_fields_unchanged() {
+    let base = ResolvedConfig {
+        theme: "original".to_string(),
+        follow: false,
+        show_stats: true,
+        collapse_threshold: 99,
+        summary_lines: 7,
+        line_wrap: false,
+        log_buffer_capacity: 123,
+    };
+
+    // Set env var
+    env::set_var("CCLV_THEME", "override");
+
+    let result = apply_env_overrides(base.clone());
+
+    assert_eq!(result.theme, "override");
+    assert_eq!(result.follow, base.follow);
+    assert_eq!(result.show_stats, base.show_stats);
+    assert_eq!(result.collapse_threshold, base.collapse_threshold);
+    assert_eq!(result.summary_lines, base.summary_lines);
+    assert_eq!(result.line_wrap, base.line_wrap);
+    assert_eq!(result.log_buffer_capacity, base.log_buffer_capacity);
+
+    // Clean up
+    env::remove_var("CCLV_THEME");
+}
+
+#[test]
+fn apply_env_overrides_no_change_when_env_var_not_set() {
+    // Ensure CCLV_THEME is not set
+    env::remove_var("CCLV_THEME");
+
+    let base = ResolvedConfig::default();
+    let result = apply_env_overrides(base.clone());
+
+    assert_eq!(
+        result, base,
+        "Config should be unchanged when CCLV_THEME not set"
+    );
+}
+
+#[test]
+fn load_config_with_precedence_prefers_explicit_path() {
+    let temp_dir = env::temp_dir();
+    let explicit_path = temp_dir.join("cclv_explicit.toml");
+
+    fs::write(
+        &explicit_path,
+        r#"
+theme = "explicit-theme"
+"#,
+    )
+    .expect("Failed to write explicit config");
+
+    // Set CCLV_CONFIG to different path (should be ignored)
+    let env_path = temp_dir.join("cclv_env.toml");
+    fs::write(&env_path, r#"theme = "env-theme""#).expect("Failed to write env config");
+    env::set_var("CCLV_CONFIG", env_path.to_str().unwrap());
+
+    let result = load_config_with_precedence(Some(explicit_path.clone()));
+    assert!(result.is_ok());
+
+    let config = result.unwrap().unwrap();
+    assert_eq!(
+        config.theme,
+        Some("explicit-theme".to_string()),
+        "Should use explicit path, not CCLV_CONFIG env var"
+    );
+
+    // Cleanup
+    fs::remove_file(explicit_path).ok();
+    fs::remove_file(env_path).ok();
+    env::remove_var("CCLV_CONFIG");
+}
+
+#[test]
+fn load_config_with_precedence_uses_env_var_when_no_explicit_path() {
+    let temp_dir = env::temp_dir();
+    let env_path = temp_dir.join("cclv_env_only.toml");
+
+    fs::write(
+        &env_path,
+        r#"
+theme = "env-var-theme"
+"#,
+    )
+    .expect("Failed to write env config");
+
+    env::set_var("CCLV_CONFIG", env_path.to_str().unwrap());
+
+    let result = load_config_with_precedence(None);
+    assert!(result.is_ok());
+
+    let config = result.unwrap().unwrap();
+    assert_eq!(
+        config.theme,
+        Some("env-var-theme".to_string()),
+        "Should use CCLV_CONFIG when no explicit path"
+    );
+
+    // Cleanup
+    fs::remove_file(env_path).ok();
+    env::remove_var("CCLV_CONFIG");
+}
+
+#[test]
+fn load_config_with_precedence_falls_back_to_default_path() {
+    // Ensure CCLV_CONFIG not set
+    env::remove_var("CCLV_CONFIG");
+
+    // This will try default path, which likely doesn't exist
+    let result = load_config_with_precedence(None);
+    assert!(result.is_ok());
+
+    // Since default path likely doesn't exist, should be Ok(None)
+    assert_eq!(
+        result.unwrap(),
+        None,
+        "Should return Ok(None) when no config exists at default path"
+    );
+}
+
+#[test]
+fn resolved_config_default_has_expected_values() {
+    let config = ResolvedConfig::default();
+
+    assert_eq!(config.theme, "base16-ocean");
+    assert_eq!(config.follow, true);
+    assert_eq!(config.show_stats, false);
+    assert_eq!(config.collapse_threshold, 10);
+    assert_eq!(config.summary_lines, 3);
+    assert_eq!(config.line_wrap, true);
+    assert_eq!(config.log_buffer_capacity, 1000);
+}
+
+#[test]
+fn config_file_rejects_unknown_fields() {
+    let toml_with_unknown = r#"
+theme = "base16-ocean"
+unknown_field = "should fail"
+"#;
+
+    let result: Result<ConfigFile, _> = toml::from_str(toml_with_unknown);
+    assert!(
+        result.is_err(),
+        "Should reject TOML with unknown fields due to deny_unknown_fields"
+    );
+}
