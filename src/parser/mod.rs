@@ -1008,4 +1008,25 @@ mod tests {
             "Should preserve valid sessionId"
         );
     }
+
+    // ===== Bug Fix: cclv-07v.11.1 - session_id snake_case format =====
+
+    #[test]
+    fn parse_entry_session_id_snake_case() {
+        // RED TEST: Actual Claude Code format uses snake_case session_id
+        // This test expects snake_case and will FAIL until we remove camelCase rename
+        let raw = r#"{"type":"user","message":{"role":"user","content":"hello"},"uuid":"abc-123","session_id":"snake-case-session","timestamp":"2025-01-01T00:00:00Z"}"#;
+
+        let result = parse_entry(raw, 1);
+        assert!(
+            result.is_ok(),
+            "Should parse session_id in snake_case format (actual Claude Code format)"
+        );
+        let entry = result.unwrap();
+        assert_eq!(
+            entry.session_id().as_str(),
+            "snake-case-session",
+            "Should accept snake_case session_id field"
+        );
+    }
 }
