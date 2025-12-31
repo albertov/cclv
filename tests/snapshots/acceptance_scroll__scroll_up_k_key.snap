@@ -11,14 +11,14 @@ Model: Unknown | Main Agent | ? | 0 tools, 0 agents, 0 skills
 │   8│Base directory for this skill: /home/claude/.claude/skills/efficient-suba│
 │   8│orchestration                                                            │
 │   8│                                                                         │
-│   8│(+197 more lines)                                                        │
+│   8│(+179 more lines)                                                        │
 │                                                                              │
 │   9│Launching skill: beads-project-tracking                                  │
 │                                                                              │
 │  10│Base directory for this skill: /home/claude/.claude/skills/beads-project-│
 │  10│ing                                                                      │
 │  10│                                                                         │
-│  10│(+224 more lines)                                                        │
+│  10│(+210 more lines)                                                        │
 │                                                                              │
 │  11│Now let me follow the coordinator protocol:                              │
 │  11│                                                                         │

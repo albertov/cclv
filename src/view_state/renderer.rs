@@ -256,9 +256,14 @@ pub fn compute_entry_lines(
 
 /// Render markdown text with role-based styling applied to unstyled spans.
 ///
-/// This function is identical to message.rs render_markdown_with_style().
-/// Markdown styling (bold, italic, code highlighting) takes precedence,
-/// but plain text inherits the role's color.
+/// This function parses markdown with tui-markdown (which applies syntax highlighting)
+/// and then post-processes to remove fence markers that tui-markdown adds by design.
+///
+/// # Fence Marker Handling
+///
+/// tui-markdown intentionally adds fence marker lines (```lang) to code blocks.
+/// We filter these out because they're redundant in a TUI - syntax highlighting
+/// already indicates code blocks visually.
 ///
 /// # Arguments
 /// * `markdown_text` - The markdown content to render
@@ -271,20 +276,31 @@ fn render_markdown_with_style(markdown_text: &str, base_style: Style) -> Vec<Lin
 
     text.lines
         .into_iter()
-        .map(|line| {
-            let owned_spans: Vec<_> = line
-                .spans
-                .into_iter()
-                .map(|span| {
-                    // Apply base_style as default, then overlay markdown styling
-                    let combined_style = base_style.patch(span.style);
-                    ratatui::text::Span {
-                        content: span.content.into_owned().into(),
-                        style: combined_style,
-                    }
-                })
-                .collect();
-            Line::from(owned_spans)
+        .filter_map(|line| {
+            // Filter out fence marker lines that tui-markdown adds
+            // Fence markers start with ``` and contain only that marker (possibly with language)
+            let line_text: String = line.spans.iter().map(|span| span.content.as_ref()).collect();
+            let trimmed = line_text.trim();
+
+            // Skip lines that are fence markers: ``` or ```lang
+            if trimmed.starts_with("```") {
+                None
+            } else {
+                // Apply base_style to non-fence-marker lines
+                let owned_spans: Vec<_> = line
+                    .spans
+                    .into_iter()
+                    .map(|span| {
+                        // Apply base_style as default, then overlay markdown styling
+                        let combined_style = base_style.patch(span.style);
+                        ratatui::text::Span {
+                            content: span.content.into_owned().into(),
+                            style: combined_style,
+                        }
+                    })
+                    .collect();
+                Some(Line::from(owned_spans))
+            }
         })
         .collect()
 }
