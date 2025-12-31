@@ -202,7 +202,10 @@ impl<'a> Widget for ConversationView<'a> {
                 .model()
                 .map(|m| format!(" [{}]", m.display_name()))
                 .unwrap_or_default();
-            format!("Subagent {}{} ({} entries)", agent_id, model_info, entry_count)
+            format!(
+                "Subagent {}{} ({} entries)",
+                agent_id, model_info, entry_count
+            )
         } else {
             // Main agent conversation
             let model_info = self
@@ -238,7 +241,10 @@ impl<'a> Widget for ConversationView<'a> {
             let (start_index, end_index) = self.calculate_visible_range(viewport_height);
 
             // Render only the visible range
-            for (visible_index, entry) in self.conversation.entries()[start_index..end_index].iter().enumerate() {
+            for (visible_index, entry) in self.conversation.entries()[start_index..end_index]
+                .iter()
+                .enumerate()
+            {
                 // Calculate actual index in full entry list
                 let actual_index = start_index + visible_index;
 
@@ -249,14 +255,12 @@ impl<'a> Widget for ConversationView<'a> {
 
                         // Add "Initial Prompt" label for first message in subagent view
                         if self.is_subagent_view && actual_index == 0 {
-                            lines.push(Line::from(vec![
-                                ratatui::text::Span::styled(
-                                    "🔷 Initial Prompt",
-                                    Style::default()
-                                        .fg(Color::Magenta)
-                                        .add_modifier(Modifier::BOLD),
-                                ),
-                            ]));
+                            lines.push(Line::from(vec![ratatui::text::Span::styled(
+                                "🔷 Initial Prompt",
+                                Style::default()
+                                    .fg(Color::Magenta)
+                                    .add_modifier(Modifier::BOLD),
+                            )]));
                         }
 
                         match log_entry.message().content() {
@@ -289,20 +293,14 @@ impl<'a> Widget for ConversationView<'a> {
                     ConversationEntry::Malformed(malformed) => {
                         // Render malformed entry with error styling
                         // Header: "⚠ Parse Error (line N)"
-                        lines.push(Line::from(vec![
-                            ratatui::text::Span::styled(
-                                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-                                Style::default().fg(Color::Red),
-                            ),
-                        ]));
-                        lines.push(Line::from(vec![
-                            ratatui::text::Span::styled(
-                                format!("⚠ Parse Error (line {})", malformed.line_number()),
-                                Style::default()
-                                    .fg(Color::Red)
-                                    .add_modifier(Modifier::BOLD),
-                            ),
-                        ]));
+                        lines.push(Line::from(vec![ratatui::text::Span::styled(
+                            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                            Style::default().fg(Color::Red),
+                        )]));
+                        lines.push(Line::from(vec![ratatui::text::Span::styled(
+                            format!("⚠ Parse Error (line {})", malformed.line_number()),
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                        )]));
                         // Error message
                         for error_line in malformed.error_message().lines() {
                             lines.push(Line::from(vec![ratatui::text::Span::styled(
@@ -351,7 +349,10 @@ pub fn render_conversation_view(
             .model()
             .map(|m| format!(" [{}]", m.display_name()))
             .unwrap_or_default();
-        format!("Subagent {}{} ({} entries)", agent_id, model_info, entry_count)
+        format!(
+            "Subagent {}{} ({} entries)",
+            agent_id, model_info, entry_count
+        )
     } else {
         // Main agent conversation
         let model_info = conversation
@@ -449,20 +450,14 @@ pub fn render_conversation_view(
                 }
                 ConversationEntry::Malformed(malformed) => {
                     // Render malformed entry with error styling
-                    lines.push(Line::from(vec![
-                        ratatui::text::Span::styled(
-                            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-                            Style::default().fg(Color::Red),
-                        ),
-                    ]));
-                    lines.push(Line::from(vec![
-                        ratatui::text::Span::styled(
-                            format!("⚠ Parse Error (line {})", malformed.line_number()),
-                            Style::default()
-                                .fg(Color::Red)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                    ]));
+                    lines.push(Line::from(vec![ratatui::text::Span::styled(
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                        Style::default().fg(Color::Red),
+                    )]));
+                    lines.push(Line::from(vec![ratatui::text::Span::styled(
+                        format!("⚠ Parse Error (line {})", malformed.line_number()),
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    )]));
                     for error_line in malformed.error_message().lines() {
                         lines.push(Line::from(vec![ratatui::text::Span::styled(
                             error_line.to_string(),
@@ -483,17 +478,15 @@ pub fn render_conversation_view(
 
     // Apply horizontal scrolling offset to all lines (FR-039)
     if horizontal_offset > 0 {
-        lines = lines.into_iter()
+        lines = lines
+            .into_iter()
             .map(|line| apply_horizontal_offset(line, horizontal_offset))
             .collect();
     }
 
     // Update title with scroll indicators
-    let title_with_indicators = add_scroll_indicators_to_title(
-        title,
-        has_left_indicator,
-        has_right_indicator,
-    );
+    let title_with_indicators =
+        add_scroll_indicators_to_title(title, has_left_indicator, has_right_indicator);
 
     // Rebuild block with updated title
     let block_with_indicators = Block::default()
@@ -519,7 +512,11 @@ fn apply_horizontal_offset(line: Line<'static>, offset: usize) -> Line<'static> 
     }
 
     // Calculate total character count (not bytes)
-    let total_chars: usize = line.spans.iter().map(|span| span.content.chars().count()).sum();
+    let total_chars: usize = line
+        .spans
+        .iter()
+        .map(|span| span.content.chars().count())
+        .sum();
 
     if offset >= total_chars {
         // Offset exceeds line length, return empty
@@ -538,12 +535,13 @@ fn apply_horizontal_offset(line: Line<'static>, offset: usize) -> Line<'static> 
             chars_to_skip -= span_char_count;
         } else if chars_to_skip > 0 {
             // Skip partial span - use char_indices for UTF-8 safety
-            let remaining = if let Some((byte_idx, _)) = span.content.char_indices().nth(chars_to_skip) {
-                span.content[byte_idx..].to_string()
-            } else {
-                // Shouldn't happen, but safe fallback
-                String::new()
-            };
+            let remaining =
+                if let Some((byte_idx, _)) = span.content.char_indices().nth(chars_to_skip) {
+                    span.content[byte_idx..].to_string()
+                } else {
+                    // Shouldn't happen, but safe fallback
+                    String::new()
+                };
             chars_to_skip = 0;
             new_spans.push(ratatui::text::Span {
                 content: remaining.into(),
@@ -574,11 +572,7 @@ fn has_long_lines(lines: &[Line], viewport_width: usize) -> bool {
 /// Appends ▶ if content extends beyond viewport (can scroll right).
 ///
 /// Returns modified title string with indicators.
-fn add_scroll_indicators_to_title(
-    base_title: String,
-    has_left: bool,
-    has_right: bool,
-) -> String {
+fn add_scroll_indicators_to_title(base_title: String, has_left: bool, has_right: bool) -> String {
     let mut title = base_title;
 
     if has_left {
@@ -746,10 +740,7 @@ pub fn render_tool_result(
     // Render the visible lines with styling
     for line in content_lines.iter().take(lines_to_show) {
         let rendered_line = if is_error {
-            Line::from(vec![Span::styled(
-                line.to_string(),
-                result_style,
-            )])
+            Line::from(vec![Span::styled(line.to_string(), result_style)])
         } else {
             Line::from(line.to_string())
         };
@@ -912,7 +903,14 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-1").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_tool_use(&tool_call, &uuid, &scroll_state, get_test_role_style(), 10, 3);
+        let lines = render_tool_use(
+            &tool_call,
+            &uuid,
+            &scroll_state,
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Tool name should be visible in the output
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -949,7 +947,14 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-2").expect("valid uuid");
         let scroll_state = create_test_scroll_state(); // NOT expanded
 
-        let lines = render_tool_use(&tool_call, &uuid, &scroll_state, get_test_role_style(), 10, 3);
+        let lines = render_tool_use(
+            &tool_call,
+            &uuid,
+            &scroll_state,
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should show collapse indicator
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -988,7 +993,14 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-3").expect("valid uuid");
         let scroll_state = create_expanded_scroll_state(&uuid); // IS expanded
 
-        let lines = render_tool_use(&tool_call, &uuid, &scroll_state, get_test_role_style(), 10, 3);
+        let lines = render_tool_use(
+            &tool_call,
+            &uuid,
+            &scroll_state,
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should NOT show collapse indicator when expanded
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -1012,7 +1024,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-4").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_tool_result(content, false, &uuid, &scroll_state, get_test_role_style(), 10, 3);
+        let lines = render_tool_result(
+            content,
+            false,
+            &uuid,
+            &scroll_state,
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Output content should be visible
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -1036,14 +1056,19 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-5").expect("valid uuid");
         let scroll_state = create_test_scroll_state(); // NOT expanded
 
-        let lines = render_tool_result(content, false, &uuid, &scroll_state, get_test_role_style(), 10, 3);
+        let lines = render_tool_result(
+            content,
+            false,
+            &uuid,
+            &scroll_state,
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should show first 3 lines + collapse indicator
         let text: String = lines.iter().map(|l| l.to_string()).collect();
-        assert!(
-            text.contains("Line 1"),
-            "Should show first line of content"
-        );
+        assert!(text.contains("Line 1"), "Should show first line of content");
         assert!(
             text.contains("more lines") || text.contains("+"),
             "Should show collapse indicator for long content"
@@ -1066,7 +1091,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-6").expect("valid uuid");
         let scroll_state = create_expanded_scroll_state(&uuid); // IS expanded
 
-        let lines = render_tool_result(content, false, &uuid, &scroll_state, get_test_role_style(), 10, 3);
+        let lines = render_tool_result(
+            content,
+            false,
+            &uuid,
+            &scroll_state,
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should NOT show collapse indicator when expanded
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -1112,7 +1145,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-8").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_tool_result(content, false, &uuid, &scroll_state, get_test_role_style(), 10, 3);
+        let lines = render_tool_result(
+            content,
+            false,
+            &uuid,
+            &scroll_state,
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Non-error results should not have red styling
         let has_red_style = lines.iter().any(|line| {
@@ -1137,7 +1178,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-9").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block, &uuid, &scroll_state, &create_test_styles(), get_test_role_style(), 10, 3);
+        let lines = render_content_block(
+            &block,
+            &uuid,
+            &scroll_state,
+            &create_test_styles(),
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should render tool name
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -1158,7 +1207,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-10").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block, &uuid, &scroll_state, &create_test_styles(), get_test_role_style(), 10, 3);
+        let lines = render_content_block(
+            &block,
+            &uuid,
+            &scroll_state,
+            &create_test_styles(),
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should render result content
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -1176,7 +1233,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-11").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block, &uuid, &scroll_state, &create_test_styles(), get_test_role_style(), 10, 3);
+        let lines = render_content_block(
+            &block,
+            &uuid,
+            &scroll_state,
+            &create_test_styles(),
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should render text content
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -1194,7 +1259,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-12").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block, &uuid, &scroll_state, &create_test_styles(), get_test_role_style(), 10, 3);
+        let lines = render_content_block(
+            &block,
+            &uuid,
+            &scroll_state,
+            &create_test_styles(),
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should render thinking content
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -1215,7 +1288,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-13").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block, &uuid, &scroll_state, &create_test_styles(), get_test_role_style(), 10, 3);
+        let lines = render_content_block(
+            &block,
+            &uuid,
+            &scroll_state,
+            &create_test_styles(),
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should show all lines for short content
         assert_eq!(
@@ -1242,7 +1323,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-14").expect("valid uuid");
         let scroll_state = create_test_scroll_state(); // NOT expanded
 
-        let lines = render_content_block(&block, &uuid, &scroll_state, &create_test_styles(), get_test_role_style(), 10, 3);
+        let lines = render_content_block(
+            &block,
+            &uuid,
+            &scroll_state,
+            &create_test_styles(),
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should show first 3 lines + collapse indicator
         assert_eq!(
@@ -1278,7 +1367,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-15").expect("valid uuid");
         let scroll_state = create_expanded_scroll_state(&uuid); // IS expanded
 
-        let lines = render_content_block(&block, &uuid, &scroll_state, &create_test_styles(), get_test_role_style(), 10, 3);
+        let lines = render_content_block(
+            &block,
+            &uuid,
+            &scroll_state,
+            &create_test_styles(),
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Should show all 15 lines when expanded
         assert_eq!(
@@ -1290,7 +1387,10 @@ mod tests {
 
         let text: String = lines.iter().map(|l| l.to_string()).collect();
         assert!(text.contains("Line 1"), "Should show Line 1");
-        assert!(text.contains("Line 15"), "Should show Line 15 when expanded");
+        assert!(
+            text.contains("Line 15"),
+            "Should show Line 15 when expanded"
+        );
         assert!(
             !text.contains("more lines"),
             "Should NOT show collapse indicator when expanded"
@@ -1308,7 +1408,15 @@ mod tests {
         let uuid = crate::model::EntryUuid::new("entry-16").expect("valid uuid");
         let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block, &uuid, &scroll_state, &create_test_styles(), get_test_role_style(), 10, 3);
+        let lines = render_content_block(
+            &block,
+            &uuid,
+            &scroll_state,
+            &create_test_styles(),
+            get_test_role_style(),
+            10,
+            3,
+        );
 
         // Exactly at threshold should NOT collapse (must exceed threshold)
         assert_eq!(
@@ -1369,17 +1477,20 @@ mod tests {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_conversation_view(frame, area, &conversation, &scroll_state, &create_test_styles(), false);
+                render_conversation_view(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &create_test_styles(),
+                    false,
+                );
             })
             .expect("Failed to draw");
 
         // Get the rendered buffer and check it contains our text
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // Should render the text content
         assert!(
@@ -1435,17 +1546,20 @@ mod tests {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_conversation_view(frame, area, &conversation, &scroll_state, &create_test_styles(), false);
+                render_conversation_view(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &create_test_styles(),
+                    false,
+                );
             })
             .expect("Failed to draw");
 
         // Get the rendered buffer and check it contains tool name
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // Should render the tool name
         assert!(
@@ -1479,11 +1593,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // Should show "No messages yet..." for empty conversation
         assert!(
@@ -1639,10 +1749,7 @@ mod tests {
             "Should skip entries before visible range when scrolled down"
         );
         assert!(end > start, "End should be after start");
-        assert!(
-            end <= 100,
-            "End should not exceed total entry count"
-        );
+        assert!(end <= 100, "End should not exceed total entry count");
     }
 
     #[test]
@@ -1693,11 +1800,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // With virtualization, should render early messages (buffer=20)
         assert!(
@@ -1807,11 +1910,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // FR-006: First message should have "Initial Prompt" label or visual marker
         assert!(
@@ -1884,11 +1983,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // Should contain second message content
         assert!(
@@ -1955,11 +2050,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // Main agent should NOT have "Initial Prompt" label
         assert!(
@@ -2101,7 +2192,7 @@ mod tests {
         let markdown = "Normal text **bold text** more normal";
         let lines = render_markdown_with_style(markdown, Style::default());
 
-            // Should have bold styling somewhere
+        // Should have bold styling somewhere
         let has_bold = lines.iter().any(|line| {
             line.spans
                 .iter()
@@ -2185,11 +2276,9 @@ mod tests {
         let lines = render_markdown_with_style(markdown, Style::default());
 
         // Should have syntax highlighting (foreground colors) on code content
-        let has_syntax_colors = lines.iter().any(|line| {
-            line.spans
-                .iter()
-                .any(|span| span.style.fg.is_some())
-        });
+        let has_syntax_colors = lines
+            .iter()
+            .any(|line| line.spans.iter().any(|span| span.style.fg.is_some()));
         assert!(
             has_syntax_colors,
             "Rust code blocks should have syntax highlighting (foreground colors applied)"
@@ -2274,11 +2363,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // BUG: This test will FAIL because render_conversation_view() doesn't have the logic
         assert!(
@@ -2337,11 +2422,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // Main agent should NOT have initial prompt label
         assert!(
@@ -2366,9 +2447,12 @@ mod tests {
 
         // Create entry with a very long line with non-repeating content
         // Line: "AAAAAAAAAA0123456789012345..." (10 A's, then incrementing digits)
-        let long_line = format!("{}{}",
+        let long_line = format!(
+            "{}{}",
             "A".repeat(10),
-            (0..90).map(|i| char::from_digit(i % 10, 10).unwrap()).collect::<String>()
+            (0..90)
+                .map(|i| char::from_digit(i % 10, 10).unwrap())
+                .collect::<String>()
         );
         let message = Message::new(Role::Assistant, MessageContent::Text(long_line));
 
@@ -2410,11 +2494,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // FR-039: With offset=10, first 10 chars should be skipped
         // Original line: "AAAAAAAAAA012345678901234..." (10 A's at start)
@@ -2488,11 +2568,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // FR-040: Should show left arrow indicator (◀) when offset > 0
         assert!(
@@ -2551,11 +2627,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // FR-040: Should show right arrow indicator (▶) when content extends beyond visible area
         assert!(
@@ -2578,7 +2650,10 @@ mod tests {
 
         // Short line that fits in viewport
         let short_line = "Short message";
-        let message = Message::new(Role::Assistant, MessageContent::Text(short_line.to_string()));
+        let message = Message::new(
+            Role::Assistant,
+            MessageContent::Text(short_line.to_string()),
+        );
 
         let entry = LogEntry::new(
             EntryUuid::new("entry-hscroll-4").expect("valid uuid"),
@@ -2613,11 +2688,7 @@ mod tests {
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // Should NOT show scroll indicators for short lines
         assert!(
@@ -2667,16 +2738,19 @@ mod tests {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_conversation_view(frame, area, &conversation, &scroll_state, &create_test_styles(), false);
+                render_conversation_view(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &create_test_styles(),
+                    false,
+                );
             })
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // FR-031: Should show first 3 lines + collapse indicator
         assert!(
@@ -2744,16 +2818,19 @@ mod tests {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_conversation_view(frame, area, &conversation, &scroll_state, &create_test_styles(), false);
+                render_conversation_view(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &create_test_styles(),
+                    false,
+                );
             })
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // FR-032: Should show all lines when expanded
         assert!(
@@ -2787,7 +2864,8 @@ mod tests {
         let text: String = result.spans.iter().map(|s| s.content.as_ref()).collect();
         assert!(
             text.contains("界"),
-            "Should handle CJK characters without panic, got: '{}'", text
+            "Should handle CJK characters without panic, got: '{}'",
+            text
         );
     }
 
@@ -2874,7 +2952,10 @@ mod tests {
 
         // Create entry with short MessageContent::Text (5 lines, below threshold)
         let short_text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
-        let message = Message::new(Role::Assistant, MessageContent::Text(short_text.to_string()));
+        let message = Message::new(
+            Role::Assistant,
+            MessageContent::Text(short_text.to_string()),
+        );
 
         let entry = LogEntry::new(
             EntryUuid::new("entry-short-test").expect("valid uuid"),
@@ -2897,16 +2978,19 @@ mod tests {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_conversation_view(frame, area, &conversation, &scroll_state, &create_test_styles(), false);
+                render_conversation_view(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &create_test_styles(),
+                    false,
+                );
             })
             .expect("Failed to draw");
 
         let buffer = terminal.backend().buffer().clone();
-        let content: String = buffer
-            .content()
-            .iter()
-            .map(|cell| cell.symbol())
-            .collect();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
         // Should show all lines for short content (no collapse)
         assert!(content.contains("Line 1"), "Should show Line 1");

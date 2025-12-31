@@ -33,21 +33,14 @@ pub fn render_tab_bar(
     selected_tab: Option<usize>,
 ) {
     // Convert agent IDs to tab titles (Line format for Tabs widget)
-    let titles: Vec<Line> = agent_ids
-        .iter()
-        .map(|id| Line::from(id.as_str()))
-        .collect();
+    let titles: Vec<Line> = agent_ids.iter().map(|id| Line::from(id.as_str())).collect();
 
     // Validate bounds: treat out-of-bounds as None
     let validated_selection = selected_tab.filter(|&idx| idx < agent_ids.len());
 
     // Create Tabs widget with block
     let mut tabs = Tabs::new(titles)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Subagents"),
-        )
+        .block(Block::default().borders(Borders::ALL).title("Subagents"))
         .style(Style::default().fg(Color::White));
 
     // Apply highlight only if we have a valid selection
@@ -95,13 +88,17 @@ mod tests {
             .unwrap();
 
         let buffer = terminal.backend().buffer();
-        let buffer_str = buffer.content()
+        let buffer_str = buffer
+            .content()
             .iter()
             .map(|c| c.symbol())
             .collect::<String>();
 
         // Should contain the agent ID somewhere in the buffer
-        assert!(buffer_str.contains("agent-abc"), "Tab bar should display agent ID 'agent-abc'");
+        assert!(
+            buffer_str.contains("agent-abc"),
+            "Tab bar should display agent ID 'agent-abc'"
+        );
     }
 
     #[test]
@@ -119,7 +116,8 @@ mod tests {
             .unwrap();
 
         let buffer = terminal.backend().buffer();
-        let buffer_str = buffer.content()
+        let buffer_str = buffer
+            .content()
             .iter()
             .map(|c| c.symbol())
             .collect::<String>();
@@ -141,7 +139,10 @@ mod tests {
             render_tab_bar(frame, frame.area(), &agent_ids, None);
         });
 
-        assert!(result.is_ok(), "Should render without error when selection is None");
+        assert!(
+            result.is_ok(),
+            "Should render without error when selection is None"
+        );
     }
 
     #[test]
@@ -154,7 +155,10 @@ mod tests {
             render_tab_bar(frame, frame.area(), &agent_ids, None);
         });
 
-        assert!(result.is_ok(), "Should render without error when agent list is empty");
+        assert!(
+            result.is_ok(),
+            "Should render without error when agent list is empty"
+        );
     }
 
     #[test]
@@ -185,7 +189,8 @@ mod tests {
             .unwrap();
 
         let buffer = terminal.backend().buffer();
-        let buffer_str = buffer.content()
+        let buffer_str = buffer
+            .content()
             .iter()
             .map(|c| c.symbol())
             .collect::<String>();
@@ -209,7 +214,10 @@ mod tests {
             render_tab_bar(frame, frame.area(), &agent_ids, Some(5));
         });
 
-        assert!(result.is_ok(), "Should handle out-of-bounds selection gracefully");
+        assert!(
+            result.is_ok(),
+            "Should handle out-of-bounds selection gracefully"
+        );
     }
 
     #[test]

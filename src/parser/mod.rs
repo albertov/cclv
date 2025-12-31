@@ -5,8 +5,8 @@
 
 use crate::model::{
     AgentId, ContentBlock, EntryMetadata, EntryType, EntryUuid, LogEntry, MalformedEntry, Message,
-    MessageContent, ModelInfo, ParseError, Role, SessionId, ToolCall, ToolName, ToolUseId,
-    TokenUsage,
+    MessageContent, ModelInfo, ParseError, Role, SessionId, TokenUsage, ToolCall, ToolName,
+    ToolUseId,
 };
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -56,10 +56,23 @@ enum RawMessageContent {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum RawContentBlock {
-    Text { text: String },
-    ToolUse { id: String, name: String, input: serde_json::Value },
-    ToolResult { tool_use_id: String, content: String, #[serde(default)] is_error: bool },
-    Thinking { thinking: String },
+    Text {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+        #[serde(default)]
+        is_error: bool,
+    },
+    Thinking {
+        thinking: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -150,10 +163,11 @@ fn extract_session_id_best_effort(raw: &str) -> Option<SessionId> {
 /// - UUIDs or IDs are empty
 pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError> {
     // Deserialize JSON
-    let raw_entry: RawLogEntry = serde_json::from_str(raw).map_err(|e| ParseError::InvalidJson {
-        line: line_number,
-        message: e.to_string(),
-    })?;
+    let raw_entry: RawLogEntry =
+        serde_json::from_str(raw).map_err(|e| ParseError::InvalidJson {
+            line: line_number,
+            message: e.to_string(),
+        })?;
 
     // Parse entry type
     let entry_type = parse_entry_type(&raw_entry.entry_type).ok_or(ParseError::MissingField {
@@ -178,10 +192,11 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
         .transpose()?;
 
     // Validate and construct session ID
-    let session_id = SessionId::new(raw_entry.session_id).map_err(|_| ParseError::MissingField {
-        line: line_number,
-        field: "sessionId",
-    })?;
+    let session_id =
+        SessionId::new(raw_entry.session_id).map_err(|_| ParseError::MissingField {
+            line: line_number,
+            field: "sessionId",
+        })?;
 
     // Validate and construct agent ID (optional)
     let agent_id = raw_entry
@@ -437,11 +452,7 @@ mod tests {
                 ts
             );
             let result = parse_entry(&raw, 1);
-            assert!(
-                result.is_ok(),
-                "Should parse timestamp format: {}",
-                ts
-            );
+            assert!(result.is_ok(), "Should parse timestamp format: {}", ts);
         }
     }
 
@@ -456,10 +467,7 @@ mod tests {
         match result.unwrap_err() {
             ParseError::InvalidJson { line, message } => {
                 assert_eq!(line, 42, "Should preserve line number");
-                assert!(
-                    !message.is_empty(),
-                    "Should have error message"
-                );
+                assert!(!message.is_empty(), "Should have error message");
             }
             _ => panic!("Expected InvalidJson error"),
         }
@@ -750,12 +758,7 @@ mod tests {
 
     #[test]
     fn malformed_entry_stores_all_fields() {
-        let malformed = MalformedEntry::new(
-            42,
-            "bad json",
-            "Parse error: unexpected token",
-            None,
-        );
+        let malformed = MalformedEntry::new(42, "bad json", "Parse error: unexpected token", None);
 
         assert_eq!(malformed.line_number(), 42);
         assert_eq!(malformed.raw_line(), "bad json");
@@ -873,17 +876,18 @@ mod tests {
         let raw = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-999","content":"output"}]},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
         let result = parse_entry(raw, 1);
 
-        assert!(result.is_ok(), "Should parse ToolResult without is_error field");
+        assert!(
+            result.is_ok(),
+            "Should parse ToolResult without is_error field"
+        );
         let entry = result.unwrap();
         match entry.message().content() {
-            MessageContent::Blocks(blocks) => {
-                match &blocks[0] {
-                    ContentBlock::ToolResult { is_error, .. } => {
-                        assert!(!is_error, "is_error should default to false");
-                    }
-                    _ => panic!("Expected ToolResult block"),
+            MessageContent::Blocks(blocks) => match &blocks[0] {
+                ContentBlock::ToolResult { is_error, .. } => {
+                    assert!(!is_error, "is_error should default to false");
                 }
-            }
+                _ => panic!("Expected ToolResult block"),
+            },
             _ => panic!("Expected Blocks content"),
         }
     }

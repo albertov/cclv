@@ -156,7 +156,11 @@ fn render_layout_creates_three_areas_with_subagents() {
     // 3. Status bar (bottom)
 
     // Look for "Main Agent" title somewhere in the buffer
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
     assert!(
         content.contains("Main Agent"),
         "Main agent pane title should be rendered"
@@ -180,7 +184,11 @@ fn render_layout_hides_subagent_pane_when_no_subagents() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
 
     // Main agent should be visible
     assert!(
@@ -206,7 +214,11 @@ fn render_layout_includes_status_bar() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
 
     // Status bar should show hints or live indicator
     assert!(
@@ -229,7 +241,11 @@ fn render_layout_shows_live_indicator_when_live_mode() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
 
     assert!(
         content.contains("LIVE"),
@@ -252,7 +268,11 @@ fn render_layout_displays_tab_bar_in_subagent_pane() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
 
     // Tab bar should contain at least the first subagent ID
     // (Terminal width of 80 chars may truncate additional tabs)
@@ -282,7 +302,11 @@ fn render_layout_uses_selected_tab_to_display_correct_subagent() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
 
     // The selected tab (subagent-2) should be highlighted in the tab bar
     // We verify tab selection is working by checking the tab bar shows subagent-2
@@ -299,7 +323,9 @@ fn render_layout_uses_selected_tab_to_display_correct_subagent() {
 
 #[test]
 fn render_header_displays_model_name_for_main_agent() {
-    use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, ModelInfo, Role};
+    use crate::model::{
+        EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, ModelInfo, Role,
+    };
     use chrono::Utc;
 
     let mut terminal = create_test_terminal();
@@ -311,7 +337,8 @@ fn render_header_displays_model_name_for_main_agent() {
     let message = Message::new(
         Role::Assistant,
         MessageContent::Text("Response".to_string()),
-    ).with_model(model_info);
+    )
+    .with_model(model_info);
     let entry = LogEntry::new(
         EntryUuid::new("entry-1").unwrap(),
         None,
@@ -333,7 +360,11 @@ fn render_header_displays_model_name_for_main_agent() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
 
     // Header should contain model display name "Sonnet"
     assert!(
@@ -357,7 +388,11 @@ fn render_header_shows_live_indicator_when_live_mode_and_auto_scroll() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
 
     assert!(
         content.contains("[LIVE]"),
@@ -380,7 +415,11 @@ fn render_header_hides_live_indicator_when_live_mode_false() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let _content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let _content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
 
     // Should NOT contain [LIVE] in header area
     // Note: Status bar might still show LIVE, but we're testing header specifically
@@ -413,12 +452,7 @@ fn render_header_hides_live_indicator_when_auto_scroll_false() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let first_line: String = buffer
-        .content
-        .iter()
-        .take(80)
-        .map(|c| c.symbol())
-        .collect();
+    let first_line: String = buffer.content.iter().take(80).map(|c| c.symbol()).collect();
 
     assert!(
         !first_line.contains("[LIVE]"),
@@ -439,12 +473,7 @@ fn render_header_shows_main_agent_label() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let first_line: String = buffer
-        .content
-        .iter()
-        .take(80)
-        .map(|c| c.symbol())
-        .collect();
+    let first_line: String = buffer.content.iter().take(80).map(|c| c.symbol()).collect();
 
     assert!(
         first_line.contains("Main") || first_line.contains("main"),
@@ -454,7 +483,6 @@ fn render_header_shows_main_agent_label() {
 
 #[test]
 fn render_header_shows_subagent_id_when_subagent_focused() {
-
     let mut terminal = create_test_terminal();
     let session = create_session_with_subagents();
     let mut state = AppState::new(session);
@@ -468,12 +496,7 @@ fn render_header_shows_subagent_id_when_subagent_focused() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let first_line: String = buffer
-        .content
-        .iter()
-        .take(80)
-        .map(|c| c.symbol())
-        .collect();
+    let first_line: String = buffer.content.iter().take(80).map(|c| c.symbol()).collect();
 
     assert!(
         first_line.contains("subagent"),

@@ -51,8 +51,8 @@ impl FileTailer {
 
         // Set up file watcher with 100ms debouncing
         let (tx, rx) = std::sync::mpsc::channel();
-        let mut debouncer = new_debouncer(Duration::from_millis(100), tx)
-            .map_err(std::io::Error::other)?;
+        let mut debouncer =
+            new_debouncer(Duration::from_millis(100), tx).map_err(std::io::Error::other)?;
 
         // Watch the file's parent directory (watching individual files may not work on all platforms)
         debouncer
@@ -225,9 +225,8 @@ impl FileSource {
             match LogEntry::parse(&line) {
                 Ok(entry) => {
                     // Initialize session from first valid entry
-                    let sess = session.get_or_insert_with(|| {
-                        Session::new(entry.session_id().clone())
-                    });
+                    let sess =
+                        session.get_or_insert_with(|| Session::new(entry.session_id().clone()));
                     sess.add_entry(entry);
                 }
                 Err(_parse_error) => {
@@ -568,11 +567,7 @@ malformed line without braces
 
         assert!(result.is_ok(), "Should handle empty file");
         let session = result.unwrap();
-        assert_eq!(
-            session.main_agent().len(),
-            0,
-            "Should have no entries"
-        );
+        assert_eq!(session.main_agent().len(), 0, "Should have no entries");
     }
 
     #[test]
@@ -601,11 +596,7 @@ malformed line without braces
             2,
             "Should have 2 main agent entries"
         );
-        assert_eq!(
-            session.subagents().len(),
-            1,
-            "Should have 1 subagent"
-        );
+        assert_eq!(session.subagents().len(), 1, "Should have 1 subagent");
 
         let agent_id = crate::model::AgentId::new("agent-abc").unwrap();
         assert!(
@@ -678,10 +669,6 @@ another malformed line
         // Cleanup
         let _ = fs::remove_file(&test_file);
 
-        assert_eq!(
-            source.line_count(),
-            0,
-            "Should return 0 for empty file"
-        );
+        assert_eq!(source.line_count(), 0, "Should return 0 for empty file");
     }
 }

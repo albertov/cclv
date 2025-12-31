@@ -23,10 +23,7 @@ use crate::parser;
 /// # Returns
 ///
 /// Vector of ConversationEntry (both valid and malformed entries)
-pub fn process_lines(
-    lines: Vec<String>,
-    starting_line_number: usize,
-) -> Vec<ConversationEntry> {
+pub fn process_lines(lines: Vec<String>, starting_line_number: usize) -> Vec<ConversationEntry> {
     lines
         .into_iter()
         .enumerate()
@@ -119,9 +116,7 @@ mod tests {
 
     #[test]
     fn process_lines_creates_malformed_entry_for_bad_json() {
-        let lines = vec![
-            r#"{"type":"user","malformed"#.to_string(),
-        ];
+        let lines = vec![r#"{"type":"user","malformed"#.to_string()];
 
         let entries = process_lines(lines, 42);
 
@@ -156,7 +151,10 @@ mod tests {
 
         assert_eq!(entries.len(), 3, "Should have 3 entries total");
         assert!(entries[0].is_valid(), "First entry should be valid");
-        assert!(entries[1].is_malformed(), "Second entry should be malformed");
+        assert!(
+            entries[1].is_malformed(),
+            "Second entry should be malformed"
+        );
         assert!(entries[2].is_valid(), "Third entry should be valid");
 
         for entry in entries {
@@ -184,7 +182,11 @@ mod tests {
         for entry in entries {
             session.add_conversation_entry(entry);
         }
-        assert_eq!(session.main_agent().len(), 0, "Should not add to main agent");
+        assert_eq!(
+            session.main_agent().len(),
+            0,
+            "Should not add to main agent"
+        );
         assert_eq!(session.subagents().len(), 1, "Should create subagent");
     }
 
@@ -199,10 +201,7 @@ mod tests {
 
     #[test]
     fn process_lines_uses_line_numbers_correctly() {
-        let lines = vec![
-            r#"{"malformed1"#.to_string(),
-            r#"{"malformed2"#.to_string(),
-        ];
+        let lines = vec![r#"{"malformed1"#.to_string(), r#"{"malformed2"#.to_string()];
 
         let entries = process_lines(lines, 100);
 

@@ -285,7 +285,10 @@ mod tests {
         thread::sleep(Duration::from_millis(50));
         source.poll().unwrap();
 
-        assert!(!source.is_live(), "Stdin source should not be live after EOF");
+        assert!(
+            !source.is_live(),
+            "Stdin source should not be live after EOF"
+        );
     }
 
     // ========================================================================

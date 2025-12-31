@@ -72,7 +72,13 @@ impl<'a> Widget for StatsPanel<'a> {
         let usage = self.stats.filtered_usage(self.filter);
 
         // Token section
-        lines.push(Line::from("Tokens:").style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+        lines.push(
+            Line::from("Tokens:").style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
         lines.push(Line::from(format!(
             "  Input:  {}",
             format_tokens(usage.total_input())
@@ -87,8 +93,7 @@ impl<'a> Widget for StatsPanel<'a> {
         )));
 
         // Cache tokens (only if non-zero)
-        let total_cache = usage.cache_creation_input_tokens
-            + usage.cache_read_input_tokens;
+        let total_cache = usage.cache_creation_input_tokens + usage.cache_read_input_tokens;
         if total_cache > 0 {
             lines.push(Line::from(format!(
                 "  Cache:  {}",
@@ -100,21 +105,42 @@ impl<'a> Widget for StatsPanel<'a> {
 
         // Cost section
         let cost = self.stats.estimated_cost(self.pricing, self.model_id);
-        lines.push(Line::from("Estimated Cost:").style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+        lines.push(
+            Line::from("Estimated Cost:").style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
         lines.push(Line::from(format!("  {}", format_cost(cost))));
         lines.push(Line::from(""));
 
         // Tool usage section
         if !self.stats.tool_counts.is_empty() {
-            lines.push(Line::from("Tool Usage:").style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+            lines.push(
+                Line::from("Tool Usage:").style(
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            );
             let tool_lines = format_tool_breakdown(&self.stats.tool_counts, 10);
             lines.extend(tool_lines);
             lines.push(Line::from(""));
         }
 
         // Subagents section
-        lines.push(Line::from("Subagents:").style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
-        lines.push(Line::from(format!("  Count: {}", self.stats.subagent_count)));
+        lines.push(
+            Line::from("Subagents:").style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
+        lines.push(Line::from(format!(
+            "  Count: {}",
+            self.stats.subagent_count
+        )));
 
         // Render the paragraph
         let paragraph = Paragraph::new(lines);
@@ -362,7 +388,7 @@ mod tests {
             content
         );
         assert!(
-            content.contains("350"),  // 200 + 150 = 350 total cache tokens
+            content.contains("350"), // 200 + 150 = 350 total cache tokens
             "Expected total cache tokens '350' in output, got:\n{}",
             content
         );
@@ -596,7 +622,12 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("claude-sonnet-4-5-20250929"));
+        let panel = StatsPanel::new(
+            &stats,
+            &filter,
+            &pricing,
+            Some("claude-sonnet-4-5-20250929"),
+        );
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -685,9 +716,15 @@ mod tests {
         let lines = format_tool_breakdown(&tool_counts, 10);
 
         // Extract just the text content from lines
-        let text: Vec<String> = lines.iter().map(|l| {
-            l.spans.iter().map(|s| s.content.as_ref()).collect::<String>()
-        }).collect();
+        let text: Vec<String> = lines
+            .iter()
+            .map(|l| {
+                l.spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<String>()
+            })
+            .collect();
 
         // Should be sorted: Write (15), Bash (10), Read (5)
         assert_eq!(text.len(), 3);
@@ -725,11 +762,7 @@ mod tests {
         assert_eq!(lines.len(), 11);
 
         // Last line should be overflow indicator
-        let last_line_text: String = lines[10]
-            .spans
-            .iter()
-            .map(|s| s.content.as_ref())
-            .collect();
+        let last_line_text: String = lines[10].spans.iter().map(|s| s.content.as_ref()).collect();
 
         assert!(
             last_line_text.contains("... and 2 more"),
@@ -786,11 +819,7 @@ mod tests {
 
         assert_eq!(lines.len(), 1);
 
-        let text: String = lines[0]
-            .spans
-            .iter()
-            .map(|s| s.content.as_ref())
-            .collect();
+        let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
 
         // Should be formatted as "  Read: 42"
         assert!(text.contains("Read"));
@@ -808,11 +837,7 @@ mod tests {
 
         let lines = format_tool_breakdown(&tool_counts, 10);
 
-        let text: String = lines[0]
-            .spans
-            .iter()
-            .map(|s| s.content.as_ref())
-            .collect();
+        let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
 
         // Should use ToolName::as_str() which returns "CustomTool"
         assert!(text.contains("CustomTool"));

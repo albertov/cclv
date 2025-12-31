@@ -3,7 +3,7 @@
 //! This module provides aggregated statistics for sessions, including token usage,
 //! tool counts, and estimated costs based on pricing configuration.
 
-use crate::model::{AgentId, LogEntry, ToolName, TokenUsage};
+use crate::model::{AgentId, LogEntry, TokenUsage, ToolName};
 use std::collections::HashMap;
 
 // ===== SessionStats =====
@@ -105,9 +105,11 @@ impl SessionStats {
         match filter {
             StatsFilter::Global => self.total_usage,
             StatsFilter::MainAgent => self.main_agent_usage,
-            StatsFilter::Subagent(agent_id) => {
-                self.subagent_usage.get(agent_id).copied().unwrap_or_default()
-            }
+            StatsFilter::Subagent(agent_id) => self
+                .subagent_usage
+                .get(agent_id)
+                .copied()
+                .unwrap_or_default(),
         }
     }
 }
@@ -393,8 +395,18 @@ mod tests {
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
         };
-        let entry1 = make_log_entry("e1", "s1", Some("agent-abc"), make_message_with_usage(usage1));
-        let entry2 = make_log_entry("e2", "s1", Some("agent-abc"), make_message_with_usage(usage2));
+        let entry1 = make_log_entry(
+            "e1",
+            "s1",
+            Some("agent-abc"),
+            make_message_with_usage(usage1),
+        );
+        let entry2 = make_log_entry(
+            "e2",
+            "s1",
+            Some("agent-abc"),
+            make_message_with_usage(usage2),
+        );
 
         stats.record_entry(&entry1);
         stats.record_entry(&entry2);
@@ -435,9 +447,24 @@ mod tests {
     #[test]
     fn record_entry_updates_subagent_count() {
         let mut stats = SessionStats::default();
-        let entry1 = make_log_entry("e1", "s1", Some("agent-1"), make_message_with_usage(TokenUsage::default()));
-        let entry2 = make_log_entry("e2", "s1", Some("agent-2"), make_message_with_usage(TokenUsage::default()));
-        let entry3 = make_log_entry("e3", "s1", Some("agent-1"), make_message_with_usage(TokenUsage::default()));
+        let entry1 = make_log_entry(
+            "e1",
+            "s1",
+            Some("agent-1"),
+            make_message_with_usage(TokenUsage::default()),
+        );
+        let entry2 = make_log_entry(
+            "e2",
+            "s1",
+            Some("agent-2"),
+            make_message_with_usage(TokenUsage::default()),
+        );
+        let entry3 = make_log_entry(
+            "e3",
+            "s1",
+            Some("agent-1"),
+            make_message_with_usage(TokenUsage::default()),
+        );
 
         stats.record_entry(&entry1);
         assert_eq!(stats.subagent_count, 1);
@@ -700,10 +727,7 @@ mod tests {
     fn stats_filter_subagent_equality() {
         let agent1 = make_agent_id("agent-1");
         let agent2 = make_agent_id("agent-1");
-        assert_eq!(
-            StatsFilter::Subagent(agent1),
-            StatsFilter::Subagent(agent2)
-        );
+        assert_eq!(StatsFilter::Subagent(agent1), StatsFilter::Subagent(agent2));
     }
 
     #[test]
@@ -715,10 +739,7 @@ mod tests {
     fn stats_filter_different_subagents_not_equal() {
         let agent1 = make_agent_id("agent-1");
         let agent2 = make_agent_id("agent-2");
-        assert_ne!(
-            StatsFilter::Subagent(agent1),
-            StatsFilter::Subagent(agent2)
-        );
+        assert_ne!(StatsFilter::Subagent(agent1), StatsFilter::Subagent(agent2));
     }
 
     // ===== ModelPricing Tests =====

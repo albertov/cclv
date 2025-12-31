@@ -27,9 +27,9 @@ pub fn render_layout(frame: &mut Frame, state: &AppState) {
     let vertical_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),  // Header bar (1 line)
-            Constraint::Min(0),     // Main content area
-            Constraint::Length(1),  // Status bar (1 line)
+            Constraint::Length(1), // Header bar (1 line)
+            Constraint::Min(0),    // Main content area
+            Constraint::Length(1), // Status bar (1 line)
         ])
         .split(frame.area());
 
@@ -91,7 +91,7 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3), // Tab bar (border + title + content)
-            Constraint::Min(0),     // Conversation content
+            Constraint::Min(0),    // Conversation content
         ])
         .split(area);
 

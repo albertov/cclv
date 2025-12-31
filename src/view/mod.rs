@@ -58,10 +58,7 @@ impl TuiApp<CrosstermBackend<Stdout>> {
     /// Create and initialize a new TUI application
     ///
     /// Sets up terminal in raw mode with alternate screen
-    pub fn new(
-        mut input_source: InputSource,
-        session_id: SessionId,
-    ) -> Result<Self, TuiError> {
+    pub fn new(mut input_source: InputSource, session_id: SessionId) -> Result<Self, TuiError> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         stdout.execute(EnterAlternateScreen)?;
@@ -160,7 +157,9 @@ where
             // FR-035: Auto-scroll to bottom when live_mode && auto_scroll
             if self.app_state.live_mode && self.app_state.auto_scroll && !entries.is_empty() {
                 let entry_count = self.app_state.session().main_agent().len();
-                self.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+                self.app_state
+                    .main_scroll
+                    .scroll_to_bottom(entry_count.saturating_sub(1));
             }
         }
 
@@ -177,7 +176,9 @@ where
             // If enabling, scroll to bottom immediately
             if self.app_state.auto_scroll {
                 let entry_count = self.app_state.session().main_agent().len();
-                self.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+                self.app_state
+                    .main_scroll
+                    .scroll_to_bottom(entry_count.saturating_sub(1));
             }
             return false;
         }
@@ -200,7 +201,8 @@ where
             if let Some(tab_index) = self.app_state.selected_tab {
                 let subagent_ids = self.app_state.session().subagent_ids_ordered();
                 if let Some(&agent_id) = subagent_ids.get(tab_index) {
-                    self.app_state.stats_filter = crate::model::StatsFilter::Subagent(agent_id.clone());
+                    self.app_state.stats_filter =
+                        crate::model::StatsFilter::Subagent(agent_id.clone());
                 }
             }
             return false;
@@ -241,11 +243,12 @@ pub fn run_with_source(input_source: InputSource, args: CliArgs) -> Result<(), T
     // Extract or create session ID
     // For now, use a default session ID. In the future, this could be
     // extracted from the first log entry or passed via args.
-    let session_id =
-        SessionId::new("default-session").map_err(|_| TuiError::Io(io::Error::new(
+    let session_id = SessionId::new("default-session").map_err(|_| {
+        TuiError::Io(io::Error::new(
             io::ErrorKind::InvalidInput,
             "Invalid session ID",
-        )))?;
+        ))
+    })?;
 
     let mut app = TuiApp::new(input_source, session_id)?;
 
@@ -354,18 +357,27 @@ mod tests {
         let mut app = create_test_app();
 
         // Initially auto_scroll is true
-        assert!(app.app_state.auto_scroll, "auto_scroll should start as true");
+        assert!(
+            app.app_state.auto_scroll,
+            "auto_scroll should start as true"
+        );
 
         // Press 'a' to toggle off
         let key = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
         let should_quit = app.handle_key(key);
         assert!(!should_quit, "'a' should not trigger quit");
-        assert!(!app.app_state.auto_scroll, "auto_scroll should toggle to false");
+        assert!(
+            !app.app_state.auto_scroll,
+            "auto_scroll should toggle to false"
+        );
 
         // Press 'a' again to toggle back on
         let should_quit = app.handle_key(key);
         assert!(!should_quit, "'a' should not trigger quit");
-        assert!(app.app_state.auto_scroll, "auto_scroll should toggle back to true");
+        assert!(
+            app.app_state.auto_scroll,
+            "auto_scroll should toggle back to true"
+        );
     }
 
     #[test]
@@ -389,8 +401,7 @@ mod tests {
         let entry_count = app.app_state.session().main_agent().len();
         let expected_offset = entry_count.saturating_sub(1);
         assert_eq!(
-            app.app_state.main_scroll.vertical_offset,
-            expected_offset,
+            app.app_state.main_scroll.vertical_offset, expected_offset,
             "Enabling auto_scroll should scroll to bottom"
         );
     }
@@ -418,15 +429,16 @@ mod tests {
         // This is what poll_input() does after adding entries
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
             let entry_count = app.app_state.session().main_agent().len();
-            app.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+            app.app_state
+                .main_scroll
+                .scroll_to_bottom(entry_count.saturating_sub(1));
         }
 
         // Verify scroll position moved to bottom
         let entry_count = app.app_state.session().main_agent().len();
         let expected_offset = entry_count.saturating_sub(1);
         assert_eq!(
-            app.app_state.main_scroll.vertical_offset,
-            expected_offset,
+            app.app_state.main_scroll.vertical_offset, expected_offset,
             "Should auto-scroll to bottom when live_mode && auto_scroll"
         );
         assert!(expected_offset >= 2, "Should have at least 3 entries");
@@ -450,13 +462,14 @@ mod tests {
         // Try to trigger auto-scroll (should be skipped when auto_scroll=false)
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
             let entry_count = app.app_state.session().main_agent().len();
-            app.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+            app.app_state
+                .main_scroll
+                .scroll_to_bottom(entry_count.saturating_sub(1));
         }
 
         // Should still be at top
         assert_eq!(
-            app.app_state.main_scroll.vertical_offset,
-            0,
+            app.app_state.main_scroll.vertical_offset, 0,
             "Should NOT auto-scroll when auto_scroll is disabled"
         );
     }
@@ -479,13 +492,14 @@ mod tests {
         // Try to trigger auto-scroll (should be skipped when not live_mode)
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
             let entry_count = app.app_state.session().main_agent().len();
-            app.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+            app.app_state
+                .main_scroll
+                .scroll_to_bottom(entry_count.saturating_sub(1));
         }
 
         // Should still be at top
         assert_eq!(
-            app.app_state.main_scroll.vertical_offset,
-            0,
+            app.app_state.main_scroll.vertical_offset, 0,
             "Should NOT auto-scroll when not in live_mode"
         );
     }

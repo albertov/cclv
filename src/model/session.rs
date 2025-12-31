@@ -164,9 +164,7 @@ impl AgentConversation {
     }
 
     pub fn first_timestamp(&self) -> Option<DateTime<Utc>> {
-        self.entries
-            .first()
-            .and_then(|e| e.timestamp())
+        self.entries.first().and_then(|e| e.timestamp())
     }
 
     pub fn len(&self) -> usize {
@@ -528,8 +526,8 @@ mod tests {
 
         // Should be ordered by first entry only
         assert_eq!(ids.len(), 2);
-        assert_eq!(ids[0].as_str(), "agent-2");  // t=5
-        assert_eq!(ids[1].as_str(), "agent-1");  // t=10
+        assert_eq!(ids[0].as_str(), "agent-2"); // t=5
+        assert_eq!(ids[1].as_str(), "agent-1"); // t=10
     }
 
     // ===== AgentConversation::add_malformed Tests =====
@@ -558,7 +556,10 @@ mod tests {
 
         conv.add_malformed(malformed);
 
-        assert!(conv.model().is_none(), "Malformed entry should not set model");
+        assert!(
+            conv.model().is_none(),
+            "Malformed entry should not set model"
+        );
     }
 
     // ===== AgentConversation::add_conversation_entry Tests =====

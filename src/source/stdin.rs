@@ -287,7 +287,10 @@ mod tests {
 
         let line = poll_with_retry(&mut source, 10);
         assert_eq!(line, Some("line with newline".to_string()));
-        assert!(!line.as_ref().unwrap().contains('\n'), "Should not include newline");
+        assert!(
+            !line.as_ref().unwrap().contains('\n'),
+            "Should not include newline"
+        );
     }
 
     #[test]
@@ -319,7 +322,11 @@ mod tests {
         let elapsed = start.elapsed();
 
         // Should return in well under 10ms (non-blocking)
-        assert!(elapsed.as_millis() < 10, "poll() took {}ms, should be < 10ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 10,
+            "poll() took {}ms, should be < 10ms",
+            elapsed.as_millis()
+        );
 
         // Result could be None (no data yet) or None+complete (EOF already received)
         // Both are valid for this timing-sensitive test

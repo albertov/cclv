@@ -148,12 +148,8 @@ mod tests {
 
     #[test]
     fn conversation_entry_session_id_returns_some_for_malformed_with_session() {
-        let malformed = MalformedEntry::new(
-            10,
-            "bad",
-            "error",
-            Some(make_session_id("session-456")),
-        );
+        let malformed =
+            MalformedEntry::new(10, "bad", "error", Some(make_session_id("session-456")));
         let conv_entry = ConversationEntry::Malformed(malformed);
 
         let session_id = conv_entry.session_id();

@@ -8,7 +8,7 @@
 
 use cclv::model::{
     AgentId, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
-    SessionId, SessionStats, ToolName, ToolUseId, TokenUsage,
+    SessionId, SessionStats, TokenUsage, ToolName, ToolUseId,
 };
 use cclv::state::ScrollState;
 use chrono::Utc;

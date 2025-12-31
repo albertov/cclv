@@ -141,10 +141,7 @@ mod tests {
         let style = styles.style_for_content_block(&block);
 
         // Tool calls should have a distinct style
-        assert!(
-            style.is_some(),
-            "ToolUse blocks should return a style"
-        );
+        assert!(style.is_some(), "ToolUse blocks should return a style");
         assert!(
             style.unwrap().fg.is_some(),
             "ToolUse style should have a foreground color"
@@ -234,7 +231,9 @@ mod tests {
         let id = ToolUseId::new("tool-1").expect("valid id");
         let tool_call = ToolCall::new(id, ToolName::Read, serde_json::json!({}));
         let block = ContentBlock::ToolUse(tool_call);
-        let tool_style = styles.style_for_content_block(&block).expect("ToolUse should have style");
+        let tool_style = styles
+            .style_for_content_block(&block)
+            .expect("ToolUse should have style");
 
         // FR-024: Tool calls should be distinct from user messages
         assert_ne!(

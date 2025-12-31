@@ -28,14 +28,18 @@ pub enum MessageContent {
 /// Individual content block within a message
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     ToolUse(ToolCall),
     ToolResult {
         tool_use_id: ToolUseId,
         content: String,
         is_error: bool,
     },
-    Thinking { thinking: String },
+    Thinking {
+        thinking: String,
+    },
 }
 
 // ===== ToolCall =====

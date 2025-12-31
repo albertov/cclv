@@ -16,8 +16,8 @@ pub mod usage;
 pub use conversation_entry::ConversationEntry;
 pub use error::{AppError, InputError, ParseError};
 pub use identifiers::{
-    AgentId, EntryUuid, InvalidAgentId, InvalidSessionId, InvalidToolUseId, InvalidUuid,
-    SessionId, ToolUseId,
+    AgentId, EntryUuid, InvalidAgentId, InvalidSessionId, InvalidToolUseId, InvalidUuid, SessionId,
+    ToolUseId,
 };
 pub use log_entry::{EntryMetadata, EntryType, LogEntry};
 pub use malformed_entry::MalformedEntry;
