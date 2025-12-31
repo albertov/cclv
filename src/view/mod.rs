@@ -1697,6 +1697,58 @@ mod tests {
         );
     }
 
+    #[test]
+    fn handle_key_enter_toggles_expand_on_focused_entry() {
+        let mut app = create_test_app();
+
+        // Add multiple entries
+        let entry1 = create_test_entry("first");
+        let entry2 = create_test_entry("second");
+        app.app_state.add_entries(vec![entry1, entry2]);
+
+        // Initialize layout so entries have heights
+        if let Some(view) = app.app_state.main_conversation_view_mut() {
+            view.relayout(80, crate::state::WrapMode::Wrap);
+        }
+
+        // Focus on Main pane and use Ctrl+j to focus first entry
+        app.app_state.focus = FocusPane::Main;
+        let ctrl_j = KeyEvent::new(KeyCode::Char('j'), KeyModifiers::CONTROL);
+        app.handle_key(ctrl_j);
+
+        // Verify entry 0 is now focused
+        let focused_idx = app
+            .app_state
+            .main_conversation_view()
+            .and_then(|v| v.focused_message())
+            .map(|idx| idx.get());
+        assert_eq!(focused_idx, Some(0), "Entry 0 should be focused");
+
+        // Check initial expand state
+        let initial_expanded = app
+            .app_state
+            .main_conversation_view()
+            .and_then(|v| v.get(crate::view_state::types::EntryIndex::new(0)))
+            .map(|e| e.is_expanded())
+            .unwrap_or(false);
+
+        // Press Enter to toggle expand on focused entry
+        let enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        app.handle_key(enter);
+
+        // Verify expand state toggled
+        let after_toggle = app
+            .app_state
+            .main_conversation_view()
+            .and_then(|v| v.get(crate::view_state::types::EntryIndex::new(0)))
+            .map(|e| e.is_expanded())
+            .unwrap_or(false);
+        assert_eq!(
+            after_toggle, !initial_expanded,
+            "Enter should toggle expand state of focused entry"
+        );
+    }
+
     // Helper function to create a test LogEntry
     fn create_test_entry(content: &str) -> crate::model::ConversationEntry {
         use crate::model::{
