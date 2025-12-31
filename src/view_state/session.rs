@@ -1,3 +1,431 @@
 //! View-state for a single session
-//!
-//! TODO(cclv-5ur.2.9): Implement SessionViewState
+
+#![allow(dead_code)] // Will be used once stubs are implemented
+
+use super::conversation::ConversationViewState;
+use crate::model::{AgentId, ConversationEntry, SessionId};
+use std::collections::HashMap;
+
+/// View-state for a single session.
+///
+/// Contains:
+/// - Main conversation view-state (always present)
+/// - Subagent view-states (lazily created on first view, FR-073)
+/// - Pending subagent entries (before view-state creation)
+///
+/// # Lazy Initialization (FR-073)
+/// Subagent view-states are created lazily when first accessed.
+/// Until accessed, entries are stored in `pending_subagent_entries`.
+#[derive(Debug, Clone)]
+pub struct SessionViewState {
+    /// Session identifier.
+    session_id: SessionId,
+    /// Main conversation view-state.
+    main: ConversationViewState,
+    /// Subagent view-states (lazily initialized).
+    subagents: HashMap<AgentId, ConversationViewState>,
+    /// Pending subagent entries (before lazy init).
+    pending_subagent_entries: HashMap<AgentId, Vec<ConversationEntry>>,
+    /// Cumulative line offset from start of log (for multi-session).
+    start_line: usize,
+}
+
+impl SessionViewState {
+    /// Create new session view-state.
+    pub fn new(_session_id: SessionId) -> Self {
+        todo!("SessionViewState::new")
+    }
+
+    /// Session identifier.
+    pub fn session_id(&self) -> &SessionId {
+        todo!("SessionViewState::session_id")
+    }
+
+    /// Reference to main conversation view-state.
+    pub fn main(&self) -> &ConversationViewState {
+        todo!("SessionViewState::main")
+    }
+
+    /// Mutable reference to main conversation.
+    pub fn main_mut(&mut self) -> &mut ConversationViewState {
+        todo!("SessionViewState::main_mut")
+    }
+
+    /// Get subagent view-state, creating lazily if needed.
+    pub fn subagent(&mut self, _id: &AgentId) -> &ConversationViewState {
+        todo!("SessionViewState::subagent")
+    }
+
+    /// Mutable reference to subagent view-state.
+    pub fn subagent_mut(&mut self, _id: &AgentId) -> &mut ConversationViewState {
+        todo!("SessionViewState::subagent_mut")
+    }
+
+    /// Check if subagent view-state exists (has been accessed).
+    pub fn has_subagent(&self, _id: &AgentId) -> bool {
+        todo!("SessionViewState::has_subagent")
+    }
+
+    /// List all known subagent IDs (initialized or pending).
+    pub fn subagent_ids(&self) -> impl Iterator<Item = &AgentId> {
+        // Return empty iterator that has the right type
+        std::iter::empty()
+    }
+
+    /// Add entry to main conversation.
+    pub fn add_main_entry(&mut self, _entry: ConversationEntry) {
+        todo!("SessionViewState::add_main_entry")
+    }
+
+    /// Add entry to subagent conversation.
+    /// If view-state exists, appends directly. Otherwise, stores as pending.
+    pub fn add_subagent_entry(&mut self, _agent_id: AgentId, _entry: ConversationEntry) {
+        todo!("SessionViewState::add_subagent_entry")
+    }
+
+    /// Start line offset (for multi-session positioning).
+    pub fn start_line(&self) -> usize {
+        todo!("SessionViewState::start_line")
+    }
+
+    /// Set start line offset.
+    pub(crate) fn set_start_line(&mut self, _offset: usize) {
+        todo!("SessionViewState::set_start_line")
+    }
+
+    /// Height of main conversation only.
+    pub fn main_height(&self) -> usize {
+        todo!("SessionViewState::main_height")
+    }
+
+    /// Total height of all conversations in this session.
+    /// In continuous scroll display mode, this is the height contribution
+    /// of this entire session to the log view.
+    ///
+    /// Includes:
+    /// - Main conversation height
+    /// - All initialized subagent conversation heights
+    /// - Pending subagent entries (estimated at 1 line each until initialized)
+    pub fn total_height(&self) -> usize {
+        todo!("SessionViewState::total_height")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{
+        EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent,
+        Role,
+    };
+
+    // ===== Test Helpers =====
+
+    fn make_session_id(s: &str) -> SessionId {
+        SessionId::new(s).expect("valid session id")
+    }
+
+    fn make_agent_id(s: &str) -> AgentId {
+        AgentId::new(s).expect("valid agent id")
+    }
+
+    fn make_entry_uuid(s: &str) -> EntryUuid {
+        EntryUuid::new(s).expect("valid uuid")
+    }
+
+    fn make_timestamp() -> chrono::DateTime<chrono::Utc> {
+        "2025-12-25T10:00:00Z".parse().expect("valid timestamp")
+    }
+
+    fn make_message(text: &str) -> Message {
+        Message::new(Role::User, MessageContent::Text(text.to_string()))
+    }
+
+    fn make_valid_entry(uuid: &str, session_id: &str) -> ConversationEntry {
+        let log_entry = LogEntry::new(
+            make_entry_uuid(uuid),
+            None,
+            make_session_id(session_id),
+            None,
+            make_timestamp(),
+            EntryType::User,
+            make_message(uuid), // Use UUID as message text for easy identification
+            EntryMetadata::default(),
+        );
+        ConversationEntry::Valid(Box::new(log_entry))
+    }
+
+    // ===== SessionViewState::new Tests =====
+
+    #[test]
+    fn new_creates_session_with_empty_main_conversation() {
+        let session_id = make_session_id("session-1");
+        let state = SessionViewState::new(session_id.clone());
+
+        assert_eq!(state.session_id(), &session_id);
+        assert!(state.main().is_empty(), "Main conversation should be empty");
+    }
+
+    // ===== session_id Tests =====
+
+    #[test]
+    fn session_id_returns_correct_value() {
+        let session_id = make_session_id("test-session");
+        let state = SessionViewState::new(session_id.clone());
+
+        assert_eq!(state.session_id(), &session_id);
+    }
+
+    // ===== main/main_mut Tests =====
+
+    #[test]
+    fn main_returns_main_conversation() {
+        let session_id = make_session_id("session-1");
+        let state = SessionViewState::new(session_id);
+
+        let main = state.main();
+        assert!(main.is_empty());
+    }
+
+    #[test]
+    fn main_mut_allows_mutation() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        state.main_mut().append(vec![make_valid_entry("uuid-1", "session-1")]);
+        assert_eq!(state.main().len(), 1);
+    }
+
+    // ===== Lazy Initialization Tests =====
+
+    #[test]
+    fn subagent_creates_view_state_on_first_access() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        // Before access: should not have subagent
+        assert!(!state.has_subagent(&agent_id), "Should not have subagent before access");
+
+        // First access: creates view-state
+        let subagent = state.subagent(&agent_id);
+        assert!(subagent.is_empty(), "Newly created subagent should be empty");
+
+        // After access: should have subagent
+        assert!(state.has_subagent(&agent_id), "Should have subagent after access");
+    }
+
+    #[test]
+    fn subagent_creates_from_pending_entries() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        // Add entries before first access (should go to pending)
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-1", "session-1"));
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-2", "session-1"));
+
+        // Subagent not yet initialized
+        assert!(!state.has_subagent(&agent_id));
+
+        // First access should consume pending entries
+        let subagent = state.subagent(&agent_id);
+        assert_eq!(subagent.len(), 2, "Subagent should have consumed pending entries");
+
+        // Pending entries should be cleared
+        assert!(state.has_subagent(&agent_id));
+    }
+
+    #[test]
+    fn add_subagent_entry_after_access_goes_directly_to_subagent() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        // First access creates empty subagent
+        let _ = state.subagent(&agent_id);
+        assert_eq!(state.subagent(&agent_id).len(), 0);
+
+        // Add entry after initialization
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-1", "session-1"));
+
+        // Should go directly to subagent
+        assert_eq!(state.subagent(&agent_id).len(), 1);
+    }
+
+    #[test]
+    fn subagent_mut_also_creates_lazily() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        // Use mutable access for first time
+        state.subagent_mut(&agent_id).append(vec![make_valid_entry("uuid-1", "session-1")]);
+
+        assert!(state.has_subagent(&agent_id));
+        assert_eq!(state.subagent(&agent_id).len(), 1);
+    }
+
+    // ===== subagent_ids Tests =====
+
+    #[test]
+    fn subagent_ids_returns_both_initialized_and_pending() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        let agent1 = make_agent_id("agent-1");
+        let agent2 = make_agent_id("agent-2");
+        let agent3 = make_agent_id("agent-3");
+
+        // Initialize agent1
+        let _ = state.subagent(&agent1);
+
+        // Add pending for agent2
+        state.add_subagent_entry(agent2.clone(), make_valid_entry("uuid-1", "session-1"));
+
+        // Add pending for agent3
+        state.add_subagent_entry(agent3.clone(), make_valid_entry("uuid-2", "session-1"));
+
+        let mut ids: Vec<_> = state.subagent_ids().cloned().collect();
+        ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+
+        assert_eq!(ids.len(), 3);
+        assert!(ids.contains(&agent1));
+        assert!(ids.contains(&agent2));
+        assert!(ids.contains(&agent3));
+    }
+
+    #[test]
+    fn subagent_ids_empty_when_no_subagents() {
+        let session_id = make_session_id("session-1");
+        let state = SessionViewState::new(session_id);
+
+        let ids: Vec<_> = state.subagent_ids().collect();
+        assert!(ids.is_empty());
+    }
+
+    // ===== has_subagent Tests =====
+
+    #[test]
+    fn has_subagent_returns_false_for_never_accessed() {
+        let session_id = make_session_id("session-1");
+        let state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        assert!(!state.has_subagent(&agent_id));
+    }
+
+    #[test]
+    fn has_subagent_returns_false_for_pending_only() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-1", "session-1"));
+
+        // Has pending entries but view-state not created yet
+        assert!(!state.has_subagent(&agent_id));
+    }
+
+    #[test]
+    fn has_subagent_returns_true_after_access() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        let _ = state.subagent(&agent_id);
+
+        assert!(state.has_subagent(&agent_id));
+    }
+
+    // ===== start_line/set_start_line Tests =====
+
+    #[test]
+    fn start_line_defaults_to_zero() {
+        let session_id = make_session_id("session-1");
+        let state = SessionViewState::new(session_id);
+
+        assert_eq!(state.start_line(), 0);
+    }
+
+    #[test]
+    fn set_start_line_updates_offset() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        state.set_start_line(100);
+        assert_eq!(state.start_line(), 100);
+    }
+
+    // ===== add_main_entry Tests =====
+
+    #[test]
+    fn add_main_entry_appends_to_main_conversation() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        state.add_main_entry(make_valid_entry("uuid-1", "session-1"));
+        state.add_main_entry(make_valid_entry("uuid-2", "session-1"));
+
+        assert_eq!(state.main().len(), 2);
+    }
+
+    // ===== main_height Tests =====
+
+    #[test]
+    fn main_height_returns_main_conversation_total_height() {
+        let session_id = make_session_id("session-1");
+        let state = SessionViewState::new(session_id);
+
+        // Note: ConversationViewState returns 0 for total_height until layout computed
+        // This test verifies delegation, not the layout logic
+        let height = state.main_height();
+        assert_eq!(height, state.main().total_height());
+    }
+
+    // ===== total_height Tests =====
+
+    #[test]
+    fn total_height_includes_main_and_subagents() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        // Add to main
+        state.add_main_entry(make_valid_entry("uuid-1", "session-1"));
+
+        // Initialize subagent and add entry
+        state.subagent_mut(&agent_id).append(vec![make_valid_entry("uuid-2", "session-1")]);
+
+        // Total height = main + initialized subagents + pending estimate
+        // Note: Without layout computation, heights are 0
+        // This test verifies the calculation logic, not the actual values
+        let total = state.total_height();
+        let expected = state.main().total_height() + state.subagent(&agent_id).total_height();
+        assert_eq!(total, expected);
+    }
+
+    #[test]
+    fn total_height_includes_pending_estimate() {
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        // Add 3 pending entries (not yet initialized)
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-1", "session-1"));
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-2", "session-1"));
+        state.add_subagent_entry(agent_id.clone(), make_valid_entry("uuid-3", "session-1"));
+
+        // Total height should include pending estimate (1 line per entry)
+        let total = state.total_height();
+        assert_eq!(total, 3, "Should estimate 1 line per pending entry");
+    }
+
+    #[test]
+    fn total_height_zero_for_empty_session() {
+        let session_id = make_session_id("session-1");
+        let state = SessionViewState::new(session_id);
+
+        assert_eq!(state.total_height(), 0);
+    }
+}
