@@ -498,6 +498,32 @@ pub fn render_conversation_view(
     frame.render_widget(paragraph, area);
 }
 
+/// Render a conversation view with search match highlighting.
+///
+/// This function extends render_conversation_view to support search highlighting.
+/// When SearchState::Active, all matches are highlighted with distinct styles.
+/// The current match (at current_match index) has a different style than other matches.
+///
+/// # Arguments
+/// * `frame` - The ratatui frame to render into
+/// * `area` - The area to render within
+/// * `conversation` - The agent conversation to display
+/// * `scroll` - Scroll state (for expansion tracking and scrolling)
+/// * `search` - Search state (for match highlighting)
+/// * `styles` - Message styling configuration
+/// * `focused` - Whether this pane currently has focus (affects border color)
+pub fn render_conversation_view_with_search(
+    frame: &mut Frame,
+    area: Rect,
+    conversation: &AgentConversation,
+    scroll: &ScrollState,
+    search: &crate::state::SearchState,
+    styles: &MessageStyles,
+    focused: bool,
+) {
+    todo!("render_conversation_view_with_search")
+}
+
 // ===== Horizontal Scrolling Helpers =====
 
 /// Apply horizontal offset to a line, skipping the first `offset` characters.
@@ -3000,6 +3026,225 @@ mod tests {
         assert!(
             !content.contains("more lines"),
             "Should NOT show collapse indicator for short content"
+        );
+    }
+
+    // ===== Search Highlighting Tests =====
+
+    /// Helper to create a test entry with simple text content
+    fn create_test_log_entry(uuid: &str, text: &str) -> crate::model::LogEntry {
+        let uuid = crate::model::EntryUuid::new(uuid).expect("valid uuid");
+        let session_id = crate::model::SessionId::new("session-1").expect("valid session");
+        let message = crate::model::Message::new(
+            crate::model::Role::Assistant,
+            crate::model::MessageContent::Text(text.to_string()),
+        );
+
+        crate::model::LogEntry::new(
+            uuid,
+            None,
+            session_id,
+            None,
+            chrono::Utc::now(),
+            crate::model::EntryType::Assistant,
+            message,
+            crate::model::EntryMetadata::default(),
+        )
+    }
+
+    #[test]
+    fn render_text_without_search_has_no_highlighting() {
+        // ARRANGE: Create conversation with simple text
+        let mut conversation = crate::model::AgentConversation::new(None);
+        conversation.add_entry(create_test_log_entry(
+            "entry-1",
+            "This is some test text",
+        ));
+
+        let scroll_state = ScrollState::default();
+        let search_state = crate::state::SearchState::Inactive;
+
+        // ACT: Render the conversation
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &search_state,
+                    &create_test_styles(),
+                    false,
+                );
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+
+        // ASSERT: No cells should have highlight background
+        for cell in buffer.content() {
+            assert_ne!(
+                cell.style().bg,
+                Some(Color::Yellow),
+                "Should not have yellow background when search inactive"
+            );
+        }
+    }
+
+    #[test]
+    fn render_text_with_active_search_highlights_matches() {
+        // ARRANGE: Create conversation with text containing "test"
+        let mut conversation = crate::model::AgentConversation::new(None);
+        let entry_uuid = crate::model::EntryUuid::new("entry-1").expect("valid uuid");
+        conversation.add_entry(create_test_log_entry(
+            "entry-1",
+            "This is test text with test repeated",
+        ));
+
+        let scroll_state = ScrollState::default();
+
+        // Create search state with matches for "test"
+        let query = crate::state::SearchQuery::new("test").expect("valid query");
+        let matches = vec![
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 8,  // First "test"
+                length: 4,
+            },
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 23, // Second "test"
+                length: 4,
+            },
+        ];
+        let search_state = crate::state::SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Render the conversation
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &search_state,
+                    &create_test_styles(),
+                    false,
+                );
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+
+        // ASSERT: Should have highlighting for search matches
+        let highlighted_cells: Vec<_> = buffer
+            .content()
+            .iter()
+            .filter(|cell| cell.style().bg == Some(Color::Yellow))
+            .collect();
+
+        assert!(
+            !highlighted_cells.is_empty(),
+            "Should have at least one highlighted cell for search matches"
+        );
+    }
+
+    #[test]
+    fn render_text_with_active_search_distinguishes_current_match() {
+        // ARRANGE: Create conversation with text containing "test" multiple times
+        let mut conversation = crate::model::AgentConversation::new(None);
+        let entry_uuid = crate::model::EntryUuid::new("entry-1").expect("valid uuid");
+        conversation.add_entry(create_test_log_entry(
+            "entry-1",
+            "test one test two test three",
+        ));
+
+        let scroll_state = ScrollState::default();
+
+        // Create search state with 3 matches, current_match = 1 (second match)
+        let query = crate::state::SearchQuery::new("test").expect("valid query");
+        let matches = vec![
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 0,
+                length: 4,
+            },
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 9,
+                length: 4,
+            },
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 18,
+                length: 4,
+            },
+        ];
+        let search_state = crate::state::SearchState::Active {
+            query,
+            matches,
+            current_match: 1, // Second match is current
+        };
+
+        // ACT: Render the conversation
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &search_state,
+                    &create_test_styles(),
+                    false,
+                );
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+
+        // ASSERT: Should have different styling for current match vs other matches
+        let yellow_bg_cells: Vec<_> = buffer
+            .content()
+            .iter()
+            .filter(|cell| cell.style().bg == Some(Color::Yellow))
+            .collect();
+
+        let inverted_cells: Vec<_> = buffer
+            .content()
+            .iter()
+            .filter(|cell| cell.style().add_modifier == Modifier::REVERSED)
+            .collect();
+
+        assert!(
+            !yellow_bg_cells.is_empty() || !inverted_cells.is_empty(),
+            "Should have highlighting for search matches"
         );
     }
 }
