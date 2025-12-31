@@ -163,8 +163,8 @@ impl FileTailer {
 /// Tracks line count for progress indication.
 #[derive(Debug)]
 pub struct FileSource {
-    _path: PathBuf,
-    _line_count: usize,
+    path: PathBuf,
+    line_count: usize,
 }
 
 impl FileSource {
@@ -175,8 +175,20 @@ impl FileSource {
     /// # Errors
     ///
     /// Returns `InputError::FileNotFound` if the file does not exist.
-    pub fn new(_path: impl AsRef<Path>) -> Result<Self, InputError> {
-        todo!("FileSource::new")
+    pub fn new(path: impl AsRef<Path>) -> Result<Self, InputError> {
+        let path = path.as_ref();
+
+        // Verify file exists
+        if !path.exists() {
+            return Err(InputError::FileNotFound {
+                path: path.to_path_buf(),
+            });
+        }
+
+        Ok(Self {
+            path: path.to_path_buf(),
+            line_count: 0,
+        })
     }
 
     /// Load complete file into Session.
@@ -190,14 +202,77 @@ impl FileSource {
     /// Returns `InputError::FileNotFound` if file does not exist.
     /// Returns `InputError::Io` for I/O errors during reading.
     pub fn initial_load(&mut self) -> Result<Session, InputError> {
-        todo!("FileSource::initial_load")
+        use std::io::BufRead;
+
+        // Open file for reading
+        let file = File::open(&self.path)?;
+        let reader = BufReader::new(file);
+
+        // Extract session ID from first valid entry (or create default)
+        // We'll need to read the file twice: once to get session_id, once to parse all entries
+        // For simplicity, we'll use a default session_id and update if we find one
+        let mut session_id: Option<SessionId> = None;
+
+        // First pass: find session ID from first parseable entry
+        for line in reader.lines() {
+            let line = line?;
+
+            if line.trim().is_empty() {
+                continue;
+            }
+
+            // Try to parse just to extract session ID
+            if let Ok(entry) = LogEntry::parse(&line) {
+                session_id = Some(entry.session_id().clone());
+                break;
+            }
+        }
+
+        // If no valid entry found, create default session
+        let session_id = session_id.unwrap_or_else(|| {
+            SessionId::new("unknown-session").expect("hardcoded session id is valid")
+        });
+
+        let mut session = Session::new(session_id);
+
+        // Second pass: parse all entries and add to session
+        let file = File::open(&self.path)?;
+        let reader = BufReader::new(file);
+        let mut total_lines = 0;
+
+        for line in reader.lines() {
+            let line = line?;
+            total_lines += 1;
+
+            if line.trim().is_empty() {
+                continue;
+            }
+
+            // Parse entry and add to session
+            // Malformed lines are silently skipped (FR-010)
+            match LogEntry::parse(&line) {
+                Ok(entry) => {
+                    session.add_entry(entry);
+                }
+                Err(_parse_error) => {
+                    // FR-010: Malformed lines do not stop parsing
+                    // TODO: Add tracing for debugging malformed lines
+                    continue;
+                }
+            }
+        }
+
+        // Update line count
+        self.line_count = total_lines;
+
+        Ok(session)
     }
 
     /// Number of lines processed during last `initial_load()`.
     ///
     /// Returns 0 if `initial_load()` has not been called yet.
     pub fn line_count(&self) -> usize {
-        todo!("FileSource::line_count")
+        self.line_count
     }
 }
 
