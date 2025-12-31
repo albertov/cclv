@@ -120,7 +120,8 @@ fn switch_to_match_location(mut state: AppState, agent_id: &Option<AgentId>) -> 
             state.focus = FocusPane::Subagent;
 
             // Select the subagent conversation by AgentId (cclv-5ur.53)
-            state.selected_conversation = crate::state::ConversationSelection::Subagent(aid.clone());
+            state.selected_conversation =
+                crate::state::ConversationSelection::Subagent(aid.clone());
         }
     }
     state

@@ -64,19 +64,18 @@ fn bug_stdin_subagent_expand_vertical_chars() {
 
     // Spawn with stdin piping (this is the key difference from file argument)
     // Use cat to pipe the file content to the binary
-    let mut session = spawn(format!(
-        "cat {} | {}",
-        fixture.display(),
-        binary.display()
-    ))
-    .expect("Failed to spawn cclv with piped stdin");
+    let mut session = spawn(format!("cat {} | {}", fixture.display(), binary.display()))
+        .expect("Failed to spawn cclv with piped stdin");
 
     // Give TUI time to initialize (longer timeout for large file + stdin processing)
     std::thread::sleep(Duration::from_millis(3000));
 
     // Verify app started successfully
     let is_alive = session.is_alive().expect("Failed to check process status");
-    assert!(is_alive, "Process should be running after loading via stdin");
+    assert!(
+        is_alive,
+        "Process should be running after loading via stdin"
+    );
 
     // Press ] to navigate to first subagent
     session.send("]").expect("Failed to send ] key");

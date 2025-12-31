@@ -74,11 +74,11 @@ fn benchmark_hit_test_scaling(c: &mut Criterion) {
                 b.iter(|| {
                     // Test various positions in the document
                     let positions = [
-                        (0, 0),                                     // Start
-                        (total_height / 4, 10),                     // 25%
-                        (total_height / 2, 25),                     // 50%
-                        (total_height * 3 / 4, 40),                 // 75%
-                        (total_height.saturating_sub(1), 50),       // End
+                        (0, 0),                               // Start
+                        (total_height / 4, 10),               // 25%
+                        (total_height / 2, 25),               // 50%
+                        (total_height * 3 / 4, 40),           // 75%
+                        (total_height.saturating_sub(1), 50), // End
                     ];
 
                     for &(absolute_y, column) in &positions {

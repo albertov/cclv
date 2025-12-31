@@ -37,7 +37,9 @@ fn create_test_app() -> TuiApp<TestBackend> {
         ),
         crate::model::EntryMetadata::default(),
     );
-    app_state.add_entries(vec![crate::model::ConversationEntry::Valid(Box::new(entry))]);
+    app_state.add_entries(vec![crate::model::ConversationEntry::Valid(Box::new(
+        entry,
+    ))]);
 
     let key_bindings = crate::config::keybindings::KeyBindings::default();
 

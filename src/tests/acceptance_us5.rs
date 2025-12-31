@@ -336,7 +336,10 @@ fn us5_scenario4_clear_search() {
     // VERIFY: Search returns to inactive
     let state_after_clear = harness.state();
     assert!(
-        matches!(state_after_clear.search, crate::state::SearchState::Inactive),
+        matches!(
+            state_after_clear.search,
+            crate::state::SearchState::Inactive
+        ),
         "Pressing Esc should clear search and return to Inactive state"
     );
 
@@ -346,7 +349,10 @@ fn us5_scenario4_clear_search() {
 
     let state_typing = harness.state();
     assert!(
-        matches!(state_typing.search, crate::state::SearchState::Typing { .. }),
+        matches!(
+            state_typing.search,
+            crate::state::SearchState::Typing { .. }
+        ),
         "Search should be in Typing mode"
     );
 

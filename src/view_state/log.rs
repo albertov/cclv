@@ -89,7 +89,9 @@ impl LogViewState {
                 // Copy viewport settings from previous session (cclv-5ur.58)
                 // This ensures subagents in new sessions inherit proper viewport width
                 // when loading asynchronously via stdin.
-                let (viewport_width, global_wrap) = self.sessions.last()
+                let (viewport_width, global_wrap) = self
+                    .sessions
+                    .last()
                     .map(|prev| (prev.viewport_width(), prev.global_wrap()))
                     .unwrap_or((0, crate::state::WrapMode::default()));
 

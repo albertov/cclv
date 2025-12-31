@@ -2070,7 +2070,12 @@ fn test_wrapped_lines_with_prefix_fit_within_viewport() {
                     .iter()
                     .map(|span| span.content.as_ref())
                     .collect();
-                format!("  Line {}: {} chars: {:?}", i, line_text.chars().count(), line_text)
+                format!(
+                    "  Line {}: {} chars: {:?}",
+                    i,
+                    line_text.chars().count(),
+                    line_text
+                )
             })
             .collect::<Vec<_>>()
             .join("\n")
@@ -2130,13 +2135,9 @@ fn test_multiline_entry_continuation_indent_matches_prefix_width() {
         let continuation_prefix = &line.spans[0].content;
         let continuation_len = continuation_prefix.chars().count();
         assert_eq!(
-            continuation_len,
-            first_prefix_len,
+            continuation_len, first_prefix_len,
             "Continuation line {} indent length ({} chars: '{}') must match first line prefix length ({} chars)",
-            i,
-            continuation_len,
-            continuation_prefix,
-            first_prefix_len
+            i, continuation_len, continuation_prefix, first_prefix_len
         );
 
         // Verify it's all spaces after the │
@@ -2190,12 +2191,9 @@ fn test_entry_index_prefix_width_consistent_for_all_indices() {
         // Requires 3-digit field: {:>3}
         // Prefix format: "│{:>3} " = 5 chars total
         assert_eq!(
-            prefix_width,
-            5,
+            prefix_width, 5,
             "Entry {} prefix must be exactly 5 chars for consistent alignment (3-digit format), got {} chars: '{}'",
-            entry_index,
-            prefix_width,
-            prefix
+            entry_index, prefix_width, prefix
         );
 
         // Verify structure: │ + digits + space

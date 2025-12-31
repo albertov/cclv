@@ -232,9 +232,7 @@ fn select_tab_sets_tab_by_one_indexed_number() {
 
 #[test]
 fn select_tab_handles_tab_1_as_main() {
-    let entries = vec![
-        make_subagent_entry("agent-1"),
-    ];
+    let entries = vec![make_subagent_entry("agent-1")];
 
     let mut state = AppState::new();
     state.add_entries(entries);
@@ -352,9 +350,7 @@ fn non_tab_actions_return_state_unchanged() {
 
 #[test]
 fn non_tab_actions_like_quit_return_state_unchanged() {
-    let entries = vec![
-        make_subagent_entry("agent-1"),
-    ];
+    let entries = vec![make_subagent_entry("agent-1")];
 
     let mut state = AppState::new();
     state.add_entries(entries);

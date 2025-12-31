@@ -1,4 +1,3 @@
-#![cfg(test)]
 //! Acceptance Test Harness for TUI testing
 //!
 //! Provides a high-level API for acceptance testing user stories by wrapping

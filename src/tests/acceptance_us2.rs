@@ -149,7 +149,10 @@ fn us2_scenario3_search_highlight() {
     // VERIFY: Search enters typing mode
     let typing_state = harness.state();
     assert!(
-        matches!(typing_state.search, crate::state::SearchState::Typing { .. }),
+        matches!(
+            typing_state.search,
+            crate::state::SearchState::Typing { .. }
+        ),
         "Search should enter typing mode after '/'"
     );
 

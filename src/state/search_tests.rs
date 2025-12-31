@@ -270,12 +270,16 @@ fn execute_search_finds_multiple_matches_in_single_entry() {
 #[test]
 fn execute_search_finds_matches_across_multiple_entries() {
     let entries = vec![
-        crate::model::ConversationEntry::Valid(Box::new(
-            make_text_entry("entry-1", None, "first error"),
-        )),
-        crate::model::ConversationEntry::Valid(Box::new(
-            make_text_entry("entry-2", None, "second error"),
-        )),
+        crate::model::ConversationEntry::Valid(Box::new(make_text_entry(
+            "entry-1",
+            None,
+            "first error",
+        ))),
+        crate::model::ConversationEntry::Valid(Box::new(make_text_entry(
+            "entry-2",
+            None,
+            "second error",
+        ))),
     ];
 
     let mut state = AppState::new();

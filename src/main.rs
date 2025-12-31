@@ -72,11 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let theme_override = Some(args.theme.clone());
         let stats_override = if args.stats { Some(true) } else { None };
 
-        let config = cclv::config::apply_cli_overrides(
-            with_env,
-            theme_override,
-            stats_override,
-        );
+        let config = cclv::config::apply_cli_overrides(with_env, theme_override, stats_override);
 
         (config, pricing)
     };

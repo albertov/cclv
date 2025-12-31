@@ -620,11 +620,7 @@ fn apply_cli_overrides_multiple_overrides() {
         max_context_tokens: 200_000,
     };
 
-    let result = apply_cli_overrides(
-        base.clone(),
-        Some("solarized-dark".to_string()),
-        Some(true),
-    );
+    let result = apply_cli_overrides(base.clone(), Some("solarized-dark".to_string()), Some(true));
 
     assert_eq!(result.theme, "solarized-dark");
     assert!(result.show_stats);
@@ -769,11 +765,7 @@ fn precedence_chain_full_defaults_to_cli() {
     assert_eq!(with_env.theme, "env-theme", "Env overrides config file");
 
     // Step 3: → CLI Args
-    let with_cli = apply_cli_overrides(
-        with_env,
-        Some("cli-theme".to_string()),
-        Some(true),
-    );
+    let with_cli = apply_cli_overrides(with_env, Some("cli-theme".to_string()), Some(true));
     assert_eq!(with_cli.theme, "cli-theme", "CLI overrides env");
     assert!(with_cli.show_stats, "CLI overrides default");
 

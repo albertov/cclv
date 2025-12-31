@@ -87,7 +87,7 @@
         in
         {
           # Configure treefmt for code formatting
-          treefmt = import ./nix/treefmt.nix { inherit pkgs; };
+          treefmt = import ./nix/treefmt.nix { inherit pkgs rustToolchain; };
 
           # Default package (dynamic linking)
           packages.default = naersk'.buildPackage {

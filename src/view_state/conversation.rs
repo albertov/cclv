@@ -1676,7 +1676,6 @@ mod tests {
         assert_eq!(result, HitTestResult::Miss, "Line beyond entry should miss");
     }
 
-
     // === needs_relayout Tests ===
 
     #[test]

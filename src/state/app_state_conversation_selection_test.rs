@@ -22,7 +22,9 @@ fn state_with_subagents() -> AppState {
 }
 
 fn create_test_log_entry(agent_id_str: Option<&str>) -> crate::model::LogEntry {
-    use crate::model::{EntryMetadata, EntryType, EntryUuid, Message, MessageContent, Role, SessionId};
+    use crate::model::{
+        EntryMetadata, EntryType, EntryUuid, Message, MessageContent, Role, SessionId,
+    };
     use chrono::Utc;
 
     let agent_id = agent_id_str.map(|s| AgentId::new(s).unwrap());
@@ -367,7 +369,8 @@ fn tab_index_changes_when_earlier_subagent_added() {
     assert_eq!(state.selected_tab_index(), Some(2));
 
     // Add agent-a1 (alphabetically between agent-a and agent-b)
-    let agent_a1_entry = ConversationEntry::Valid(Box::new(create_test_log_entry(Some("agent-a1"))));
+    let agent_a1_entry =
+        ConversationEntry::Valid(Box::new(create_test_log_entry(Some("agent-a1"))));
     state.add_entries(vec![agent_a1_entry]);
 
     // Selection is still agent-b (stable identity)

@@ -97,7 +97,13 @@ impl SessionViewState {
                 .create(true)
                 .append(true)
                 .open("/tmp/cclv_debug.log")
-                .and_then(|mut f| writeln!(f, "DEBUG subagent_mut creating: agent_id={:?}, self.viewport_width={}", id, self.viewport_width));
+                .and_then(|mut f| {
+                    writeln!(
+                        f,
+                        "DEBUG subagent_mut creating: agent_id={:?}, self.viewport_width={}",
+                        id, self.viewport_width
+                    )
+                });
             // Create empty view-state
             let view_state = ConversationViewState::new(
                 Some(id.clone()),

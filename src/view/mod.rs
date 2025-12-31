@@ -24,12 +24,12 @@ use crate::config::keybindings::KeyBindings;
 use crate::integration;
 use crate::model::{AppError, KeyAction};
 use crate::source::InputSource;
+#[cfg(test)]
+use crate::state::ConversationSelection;
 use crate::state::{
     expand_handler, handle_toggle_wrap, next_match, prev_match, scroll_handler,
     search_input_handler, AppState, FocusPane,
 };
-#[cfg(test)]
-use crate::state::ConversationSelection;
 use crossterm::{
     event::{
         self, Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -403,7 +403,7 @@ where
                     }
                 });
                 let viewport = crate::view_state::types::ViewportDimensions::new(
-                    size.width.max(1), // Guard against zero width (cclv-5ur.58)
+                    size.width.max(1),             // Guard against zero width (cclv-5ur.58)
                     size.height.saturating_sub(5), // Reserve space for header/footer
                 );
 
@@ -629,7 +629,7 @@ where
                     }
                 });
                 let viewport = crate::view_state::types::ViewportDimensions::new(
-                    size.width.max(1), // Guard against zero width (cclv-5ur.58)
+                    size.width.max(1),             // Guard against zero width (cclv-5ur.58)
                     size.height.saturating_sub(5), // Reserve space for header/footer
                 );
 
@@ -651,7 +651,7 @@ where
                     }
                 });
                 let viewport = crate::view_state::types::ViewportDimensions::new(
-                    size.width.max(1), // Guard against zero width (cclv-5ur.58)
+                    size.width.max(1),             // Guard against zero width (cclv-5ur.58)
                     size.height.saturating_sub(5), // Reserve space for header/footer
                 );
 
@@ -916,7 +916,13 @@ where
         line_counter: usize,
         key_bindings: KeyBindings,
     ) -> Self {
-        Self::new_for_test(terminal, app_state, input_source, line_counter, key_bindings)
+        Self::new_for_test(
+            terminal,
+            app_state,
+            input_source,
+            line_counter,
+            key_bindings,
+        )
     }
 
     /// Handle a single keyboard event (benchmark-only accessor)
@@ -1366,8 +1372,7 @@ mod tests {
             .add_entries(vec![ConversationEntry::Valid(Box::new(entry))]);
 
         // Select the subagent tab (tab 1 in unified tab model: tab 0 = main, tab 1+ = subagents)
-        app.app_state.selected_conversation =
-            ConversationSelection::Subagent(agent_id.clone());
+        app.app_state.selected_conversation = ConversationSelection::Subagent(agent_id.clone());
 
         // Set to Global initially
         app.app_state.stats_filter = crate::model::StatsFilter::Global;
@@ -1984,8 +1989,7 @@ mod tests {
 
         // Focus on Subagent pane and select second tab (first subagent)
         app.app_state.focus = FocusPane::Subagent;
-        app.app_state.selected_conversation =
-            ConversationSelection::Subagent(agent_id_1.clone());
+        app.app_state.selected_conversation = ConversationSelection::Subagent(agent_id_1.clone());
 
         // Press '[' to go to previous tab
         let key = KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE);
@@ -2287,8 +2291,7 @@ mod tests {
         // Focus on Subagent pane and set focused message in view-state
         // Unified tab model (FR-086): tab 0 = main, tab 1 = first subagent
         app.app_state.focus = FocusPane::Subagent;
-        app.app_state.selected_conversation =
-            ConversationSelection::Subagent(sub_agent_id.clone());
+        app.app_state.selected_conversation = ConversationSelection::Subagent(sub_agent_id.clone());
         if let Some(view) = app.app_state.subagent_conversation_view_mut(0) {
             view.relayout(80, crate::state::WrapMode::Wrap); // Initialize HeightIndex
             view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(0)));
