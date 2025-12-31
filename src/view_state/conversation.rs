@@ -262,79 +262,28 @@ impl ConversationViewState {
 
     /// Recompute layout for all entries.
     ///
-    /// # Arguments
-    /// - `params`: Current global layout parameters
-    /// - `height_calculator`: Function to compute height for an entry
-    ///   Receives: entry, expanded state, effective wrap mode
-    ///
     /// # Deprecated
-    /// This method exists for backward compatibility during migration.
-    /// New code should use `relayout()` instead which doesn't require
-    /// an external height calculator.
+    /// This method exists for backward compatibility. New code should use `relayout()`.
     pub fn recompute_layout(&mut self, params: LayoutParams) {
-        self.height_index.clear();
-
-        for entry_view in &mut self.entries {
-            let wrap = entry_view.effective_wrap(params.global_wrap);
-            // Recompute actual rendered lines FIRST
-            entry_view.recompute_lines(wrap, params.width);
-            // Then get height from rendered_lines (source of truth)
-            let height = entry_view.height();
-            self.height_index.push(height.get() as usize);
-        }
-
-        self.total_height = self.height_index.total();
-        self.last_layout_params = Some(params);
+        self.relayout(params.width, params.global_wrap);
     }
 
     /// Relayout from a specific entry index onward.
-    /// Used after toggling expand/wrap on a single entry.
-    /// More efficient than full relayout for single-entry changes.
-    ///
-    /// # Arguments
-    /// - `from_index`: Index of first entry to relayout
-    /// - `params`: Current global layout parameters
     ///
     /// # Deprecated
-    /// This method exists for backward compatibility during migration.
-    /// New code should use `toggle_entry_expanded()` or `set_entry_wrap_override()`
-    /// which handle HeightIndex updates atomically.
-    pub fn relayout_from(
-        &mut self,
-        from_index: EntryIndex,
-        params: LayoutParams,
-    ) {
+    /// This method exists for backward compatibility. New code should use
+    /// `toggle_entry_expanded()` or `set_entry_wrap_override()`.
+    pub fn relayout_from(&mut self, from_index: EntryIndex, params: LayoutParams) {
         let idx = from_index.get();
         if idx >= self.entries.len() {
             return;
         }
 
-        // If HeightIndex is empty or smaller than needed, initialize it first
-        if self.height_index.len() < self.entries.len() {
-            self.height_index.clear();
-            for entry_view in &mut self.entries {
-                let wrap = entry_view.effective_wrap(params.global_wrap);
-                // Recompute actual rendered lines FIRST
-                entry_view.recompute_lines(wrap, params.width);
-                // Then get height from rendered_lines (source of truth)
-                let height = entry_view.height();
-                self.height_index.push(height.get() as usize);
-            }
-        } else {
-            // Update from index onward
-            for i in idx..self.entries.len() {
-                let entry_view = &mut self.entries[i];
-                let wrap = entry_view.effective_wrap(params.global_wrap);
-                // Recompute actual rendered lines FIRST
-                entry_view.recompute_lines(wrap, params.width);
-                // Then get height from rendered_lines (source of truth)
-                let height = entry_view.height();
-                self.height_index.set(i, height.get() as usize);
-            }
-        }
-
-        self.total_height = self.height_index.total();
+        // For simplicity, just do a full relayout (same as new API)
+        // The optimization of relayout_from vs full relayout is not critical
+        self.relayout(params.width, params.global_wrap);
     }
+
 
     /// Toggle expand state for entry at index and relayout.
     /// Returns new expanded state, or None if index out of bounds.
@@ -709,15 +658,6 @@ mod tests {
             "Parse error",
             Some(make_session_id("session-1")),
         ))
-    }
-
-    // Mock height calculator: returns fixed height for testing
-    // NOTE: This is no longer used by recompute_layout (it now uses actual rendering),
-    // but kept for backward compatibility during test migration.
-    fn fixed_height_calculator(
-        height: u16,
-    ) -> impl Fn(&ConversationEntry, bool, WrapMode, u16) -> LineHeight {
-        move |_entry, _expanded, _wrap, _width| LineHeight::new(height).unwrap()
     }
 
     /// Helper: Create an entry with a specific number of text lines for predictable heights.

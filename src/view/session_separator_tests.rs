@@ -9,7 +9,6 @@ use crate::view::message::ConversationView;
 use crate::view::MessageStyles;
 use crate::view_state::conversation::ConversationViewState;
 use crate::view_state::layout_params::LayoutParams;
-use crate::view_state::types::LineHeight;
 use ratatui::{backend::TestBackend, buffer::Buffer, layout::Rect, Terminal};
 
 // ===== Test Helpers =====
@@ -44,16 +43,6 @@ fn make_valid_entry(uuid: &str, session_id: &str, text: &str) -> ConversationEnt
     ConversationEntry::Valid(Box::new(log_entry))
 }
 
-/// Stub height calculator: returns fixed height for testing
-#[allow(dead_code)]
-fn stub_height_calculator(
-    _entry: &ConversationEntry,
-    _expanded: bool,
-    _wrap: WrapMode,
-    _width: u16,
-) -> LineHeight {
-    LineHeight::ONE
-}
 
 // ===== Session Separator Tests =====
 
