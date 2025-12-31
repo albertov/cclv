@@ -73,12 +73,30 @@ sleep 1 && tmux capture-pane -t PANE -p
 # 2. Run specific snapshot test
 cargo test --test view_snapshots TEST_NAME -- --nocapture
 
-# 3. Accept new snapshot
-mv tests/snapshots/NAME.snap.new tests/snapshots/NAME.snap
+# 3. Accept new snapshots (use cargo insta)
+cargo insta accept          # Accept all pending snapshots
+cargo insta review          # Interactively review snapshots
+cargo insta pending-snapshots  # List pending snapshots
 
 # 4. Create bug bead
 bd create --title="BUG: description" --type=bug --priority=2 --parent=EPIC
 ```
+
+## cargo insta Commands
+
+| Command | Purpose |
+|---------|---------|
+| `cargo insta accept` | Accept all pending snapshots |
+| `cargo insta reject` | Reject all pending snapshots |
+| `cargo insta review` | Interactive review (accept/reject each) |
+| `cargo insta test` | Run tests then review pending |
+| `cargo insta pending-snapshots` | List all pending snapshots |
+| `cargo insta show SNAPSHOT` | Display a specific snapshot |
+
+**Typical workflow:**
+1. Run test: `cargo test --test view_snapshots TEST_NAME`
+2. Review: `cargo insta review` (or `accept` if confident)
+3. Run again to hit assertion
 
 ## Workflow
 
