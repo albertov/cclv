@@ -1283,4 +1283,44 @@ mod tests {
             content
         );
     }
+
+    // ===== Entry count display tests =====
+
+    #[test]
+    fn stats_panel_displays_entry_count() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        let stats = SessionStats {
+            total_usage: TokenUsage::default(),
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 3,
+            entry_count: 42,
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Verify entry count is displayed
+        assert!(
+            content.contains("Entries:") || content.contains("Entry Count:"),
+            "Expected 'Entries:' or 'Entry Count:' label in output, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("42"),
+            "Expected entry count '42' in output, got:\n{}",
+            content
+        );
+    }
 }
