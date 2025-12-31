@@ -161,7 +161,13 @@ impl Default for ResolvedConfig {
 ///
 /// If state directory cannot be determined, falls back to current directory.
 pub fn default_log_path() -> PathBuf {
-    todo!("default_log_path")
+    // Try to get platform-appropriate state directory
+    if let Some(state_dir) = dirs::state_dir() {
+        state_dir.join("cclv").join("cclv.log")
+    } else {
+        // Fallback to current directory
+        PathBuf::from("cclv.log")
+    }
 }
 
 /// Load configuration file from a specific path.
