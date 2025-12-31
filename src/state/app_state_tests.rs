@@ -104,9 +104,21 @@ fn app_state_new_initializes_log_pane_with_default_capacity() {
 
     // Verify log_pane field exists and is initialized
     assert!(!state.log_pane.is_visible(), "log pane should start hidden");
-    assert_eq!(state.log_pane.unread_count(), 0, "should start with zero unread");
-    assert_eq!(state.log_pane.unread_max_level(), None, "should start with no max level");
-    assert_eq!(state.log_pane.entries().len(), 0, "should start with no entries");
+    assert_eq!(
+        state.log_pane.unread_count(),
+        0,
+        "should start with zero unread"
+    );
+    assert_eq!(
+        state.log_pane.unread_max_level(),
+        None,
+        "should start with no max level"
+    );
+    assert_eq!(
+        state.log_pane.entries().len(),
+        0,
+        "should start with no entries"
+    );
 }
 
 // ===== ScrollState::scroll_up Tests =====

@@ -225,10 +225,7 @@ mod tests {
     fn toggle_log_pane_not_equals_other_variant() {
         let toggle_log = KeyAction::ToggleLogPane;
         let quit = KeyAction::Quit;
-        assert_ne!(
-            toggle_log, quit,
-            "ToggleLogPane should not equal Quit"
-        );
+        assert_ne!(toggle_log, quit, "ToggleLogPane should not equal Quit");
     }
 
     #[test]
