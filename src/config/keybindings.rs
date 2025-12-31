@@ -169,6 +169,10 @@ impl Default for KeyBindings {
             KeyAction::StartSearch,
         );
         bindings.insert(
+            KeyEvent::new(KeyCode::Char('f'), KeyModifiers::CONTROL),
+            KeyAction::StartSearch,
+        );
+        bindings.insert(
             KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE),
             KeyAction::NextMatch,
         );
