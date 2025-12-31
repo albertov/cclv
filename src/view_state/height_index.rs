@@ -22,10 +22,8 @@
 #[derive(Debug, Clone)]
 pub struct HeightIndex {
     /// Fenwick tree backing storage (1-indexed internally, but we expose 0-indexed API)
-    #[allow(dead_code)]
-    tree: Vec<usize>,
+    tree: Vec<isize>,
     /// Number of valid entries (len <= tree.len())
-    #[allow(dead_code)]
     len: usize,
 }
 
@@ -44,8 +42,11 @@ impl HeightIndex {
     /// assert_eq!(index.len(), 0);
     /// assert_eq!(index.total(), 0);
     /// ```
-    pub fn new(_capacity: usize) -> Self {
-        todo!("HeightIndex::new")
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            tree: vec![0; capacity],
+            len: 0,
+        }
     }
 
     /// Sets the height at the given index.
@@ -65,8 +66,21 @@ impl HeightIndex {
     /// index.set(0, 10);
     /// assert_eq!(index.prefix_sum(0), 10);
     /// ```
-    pub fn set(&mut self, _index: usize, _height: usize) {
-        todo!("HeightIndex::set")
+    pub fn set(&mut self, index: usize, height: usize) {
+        assert!(index < self.len, "index {} out of bounds (len: {})", index, self.len);
+
+        // Compute delta from current height
+        let current_height = if index == 0 {
+            self.prefix_sum(0)
+        } else {
+            self.prefix_sum(index) - self.prefix_sum(index - 1)
+        };
+
+        // Update the Fenwick tree with the delta (use full tree for correct propagation)
+        let delta = height as isize - current_height as isize;
+        if delta != 0 {
+            fenwick::array::update(&mut self.tree, index, delta);
+        }
     }
 
     /// Returns the cumulative height up to and including the given index.
@@ -87,8 +101,11 @@ impl HeightIndex {
     /// assert_eq!(index.prefix_sum(1), 7);
     /// assert_eq!(index.prefix_sum(2), 12);
     /// ```
-    pub fn prefix_sum(&self, _index: usize) -> usize {
-        todo!("HeightIndex::prefix_sum")
+    pub fn prefix_sum(&self, index: usize) -> usize {
+        assert!(index < self.len, "index {} out of bounds (len: {})", index, self.len);
+
+        let sum = fenwick::array::prefix_sum(&self.tree, index);
+        sum.max(0) as usize // Handle potential negative sums from set operations
     }
 
     /// Binary search for the first index where `prefix_sum(index) >= value`.
@@ -116,8 +133,32 @@ impl HeightIndex {
     /// assert_eq!(index.lower_bound(30), Some(2));
     /// assert_eq!(index.lower_bound(100), None);
     /// ```
-    pub fn lower_bound(&self, _value: usize) -> Option<usize> {
-        todo!("HeightIndex::lower_bound")
+    pub fn lower_bound(&self, value: usize) -> Option<usize> {
+        if self.is_empty() {
+            return None;
+        }
+
+        // Binary search for first index where prefix_sum(index) > value
+        // Entry i covers range [prefix_sum(i-1), prefix_sum(i))
+        let mut left = 0;
+        let mut right = self.len;
+
+        while left < right {
+            let mid = left + (right - left) / 2;
+            let sum = self.prefix_sum(mid);
+
+            if sum > value {
+                right = mid;
+            } else {
+                left = mid + 1;
+            }
+        }
+
+        if left >= self.len {
+            None
+        } else {
+            Some(left)
+        }
     }
 
     /// Returns the total cumulative height of all entries.
@@ -136,7 +177,11 @@ impl HeightIndex {
     /// assert_eq!(index.total(), 8);
     /// ```
     pub fn total(&self) -> usize {
-        todo!("HeightIndex::total")
+        if self.is_empty() {
+            0
+        } else {
+            self.prefix_sum(self.len - 1)
+        }
     }
 
     /// Returns the number of entries in the index.
@@ -151,7 +196,7 @@ impl HeightIndex {
     /// assert_eq!(index.len(), 1);
     /// ```
     pub fn len(&self) -> usize {
-        todo!("HeightIndex::len")
+        self.len
     }
 
     /// Returns true if the index contains no entries.
@@ -166,7 +211,7 @@ impl HeightIndex {
     /// assert!(!index.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        todo!("HeightIndex::is_empty")
+        self.len == 0
     }
 
     /// Appends a new entry with the given height.
@@ -183,8 +228,17 @@ impl HeightIndex {
     /// assert_eq!(index.len(), 2);
     /// assert_eq!(index.total(), 8);
     /// ```
-    pub fn push(&mut self, _height: usize) {
-        todo!("HeightIndex::push")
+    pub fn push(&mut self, height: usize) {
+        // Grow backing storage if necessary
+        if self.len >= self.tree.len() {
+            self.tree.resize(self.tree.len().max(1) * 2, 0);
+        }
+
+        let idx = self.len;
+        self.len += 1;
+
+        // Update fenwick tree at new position (use full tree for correct propagation)
+        fenwick::array::update(&mut self.tree, idx, height as isize);
     }
 
     /// Clears all entries, resetting to empty state.
@@ -203,7 +257,11 @@ impl HeightIndex {
     /// assert_eq!(index.total(), 0);
     /// ```
     pub fn clear(&mut self) {
-        todo!("HeightIndex::clear")
+        // Reset tree to zeros (retain capacity)
+        for i in 0..self.len {
+            self.tree[i] = 0;
+        }
+        self.len = 0;
     }
 }
 
