@@ -4,6 +4,7 @@
 //! TuiApp<TestBackend> with convenient methods for simulating user interactions.
 
 use cclv::config::keybindings::KeyBindings;
+use cclv::model::{Session, SessionId};
 use cclv::source::{FileSource, StdinSource};
 use cclv::state::AppState;
 use cclv::view::{TuiApp, TuiError};
@@ -78,8 +79,21 @@ impl AcceptanceTestHarness {
         let terminal = Terminal::new(backend)?;
 
         // Load fixture file using FileSource
-        let mut file_source = FileSource::new(PathBuf::from(path))?;
-        let session = file_source.initial_load()?;
+        let entries = FileSource::read(PathBuf::from(path))?;
+
+        // Track entry count for line counter
+        let entry_count = entries.len();
+
+        // Build session from entries
+        let mut session = if let Some(first_entry) = entries.first() {
+            Session::new(first_entry.session_id().clone())
+        } else {
+            Session::new(SessionId::unknown())
+        };
+
+        for entry in entries {
+            session.add_entry(entry);
+        }
 
         // Create app state
         let app_state = AppState::new(session);
@@ -99,7 +113,7 @@ impl AcceptanceTestHarness {
             terminal,
             app_state,
             input_source,
-            file_source.line_count(),
+            entry_count,
             key_bindings,
             log_rx,
         );

@@ -61,11 +61,11 @@ impl InputSource {
 /// Detect and create appropriate input source.
 ///
 /// # Logic:
-/// 1. If file path is provided: return error (use FileSource::new() directly for files)
+/// 1. If file path is provided: return error (use FileSource::read() directly for files)
 /// 2. If stdin is piped: use StdinSource
 /// 3. Else: return InputError::NoInput
 ///
-/// Note: For file input, use `FileSource::new(path)?.initial_load()` directly.
+/// Note: For file input, use `FileSource::read(path)?` directly to get `Vec<LogEntry>`.
 /// This function is only for detecting stdin sources.
 ///
 /// # Arguments
@@ -80,7 +80,7 @@ pub fn detect_input_source(file: Option<PathBuf>) -> Result<InputSource, InputEr
     match file {
         Some(path) => {
             // File paths are no longer supported through InputSource
-            // Use FileSource::new(path)?.initial_load() instead
+            // Use FileSource::read(path)? instead
             Err(InputError::FileNotFound { path })
         }
         None => {
