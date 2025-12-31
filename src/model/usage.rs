@@ -1,5 +1,21 @@
 //! Token usage and model information types.
 
+// Model family names used for display.
+//
+// These constants provide a single source of truth for model family names.
+// A `ModelFamily` enum was considered, but constants are sufficient since
+// no exhaustive pattern matching is needed - these are used only for
+// display and detection logic.
+
+/// Display name for Opus model family.
+pub const MODEL_OPUS: &str = "Opus";
+
+/// Display name for Sonnet model family.
+pub const MODEL_SONNET: &str = "Sonnet";
+
+/// Display name for Haiku model family.
+pub const MODEL_HAIKU: &str = "Haiku";
+
 /// Model information from the assistant message.
 #[derive(Debug, Clone)]
 pub struct ModelInfo {
@@ -37,9 +53,9 @@ impl ModelInfo {
     /// Returns a human-readable short name for the model.
     ///
     /// Extracts the model family name from the full identifier:
-    /// - "Opus" for models containing "opus"
-    /// - "Sonnet" for models containing "sonnet"
-    /// - "Haiku" for models containing "haiku"
+    /// - [`MODEL_OPUS`] for models containing "opus"
+    /// - [`MODEL_SONNET`] for models containing "sonnet"
+    /// - [`MODEL_HAIKU`] for models containing "haiku"
     /// - Falls back to the full ID for unrecognized models
     ///
     /// # Examples
@@ -54,11 +70,11 @@ impl ModelInfo {
     pub fn display_name(&self) -> &str {
         let id = &self.model_id.0;
         if id.contains("opus") {
-            "Opus"
+            MODEL_OPUS
         } else if id.contains("sonnet") {
-            "Sonnet"
+            MODEL_SONNET
         } else if id.contains("haiku") {
-            "Haiku"
+            MODEL_HAIKU
         } else {
             id
         }
@@ -176,19 +192,19 @@ mod tests {
     #[test]
     fn test_model_info_display_name_opus() {
         let model = ModelInfo::new("claude-opus-4-5-20251101");
-        assert_eq!(model.display_name(), "Opus");
+        assert_eq!(model.display_name(), MODEL_OPUS);
     }
 
     #[test]
     fn test_model_info_display_name_sonnet() {
         let model = ModelInfo::new("claude-sonnet-4-5-20250929");
-        assert_eq!(model.display_name(), "Sonnet");
+        assert_eq!(model.display_name(), MODEL_SONNET);
     }
 
     #[test]
     fn test_model_info_display_name_haiku() {
         let model = ModelInfo::new("claude-haiku-3-5-20241022");
-        assert_eq!(model.display_name(), "Haiku");
+        assert_eq!(model.display_name(), MODEL_HAIKU);
     }
 
     #[test]
