@@ -531,8 +531,6 @@ pub enum WrapMode {
 ///
 /// - `vertical_offset ≥ 0` (managed by scroll_handler via ScrollPosition.resolve())
 /// - `horizontal_offset ≥ 0` (enforced by `scroll_left` saturation)
-/// - `expanded_messages` contains only valid `EntryUuid`s from the conversation
-/// - `focused_message < conversation.entries().len()` when `Some`
 ///
 /// # State Independence (FR-034)
 ///
@@ -568,11 +566,6 @@ pub struct ScrollState {
     /// Only relevant when line wrapping is disabled (FR-040).
     /// 0 means viewing from the leftmost column.
     pub horizontal_offset: usize,
-
-    /// Index of the currently focused message within this pane's entry list.
-    /// `None` means no specific message has focus (pane-level focus only).
-    /// Used for keyboard navigation within the conversation.
-    pub focused_message: Option<usize>,
 }
 
 impl ScrollState {
@@ -586,16 +579,6 @@ impl ScrollState {
     /// Scroll right by amount.
     pub fn scroll_right(&mut self, amount: usize) {
         self.horizontal_offset = self.horizontal_offset.saturating_add(amount);
-    }
-
-    /// Set the focused message index.
-    pub fn set_focused_message(&mut self, index: Option<usize>) {
-        self.focused_message = index;
-    }
-
-    /// Get the focused message index.
-    pub fn focused_message(&self) -> Option<usize> {
-        self.focused_message
     }
 }
 
