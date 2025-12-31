@@ -1988,3 +1988,91 @@ fn test_tool_use_multiline_entry_index_on_first_line_only() {
         );
     }
 }
+
+// ============================================================================
+// LINE WRAP WITH ENTRY INDEX PREFIX TESTS (cclv-5ur.45)
+// Tests that wrapped lines + entry index prefix fit within viewport width
+// ============================================================================
+
+#[test]
+fn test_wrapped_lines_with_prefix_fit_within_viewport() {
+    // RED TEST: Bug cclv-5ur.45 - Line wrap doesn't account for 6-char entry index prefix
+    //
+    // Current behavior:
+    // - wrap_lines() calculates content_width = width - 2 (for borders only)
+    // - Entry index prefix "│NNNN " (6 chars) is added AFTER wrapping
+    // - Result: wrapped line (78 chars) + prefix (6 chars) = 84 chars > 78 viewport
+    //
+    // Expected behavior:
+    // - wrap_lines() should calculate content_width = width - 2 (borders) - 6 (prefix)
+    // - Result: wrapped line (72 chars) + prefix (6 chars) = 78 chars = viewport width
+
+    // Create entry with text that will wrap
+    let long_line = "x".repeat(100);
+    let entry = create_entry_with_text(&long_line);
+
+    let viewport_width = 40; // Narrow viewport to test wrapping
+    let collapse_threshold = 10;
+    let summary_lines = 3;
+    let styles = default_styles();
+
+    // Render with wrapping enabled AND entry index prefix
+    let lines = compute_test_lines(
+        &entry,
+        true, // expanded
+        WrapContext::from_global(WrapMode::Wrap),
+        viewport_width,
+        collapse_threshold,
+        summary_lines,
+        &styles,
+        Some(0), // Entry index 0 -> "│   1 " (6 chars)
+        false,   // Not a subagent view
+        &crate::state::SearchState::Inactive,
+        false, // Not focused
+    );
+
+    // Calculate max line width INCLUDING entry index prefix
+    let max_line_width = lines
+        .iter()
+        .map(|line| {
+            let line_text: String = line
+                .spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect();
+            line_text.chars().count()
+        })
+        .max()
+        .unwrap_or(0);
+
+    // ASSERTION: Max line width should NOT exceed content area width
+    // Content area = viewport_width - 2 (for left/right borders)
+    let content_area_width = (viewport_width - 2) as usize;
+
+    assert!(
+        max_line_width <= content_area_width,
+        "Bug cclv-5ur.45: Wrapped lines with entry index prefix exceed viewport width.\n\
+         Viewport width: {}, Content area (minus borders): {}, Max line width: {}\n\
+         Expected: wrapped content ({} - 2 borders - 6 prefix = {} chars) + prefix (6 chars) = {} chars total\n\
+         Lines:\n{}",
+        viewport_width,
+        content_area_width,
+        max_line_width,
+        viewport_width,
+        viewport_width - 2 - 6,
+        viewport_width - 2,
+        lines
+            .iter()
+            .enumerate()
+            .map(|(i, line)| {
+                let line_text: String = line
+                    .spans
+                    .iter()
+                    .map(|span| span.content.as_ref())
+                    .collect();
+                format!("  Line {}: {} chars: {:?}", i, line_text.chars().count(), line_text)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+}
