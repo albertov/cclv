@@ -32,6 +32,7 @@ fn test_user_entry_has_cyan_color() {
         &styles,
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // FR-021: User messages should have Cyan color
@@ -66,6 +67,7 @@ fn test_assistant_entry_has_green_color() {
         &styles,
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // FR-022: Assistant messages should have Green color
@@ -129,6 +131,7 @@ fn test_collapsed_thinking_block_respects_collapse_threshold() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Collapsed Thinking block should show:
@@ -179,6 +182,7 @@ fn test_expanded_thinking_block_shows_all_lines() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Expanded Thinking block should show all 100 lines + 1 separator
@@ -220,6 +224,7 @@ fn test_small_thinking_block_never_collapses() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Below-threshold entry shows all lines even when "collapsed"
@@ -283,6 +288,7 @@ fn test_collapsed_text_content_respects_collapse_threshold() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Collapsed Text content should show:
@@ -338,6 +344,7 @@ fn test_expanded_text_content_shows_all_lines() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Expanded Text content should show all 100 lines + 1 separator
@@ -379,6 +386,7 @@ fn test_small_text_content_never_collapses() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Below-threshold text entry shows all lines even when "collapsed"
@@ -427,6 +435,7 @@ fn test_text_block_wraps_long_lines() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
@@ -463,6 +472,7 @@ fn test_text_block_nowrap_does_not_wrap() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: NoWrap mode keeps the 100-char line as a single line
@@ -524,6 +534,7 @@ fn test_tool_result_wraps_long_lines() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
@@ -560,6 +571,7 @@ fn test_tool_result_nowrap_does_not_wrap() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: NoWrap mode keeps the 100-char line as a single line
@@ -626,6 +638,7 @@ fn test_tool_use_wraps_long_input_lines() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: ToolUse renders as:
@@ -667,6 +680,7 @@ fn test_tool_use_nowrap_does_not_wrap() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     let nowrap_lines = compute_entry_lines(
@@ -679,6 +693,7 @@ fn test_tool_use_nowrap_does_not_wrap() {
         &default_styles(),
         None, // No index prefix for existing tests
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: NoWrap mode should produce FEWER lines than Wrap mode
@@ -710,6 +725,7 @@ fn test_tool_use_header_has_emoji_indicator() {
         &styles,
         None, // No index prefix
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: First line should be the header with emoji: "🔧 Tool: TestTool"
@@ -751,6 +767,7 @@ fn test_entry_index_0_shows_as_1_prefix() {
         &styles,
         Some(0), // Entry index 0 should display as "   1│"
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Every content line should have "   1│" prefix
@@ -799,6 +816,7 @@ fn test_entry_index_41_shows_as_42_prefix() {
         &styles,
         Some(41), // Entry index 41 should display as "  42│"
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Every content line should have "  42│" prefix (right-aligned in 4 chars)
@@ -834,6 +852,7 @@ fn test_entry_index_999_shows_as_1000_prefix() {
         &styles,
         Some(999), // Entry index 999 should display as "1000│" (4 digits)
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Every content line should have "1000│" prefix (right-aligned in 4 chars)
@@ -869,6 +888,7 @@ fn test_entry_index_none_shows_no_prefix() {
         &styles,
         None, // No index = no prefix
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Lines should NOT have index prefix
@@ -904,6 +924,7 @@ fn test_entry_index_prefix_on_multiline_entry() {
         &styles,
         Some(0), // Entry index 0 should display as "   1│"
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: All 5 content lines should have "   1│" prefix
@@ -947,6 +968,7 @@ fn test_initial_prompt_label_appears_for_first_entry_in_subagent_view() {
         &styles,
         Some(0), // First entry (index 0)
         true,    // IS a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: First line should be "🔷 Initial Prompt" with Magenta + Bold
@@ -1008,6 +1030,7 @@ fn test_initial_prompt_label_does_not_appear_in_main_view() {
         &styles,
         Some(0), // First entry (index 0)
         false,   // NOT a subagent view (main view)
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Should NOT have Initial Prompt label
@@ -1048,6 +1071,7 @@ fn test_initial_prompt_label_only_for_first_entry_in_subagent() {
         &styles,
         Some(1), // Second entry (index 1, not 0)
         true,    // IS a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Should NOT have Initial Prompt label (only for index 0)
@@ -1087,6 +1111,7 @@ fn test_initial_prompt_label_without_entry_index() {
         &styles,
         None, // No entry index (but we need entry_index == Some(0) for label!)
         true, // IS a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Should NOT have Initial Prompt label because entry_index is None
@@ -1124,6 +1149,7 @@ fn test_entry_index_prefix_on_collapsed_entry() {
         &styles,
         Some(9), // Entry index 9 should display as "  10│"
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: Should have 3 summary lines + 1 collapse indicator + 1 separator = 5 total
@@ -1167,6 +1193,7 @@ fn test_text_block_renders_bold_markdown() {
         &styles,
         None, // No index prefix for clarity
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: At least one span should have Bold modifier
@@ -1200,6 +1227,7 @@ fn test_text_block_renders_italic_markdown() {
         &styles,
         None, // No index prefix for clarity
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: At least one span should have Italic modifier
@@ -1233,6 +1261,7 @@ fn test_text_block_renders_inline_code_markdown() {
         &styles,
         None, // No index prefix for clarity
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: The inline code should be styled differently from plain text
@@ -1267,6 +1296,7 @@ fn test_text_block_preserves_role_color_in_markdown() {
         &styles,
         None, // No index prefix for clarity
         false, // Not a subagent view
+        &crate::state::SearchState::Inactive,
     );
 
     // ASSERTION: At least one span should have Cyan foreground (User role color)
@@ -1293,5 +1323,191 @@ fn test_text_block_preserves_role_color_in_markdown() {
     assert!(
         has_markdown_modifier,
         "Markdown should apply Bold/Italic modifiers on top of role color"
+    );
+}
+
+// ============================================================================
+// SEARCH HIGHLIGHTING TESTS - Test that search matches are highlighted
+// ============================================================================
+
+#[test]
+fn test_search_match_highlighted_with_yellow_background() {
+    // Create entry with text content: "Hello world, this is a test"
+    let text = "Hello world, this is a test";
+    let entry = create_entry_with_text(text);
+
+    // Create search state with a match on "world" (offset 6, length 5)
+    use crate::state::{SearchState, SearchQuery, SearchMatch};
+    use crate::model::EntryUuid;
+
+    let entry_uuid = EntryUuid::new("test-text-001").unwrap();
+    let query = SearchQuery::new("world").unwrap();
+    let matches = vec![SearchMatch {
+        agent_id: None,
+        entry_uuid: entry_uuid.clone(),
+        block_index: 0, // Text content is block 0
+        char_offset: 6, // "Hello " = 6 chars
+        length: 5,      // "world" = 5 chars
+    }];
+    let search_state = SearchState::Active {
+        query,
+        matches,
+        current_match: 0,
+    };
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index prefix
+        false, // Not a subagent view
+        &search_state,
+    );
+
+    // ASSERTION: At least one span should have Yellow background (search highlight)
+    let has_yellow_bg = lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.style.bg == Some(ratatui::style::Color::Yellow)
+        })
+    });
+
+    assert!(
+        has_yellow_bg,
+        "Search match should have at least one span with Yellow background"
+    );
+}
+
+#[test]
+fn test_current_search_match_has_reversed_modifier() {
+    // Create entry with text: "test test test"
+    let text = "test test test";
+    let entry = create_entry_with_text(text);
+
+    // Create search state with multiple matches on "test"
+    use crate::state::{SearchState, SearchQuery, SearchMatch};
+    use crate::model::EntryUuid;
+
+    let entry_uuid = EntryUuid::new("test-text-001").unwrap();
+    let query = SearchQuery::new("test").unwrap();
+    let matches = vec![
+        SearchMatch {
+            agent_id: None,
+            entry_uuid: entry_uuid.clone(),
+            block_index: 0,
+            char_offset: 0, // First "test"
+            length: 4,
+        },
+        SearchMatch {
+            agent_id: None,
+            entry_uuid: entry_uuid.clone(),
+            block_index: 0,
+            char_offset: 5, // Second "test"
+            length: 4,
+        },
+        SearchMatch {
+            agent_id: None,
+            entry_uuid: entry_uuid.clone(),
+            block_index: 0,
+            char_offset: 10, // Third "test"
+            length: 4,
+        },
+    ];
+    let search_state = SearchState::Active {
+        query,
+        matches,
+        current_match: 1, // Current match is the second "test"
+    };
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index prefix
+        false, // Not a subagent view
+        &search_state,
+    );
+
+    // ASSERTION: At least one span should have REVERSED modifier (current match)
+    let has_reversed = lines.iter().any(|line| {
+        line.spans.iter().any(|span| {
+            span.style.add_modifier.contains(ratatui::style::Modifier::REVERSED)
+        })
+    });
+
+    assert!(
+        has_reversed,
+        "Current search match should have REVERSED modifier"
+    );
+}
+
+#[test]
+fn test_non_current_search_matches_no_reversed_modifier() {
+    // Create entry with text: "test test test"
+    let text = "test test test";
+    let entry = create_entry_with_text(text);
+
+    // Create search state with multiple matches, current_match = 1
+    use crate::state::{SearchState, SearchQuery, SearchMatch};
+    use crate::model::EntryUuid;
+
+    let entry_uuid = EntryUuid::new("test-text-001").unwrap();
+    let query = SearchQuery::new("test").unwrap();
+    let matches = vec![
+        SearchMatch {
+            agent_id: None,
+            entry_uuid: entry_uuid.clone(),
+            block_index: 0,
+            char_offset: 0, // First "test"
+            length: 4,
+        },
+        SearchMatch {
+            agent_id: None,
+            entry_uuid: entry_uuid.clone(),
+            block_index: 0,
+            char_offset: 5, // Second "test" (current)
+            length: 4,
+        },
+    ];
+    let search_state = SearchState::Active {
+        query,
+        matches,
+        current_match: 1, // Current match is the second "test"
+    };
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index prefix
+        false, // Not a subagent view
+        &search_state,
+    );
+
+    // ASSERTION: Count spans with Yellow background
+    // Should have at least 2 (both matches highlighted)
+    let yellow_bg_count = lines.iter()
+        .flat_map(|line| &line.spans)
+        .filter(|span| span.style.bg == Some(ratatui::style::Color::Yellow))
+        .count();
+
+    assert!(
+        yellow_bg_count >= 2,
+        "Should have at least 2 spans with Yellow background (both matches), got {}",
+        yellow_bg_count
     );
 }

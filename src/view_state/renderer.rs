@@ -89,6 +89,7 @@ pub fn compute_entry_lines(
     styles: &MessageStyles,
     entry_index: Option<usize>,
     is_subagent_view: bool,
+    _search_state: &crate::state::SearchState,
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 

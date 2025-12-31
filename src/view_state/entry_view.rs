@@ -110,6 +110,7 @@ impl EntryView {
             &styles,
             Some(index.get()), // Pass entry index for prefixing
             false, // TODO: Pass is_subagent_view from caller
+            &crate::state::SearchState::Inactive, // TODO: Pass search_state from caller
         );
         Self {
             entry,
@@ -187,6 +188,7 @@ impl EntryView {
             &styles,
             Some(self.index.get()), // Pass entry index for prefixing
             false, // TODO: Pass is_subagent_view from caller
+            &crate::state::SearchState::Inactive, // TODO: Pass search_state from caller
         );
     }
 
