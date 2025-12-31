@@ -43,7 +43,7 @@ pub struct Args {
     pub config: Option<PathBuf>,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing subscriber with env filter
     // Default to info level, override with RUST_LOG env var
     tracing_subscriber::fmt()
@@ -56,6 +56,11 @@ fn main() {
     let _args = Args::parse();
 
     info!(version = env!("CARGO_PKG_VERSION"), "cclv starting");
+
+    // Run the TUI
+    cclv::view::run()?;
+
+    Ok(())
 }
 
 #[cfg(test)]

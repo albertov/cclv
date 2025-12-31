@@ -1,7 +1,7 @@
 //! TUI rendering and terminal management (impure shell)
 
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent},
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
@@ -32,14 +32,32 @@ impl TuiApp<CrosstermBackend<Stdout>> {
     ///
     /// Sets up terminal in raw mode with alternate screen
     pub fn new() -> Result<Self, TuiError> {
-        todo!("TuiApp::new")
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        stdout.execute(EnterAlternateScreen)?;
+        let backend = CrosstermBackend::new(stdout);
+        let terminal = Terminal::new(backend)?;
+
+        Ok(Self { terminal })
     }
 
     /// Run the main event loop
     ///
     /// Returns when user quits (q or Ctrl+C)
     pub fn run(&mut self) -> Result<(), TuiError> {
-        todo!("TuiApp::run")
+        loop {
+            self.draw()?;
+
+            if event::poll(std::time::Duration::from_millis(100))? {
+                if let Event::Key(key) = event::read()? {
+                    if self.handle_key(key) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -50,13 +68,18 @@ where
     /// Handle a single keyboard event
     ///
     /// Returns true if app should quit
-    fn handle_key(&mut self, _key: KeyEvent) -> bool {
-        todo!("TuiApp::handle_key")
+    fn handle_key(&mut self, key: KeyEvent) -> bool {
+        // Quit on 'q' or Ctrl+C
+        matches!(key.code, KeyCode::Char('q'))
+            || (key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL))
     }
 
     /// Render the current frame
     fn draw(&mut self) -> Result<(), TuiError> {
-        todo!("TuiApp::draw")
+        self.terminal.draw(|_frame| {
+            // Blank screen for now - just clear the terminal
+        })?;
+        Ok(())
     }
 }
 
@@ -65,14 +88,24 @@ where
 /// This is the main entry point for the TUI. It handles terminal
 /// setup, runs the event loop, and ensures cleanup on exit.
 pub fn run() -> Result<(), TuiError> {
-    todo!("run")
+    let mut app = TuiApp::new()?;
+
+    // Run the app and ensure cleanup happens even on error
+    let result = app.run();
+
+    // Always restore terminal state
+    restore_terminal()?;
+
+    result
 }
 
 /// Restore terminal to normal state
 ///
 /// Disables raw mode and leaves alternate screen
 fn restore_terminal() -> Result<(), TuiError> {
-    todo!("restore_terminal")
+    disable_raw_mode()?;
+    io::stdout().execute(LeaveAlternateScreen)?;
+    Ok(())
 }
 
 #[cfg(test)]
