@@ -25,22 +25,29 @@ pub enum HitTestResult {
 impl HitTestResult {
     /// Create a miss result.
     pub fn miss() -> Self {
-        todo!("HitTestResult::miss")
+        Self::Miss
     }
 
     /// Create a hit result.
-    pub fn hit(_entry_index: EntryIndex, _line_in_entry: usize, _column: u16) -> Self {
-        todo!("HitTestResult::hit")
+    pub fn hit(entry_index: EntryIndex, line_in_entry: usize, column: u16) -> Self {
+        Self::Hit {
+            entry_index,
+            line_in_entry,
+            column,
+        }
     }
 
     /// Check if this was a hit.
     pub fn is_hit(&self) -> bool {
-        todo!("HitTestResult::is_hit")
+        matches!(self, Self::Hit { .. })
     }
 
     /// Get entry index if hit.
     pub fn entry_index(&self) -> Option<EntryIndex> {
-        todo!("HitTestResult::entry_index")
+        match self {
+            Self::Hit { entry_index, .. } => Some(*entry_index),
+            Self::Miss => None,
+        }
     }
 }
 
