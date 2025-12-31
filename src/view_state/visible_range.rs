@@ -11,7 +11,7 @@ use super::types::{EntryIndex, LineOffset};
 /// - `start_index <= end_index`
 /// - `end_index <= entries.len()`
 /// - All entries in range have some portion visible in viewport
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct VisibleRange {
     /// Index of first visible entry (inclusive).
     pub start_index: EntryIndex,
@@ -29,38 +29,38 @@ impl VisibleRange {
     /// # Panics
     /// In debug builds, panics if start_index > end_index.
     pub fn new(
-        _start_index: EntryIndex,
-        _end_index: EntryIndex,
-        _scroll_offset: LineOffset,
-        _viewport_height: u16,
+        start_index: EntryIndex,
+        end_index: EntryIndex,
+        scroll_offset: LineOffset,
+        viewport_height: u16,
     ) -> Self {
-        todo!("VisibleRange::new")
+        debug_assert!(start_index <= end_index);
+        Self {
+            start_index,
+            end_index,
+            scroll_offset,
+            viewport_height,
+        }
     }
 
     /// Number of visible entries.
     pub fn len(&self) -> usize {
-        todo!("VisibleRange::len")
+        self.end_index.get() - self.start_index.get()
     }
 
     /// Check if range is empty.
     pub fn is_empty(&self) -> bool {
-        todo!("VisibleRange::is_empty")
+        self.start_index == self.end_index
     }
 
     /// Iterate over visible entry indices.
     pub fn indices(&self) -> impl Iterator<Item = EntryIndex> {
-        std::iter::empty()
+        (self.start_index.get()..self.end_index.get()).map(EntryIndex::new)
     }
 
     /// Check if a specific entry index is visible.
-    pub fn contains(&self, _index: EntryIndex) -> bool {
-        todo!("VisibleRange::contains")
-    }
-}
-
-impl Default for VisibleRange {
-    fn default() -> Self {
-        todo!("VisibleRange::default")
+    pub fn contains(&self, index: EntryIndex) -> bool {
+        index >= self.start_index && index < self.end_index
     }
 }
 
