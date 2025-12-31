@@ -32,6 +32,27 @@ struct EntryLayout {
     height: u16,
 }
 
+/// Calculate how many lines to skip from the top of an entry when it's partially scrolled off.
+///
+/// When an entry starts above the viewport (cumulative_y < scroll_offset) but is partially
+/// visible, we need to skip the lines that are scrolled off the top.
+///
+/// # Arguments
+/// * `cumulative_y` - Absolute position where the entry starts in the document
+/// * `scroll_offset` - Current vertical scroll position (top of viewport)
+/// * `entry_height` - Total height of the entry in lines
+///
+/// # Returns
+/// Number of lines to skip from the top of the entry (0 if fully visible)
+#[allow(dead_code)]
+fn calculate_lines_to_skip(
+    _cumulative_y: usize,
+    _scroll_offset: usize,
+    _entry_height: usize,
+) -> usize {
+    todo!("calculate_lines_to_skip")
+}
+
 // ===== ConversationView Widget =====
 
 /// Virtualized conversation view widget.
@@ -1661,6 +1682,105 @@ mod tests {
 
     fn get_test_role_style() -> Style {
         create_test_styles().style_for_role(crate::model::Role::Assistant)
+    }
+
+    // ===== calculate_lines_to_skip Tests =====
+
+    #[test]
+    fn calculate_lines_to_skip_returns_zero_when_entry_fully_visible() {
+        // Entry starts at or after scroll position - fully visible
+        let cumulative_y = 10;
+        let scroll_offset = 5;
+        let entry_height = 8;
+
+        let result = calculate_lines_to_skip(cumulative_y, scroll_offset, entry_height);
+
+        assert_eq!(
+            result, 0,
+            "Entry starting at or after scroll position should skip 0 lines"
+        );
+    }
+
+    #[test]
+    fn calculate_lines_to_skip_returns_correct_count_when_partially_above_viewport() {
+        // Entry at position 3, height 10, scroll at 5
+        // Lines 0-1 of entry (absolute 3-4) are above viewport
+        // Should skip 2 lines
+        let cumulative_y = 3;
+        let scroll_offset = 5;
+        let entry_height = 10;
+
+        let result = calculate_lines_to_skip(cumulative_y, scroll_offset, entry_height);
+
+        assert_eq!(
+            result, 2,
+            "Entry at y=3 with scroll=5 should skip first 2 lines"
+        );
+    }
+
+    #[test]
+    fn calculate_lines_to_skip_handles_entry_starting_at_zero() {
+        // Entry at position 0, scroll at 7
+        // First 7 lines are above viewport
+        let cumulative_y = 0;
+        let scroll_offset = 7;
+        let entry_height = 15;
+
+        let result = calculate_lines_to_skip(cumulative_y, scroll_offset, entry_height);
+
+        assert_eq!(
+            result, 7,
+            "Entry at y=0 with scroll=7 should skip first 7 lines"
+        );
+    }
+
+    #[test]
+    fn calculate_lines_to_skip_returns_zero_when_no_scroll() {
+        // No scrolling, entry at position 0
+        let cumulative_y = 0;
+        let scroll_offset = 0;
+        let entry_height = 10;
+
+        let result = calculate_lines_to_skip(cumulative_y, scroll_offset, entry_height);
+
+        assert_eq!(
+            result, 0,
+            "No scroll means no lines to skip"
+        );
+    }
+
+    #[test]
+    fn calculate_lines_to_skip_handles_entry_barely_visible() {
+        // Entry mostly scrolled off, only last line visible
+        // Entry at 0, height 10, scroll at 9
+        // Should skip first 9 lines, showing only line 9
+        let cumulative_y = 0;
+        let scroll_offset = 9;
+        let entry_height = 10;
+
+        let result = calculate_lines_to_skip(cumulative_y, scroll_offset, entry_height);
+
+        assert_eq!(
+            result, 9,
+            "Entry with only last line visible should skip 9 out of 10 lines"
+        );
+    }
+
+    #[test]
+    fn calculate_lines_to_skip_edge_case_entry_ends_exactly_at_scroll() {
+        // Entry completely above viewport
+        // Entry at 0, height 5, scroll at 5
+        // Entry ends exactly where viewport starts
+        let cumulative_y = 0;
+        let scroll_offset = 5;
+        let entry_height = 5;
+
+        let result = calculate_lines_to_skip(cumulative_y, scroll_offset, entry_height);
+
+        assert_eq!(
+            result, 5,
+            "Entry completely above viewport should skip all lines"
+        );
     }
 
     // ===== render_tool_use Tests =====
