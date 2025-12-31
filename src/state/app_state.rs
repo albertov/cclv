@@ -68,22 +68,27 @@ impl AppState {
     /// Skip Search pane in the cycle.
     /// Order: Main -> Subagent -> Stats -> Main
     pub fn cycle_focus(&mut self) {
-        todo!("cycle_focus")
+        self.focus = match self.focus {
+            FocusPane::Main => FocusPane::Subagent,
+            FocusPane::Subagent => FocusPane::Stats,
+            FocusPane::Stats => FocusPane::Main,
+            FocusPane::Search => FocusPane::Main,
+        };
     }
 
     /// Set focus to Main pane.
     pub fn focus_main(&mut self) {
-        todo!("focus_main")
+        self.focus = FocusPane::Main;
     }
 
     /// Set focus to Subagent pane.
     pub fn focus_subagent(&mut self) {
-        todo!("focus_subagent")
+        self.focus = FocusPane::Subagent;
     }
 
     /// Set focus to Stats pane.
     pub fn focus_stats(&mut self) {
-        todo!("focus_stats")
+        self.focus = FocusPane::Stats;
     }
 }
 
