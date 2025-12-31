@@ -1397,9 +1397,106 @@ pub enum ParseError {
 
 ---
 
+## 13. Input Source Model
+
+Unified input abstraction. Sum type for file vs stdin (parse at boundary).
+
+```rust
+// ===== src/source/mod.rs =====
+
+/// Unified input source. Sum type enforces exactly one variant.
+/// poll() returns parsed LogEntry, not raw strings (parse at boundary).
+pub enum InputSource {
+    File(FileSource),
+    Stdin(StdinSource),
+}
+
+impl InputSource {
+    /// Poll for new entries. File: all on first call, empty after.
+    /// Stdin: incremental as data arrives.
+    pub fn poll(&mut self) -> Result<Vec<LogEntry>, InputError> {
+        match self {
+            InputSource::File(f) => f.drain_entries(),
+            InputSource::Stdin(s) => s.poll_and_parse(),
+        }
+    }
+
+    /// Is this source still live (may produce more entries)?
+    pub fn is_live(&self) -> bool {
+        match self {
+            InputSource::File(_) => false,  // Files are static (FR-007)
+            InputSource::Stdin(s) => !s.is_eof(),
+        }
+    }
+}
+
+/// File input: read-once, static mode (FR-007).
+/// Loads all entries on construction, drains on first poll.
+pub struct FileSource {
+    entries: Option<Vec<LogEntry>>,
+}
+
+impl FileSource {
+    pub fn new(path: PathBuf) -> Result<Self, InputError> {
+        let entries = Self::read_all(&path)?;
+        Ok(Self { entries: Some(entries) })
+    }
+
+    pub fn drain_entries(&mut self) -> Result<Vec<LogEntry>, InputError> {
+        Ok(self.entries.take().unwrap_or_default())
+    }
+}
+
+/// Stdin input: streaming mode (FR-042).
+/// Polls for new lines, parses incrementally, tracks EOF.
+pub struct StdinSource {
+    reader: BufReader<Stdin>,
+    eof: bool,
+}
+
+impl StdinSource {
+    pub fn new() -> Self {
+        Self {
+            reader: BufReader::new(io::stdin()),
+            eof: false,
+        }
+    }
+
+    pub fn poll_and_parse(&mut self) -> Result<Vec<LogEntry>, InputError> {
+        // Non-blocking read available lines
+        // Parse each to LogEntry
+        // Set eof = true when stdin closes
+    }
+
+    pub fn is_eof(&self) -> bool {
+        self.eof
+    }
+}
+
+/// Smart constructor for input detection.
+pub fn detect_input_source(file: Option<PathBuf>) -> Result<InputSource, InputError> {
+    match file {
+        Some(path) => Ok(InputSource::File(FileSource::new(path)?)),
+        None if atty::isnt(atty::Stream::Stdin) => {
+            Ok(InputSource::Stdin(StdinSource::new()))
+        }
+        None => Err(InputError::NoInput),
+    }
+}
+```
+
+---
+
 ## Type Hierarchy Diagram
 
 ```
+InputSource (sum type)
+├── File(FileSource)
+│   └── entries: Option<Vec<LogEntry>>  // Drained on first poll
+└── Stdin(StdinSource)
+    ├── reader: BufReader<Stdin>
+    └── eof: bool
+
 Session
 ├── SessionId
 ├── main_agent: AgentConversation

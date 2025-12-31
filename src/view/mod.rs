@@ -93,8 +93,8 @@ impl TuiApp<CrosstermBackend<Stdout>> {
         let terminal = Terminal::new(backend)?;
 
         // Load initial content from input source
-        let initial_lines = input_source.poll()?;
-        let entries = integration::process_lines(initial_lines, 1);
+        let initial_entries = input_source.poll()?;
+        let entries = integration::process_entries(initial_entries);
 
         // Log any malformed entries
         for entry in &entries {
@@ -278,12 +278,11 @@ where
     /// Accumulates entries to pending buffer instead of adding directly to session.
     /// Entries are flushed to session during render phase.
     fn poll_input(&mut self) -> Result<(), TuiError> {
-        let new_lines = self.input_source.poll()?;
+        let new_entries = self.input_source.poll()?;
 
-        if !new_lines.is_empty() {
-            debug!("Processing {} new lines", new_lines.len());
-            let starting_line = self.line_counter + 1;
-            let entries = integration::process_lines(new_lines, starting_line);
+        if !new_entries.is_empty() {
+            debug!("Processing {} new entries", new_entries.len());
+            let entries = integration::process_entries(new_entries);
 
             // Log malformed entries
             for entry in &entries {

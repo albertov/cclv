@@ -152,7 +152,7 @@ impl StdinSource {
         }
     }
 
-    /// Poll for a new line from stdin.
+    /// Poll for a new line from stdin (returns raw string).
     ///
     /// **Non-blocking**: returns immediately with `None` if no complete line available.
     /// Returns `Some(line)` when a complete line is ready from the background reader thread.
@@ -179,6 +179,18 @@ impl StdinSource {
                 Ok(None)
             }
         }
+    }
+
+    /// Poll and parse lines into LogEntry vector.
+    ///
+    /// Drains all available lines from the channel, parses each to LogEntry.
+    /// Malformed lines are silently skipped (FR-010).
+    ///
+    /// # Errors
+    ///
+    /// Returns `InputError` for I/O errors.
+    pub fn poll_and_parse(&mut self) -> Result<Vec<crate::model::LogEntry>, InputError> {
+        todo!("StdinSource::poll_and_parse")
     }
 
     /// Check if EOF has been reached (no more data will arrive).

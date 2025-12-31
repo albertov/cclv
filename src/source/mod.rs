@@ -6,6 +6,7 @@
 //! - Unified InputSource enum for both
 
 use crate::model::error::InputError;
+use crate::model::LogEntry;
 use std::path::PathBuf;
 
 pub mod file;
@@ -17,78 +18,60 @@ pub use stdin::StdinSource;
 /// Unified input source for JSONL log data.
 ///
 /// Abstracts over file loading and stdin sources with a common interface.
+/// Sum type enforces exactly one variant.
 #[derive(Debug)]
 pub enum InputSource {
+    /// File source - read-once loading (FR-007)
+    File(FileSource),
     /// Stdin source - reads from piped stdin (live streaming)
     Stdin(StdinSource),
 }
 
 impl InputSource {
-    /// Poll for new lines from the input source.
+    /// Poll for new entries from the input source.
     ///
-    /// Non-blocking - returns immediately with available lines.
+    /// Returns parsed LogEntry, not raw strings (parse at boundary).
+    /// Non-blocking - returns immediately with available entries.
     ///
     /// # Behavior:
-    /// - Stdin: drains all available lines from the channel
+    /// - File: all entries on first call, empty vec after
+    /// - Stdin: incremental as data arrives
     ///
     /// # Errors
     ///
     /// Returns `InputError` for I/O errors.
-    pub fn poll(&mut self) -> Result<Vec<String>, InputError> {
-        match self {
-            InputSource::Stdin(stdin) => {
-                // Drain all available lines from channel
-                let mut lines = Vec::new();
-                while let Some(line) = stdin.poll()? {
-                    lines.push(line);
-                }
-                Ok(lines)
-            }
-        }
+    pub fn poll(&mut self) -> Result<Vec<LogEntry>, InputError> {
+        todo!("InputSource::poll")
     }
 
     /// Check if the source is still live (can receive more data).
     ///
     /// # Behavior:
+    /// - File: always false (static, read-once)
     /// - Stdin: true until EOF is reached
     pub fn is_live(&self) -> bool {
-        match self {
-            InputSource::Stdin(stdin) => !stdin.is_complete(), // Live until EOF
-        }
+        todo!("InputSource::is_live")
     }
 }
 
 /// Detect and create appropriate input source.
 ///
 /// # Logic:
-/// 1. If file path is provided: return error (use FileSource::read() directly for files)
+/// 1. If file path is provided: create FileSource (loads on construction)
 /// 2. If stdin is piped: use StdinSource
 /// 3. Else: return InputError::NoInput
 ///
-/// Note: For file input, use `FileSource::read(path)?` directly to get `Vec<LogEntry>`.
-/// This function is only for detecting stdin sources.
-///
 /// # Arguments
 ///
-/// * `file` - Optional file path (should be None for stdin detection)
+/// * `file` - Optional file path
 ///
 /// # Errors
 ///
 /// Returns `InputError::NoInput` if no file is provided and stdin is not piped.
-/// Returns `InputError::FileNotFound` if file path is provided (unsupported - use FileSource directly).
-pub fn detect_input_source(file: Option<PathBuf>) -> Result<InputSource, InputError> {
-    match file {
-        Some(path) => {
-            // File paths are no longer supported through InputSource
-            // Use FileSource::read(path)? instead
-            Err(InputError::FileNotFound { path })
-        }
-        None => {
-            // No file - try stdin
-            let stdin_source = StdinSource::new()?;
-            Ok(InputSource::Stdin(stdin_source))
-        }
-    }
+/// Returns `InputError::FileNotFound` if file does not exist.
+/// Returns `InputError::Io` for I/O errors during file reading.
+pub fn detect_input_source(_file: Option<PathBuf>) -> Result<InputSource, InputError> {
+    todo!("detect_input_source")
 }
 
 #[cfg(test)]
@@ -99,12 +82,73 @@ mod tests {
     use std::time::Duration;
 
     // ========================================================================
-    // InputSource::poll() tests - Stdin variant
+    // InputSource::poll() tests - File variant
     // ========================================================================
 
     #[test]
-    fn poll_drains_all_available_stdin_lines() {
-        let data = b"{\"line\": 1}\n{\"line\": 2}\n{\"line\": 3}\n";
+    fn poll_returns_all_entries_on_first_call_for_file() {
+        use std::fs;
+
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("poll_test_file_first_call.jsonl");
+
+        // Create file with 2 valid entries
+        let content = r#"{"type":"user","message":{"role":"user","content":"First"},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-27T10:00:00Z"}
+{"type":"assistant","message":{"role":"assistant","content":"Second"},"sessionId":"s1","uuid":"u2","timestamp":"2025-12-27T10:00:01Z"}
+"#;
+        fs::write(&test_file, content).unwrap();
+
+        let mut source = detect_input_source(Some(test_file.clone())).unwrap();
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+
+        let result = source.poll().unwrap();
+
+        assert_eq!(result.len(), 2, "Should return all 2 entries on first poll");
+        assert_eq!(result[0].uuid().as_str(), "u1");
+        assert_eq!(result[1].uuid().as_str(), "u2");
+    }
+
+    #[test]
+    fn poll_returns_empty_vec_on_subsequent_calls_for_file() {
+        use std::fs;
+
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("poll_test_file_subsequent.jsonl");
+
+        // Create file with 1 entry
+        let content = r#"{"type":"user","message":{"role":"user","content":"Entry"},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-27T10:00:00Z"}
+"#;
+        fs::write(&test_file, content).unwrap();
+
+        let mut source = detect_input_source(Some(test_file.clone())).unwrap();
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+
+        // First poll drains all entries
+        let first = source.poll().unwrap();
+        assert_eq!(first.len(), 1);
+
+        // Second poll should return empty
+        let second = source.poll().unwrap();
+        assert_eq!(second.len(), 0, "Second poll should return empty vec");
+
+        // Third poll should also return empty
+        let third = source.poll().unwrap();
+        assert_eq!(third.len(), 0, "Third poll should return empty vec");
+    }
+
+    // ========================================================================
+    // InputSource::poll() tests - Stdin variant
+    // ========================================================================
+    // Note: StdinSource has its own comprehensive tests in stdin.rs
+    // These tests verify InputSource::poll() integration only
+
+    #[test]
+    fn poll_returns_parsed_entries_for_stdin() {
+        let data = b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"Test\"},\"sessionId\":\"s1\",\"uuid\":\"u1\",\"timestamp\":\"2025-12-27T10:00:00Z\"}\n";
         let stdin_source = StdinSource::from_reader(&data[..]);
         let mut source = InputSource::Stdin(stdin_source);
 
@@ -113,39 +157,8 @@ mod tests {
 
         let result = source.poll().unwrap();
 
-        // Should drain all available lines in one poll
-        assert_eq!(result.len(), 3);
-        assert_eq!(result[0], "{\"line\": 1}");
-        assert_eq!(result[1], "{\"line\": 2}");
-        assert_eq!(result[2], "{\"line\": 3}");
-    }
-
-    #[test]
-    fn poll_returns_empty_vec_when_stdin_has_no_data_yet() {
-        let data = b"";
-        let stdin_source = StdinSource::from_reader(&data[..]);
-        let mut source = InputSource::Stdin(stdin_source);
-
-        // Poll immediately - no data ready yet
-        let result = source.poll().unwrap();
-
-        // Could be empty or could have received EOF already
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn poll_returns_partial_stdin_data_when_not_all_available() {
-        let data = b"{\"line\": 1}\n";
-        let stdin_source = StdinSource::from_reader(&data[..]);
-        let mut source = InputSource::Stdin(stdin_source);
-
-        // Give thread time to read first line
-        thread::sleep(Duration::from_millis(50));
-
-        let result = source.poll().unwrap();
-
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], "{\"line\": 1}");
+        assert_eq!(result.len(), 1, "Should parse 1 entry from stdin");
+        assert_eq!(result[0].uuid().as_str(), "u1");
     }
 
     // ========================================================================
@@ -153,8 +166,31 @@ mod tests {
     // ========================================================================
 
     #[test]
+    fn is_live_returns_false_for_file_sources() {
+        use std::fs;
+
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("is_live_test_file.jsonl");
+
+        // Create file
+        let content = r#"{"type":"user","message":{"role":"user","content":"Test"},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-27T10:00:00Z"}
+"#;
+        fs::write(&test_file, content).unwrap();
+
+        let source = detect_input_source(Some(test_file.clone())).unwrap();
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+
+        assert!(
+            !source.is_live(),
+            "File sources are never live (static, read-once)"
+        );
+    }
+
+    #[test]
     fn is_live_returns_true_for_stdin_before_eof() {
-        let data = b"{\"line\": 1}\n";
+        let data = b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"Test\"},\"sessionId\":\"s1\",\"uuid\":\"u1\",\"timestamp\":\"2025-12-27T10:00:00Z\"}\n";
         let stdin_source = StdinSource::from_reader(&data[..]);
         let source = InputSource::Stdin(stdin_source);
 
@@ -164,7 +200,7 @@ mod tests {
 
     #[test]
     fn is_live_returns_false_for_stdin_after_eof() {
-        let data = b"{\"line\": 1}\n";
+        let data = b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"Test\"},\"sessionId\":\"s1\",\"uuid\":\"u1\",\"timestamp\":\"2025-12-27T10:00:00Z\"}\n";
         let stdin_source = StdinSource::from_reader(&data[..]);
         let mut source = InputSource::Stdin(stdin_source);
 
@@ -186,16 +222,48 @@ mod tests {
     // detect_input_source() tests
     // ========================================================================
 
+    // ========================================================================
+    // detect_input_source() tests - File variant
+    // ========================================================================
+
+    #[test]
+    fn detect_returns_file_source_for_existing_file() {
+        use std::fs;
+
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("detect_test_existing_file.jsonl");
+
+        // Create a valid test file
+        let content = r#"{"type":"user","message":{"role":"user","content":"Test"},"sessionId":"s1","uuid":"u1","timestamp":"2025-12-27T10:00:00Z"}
+"#;
+        fs::write(&test_file, content).unwrap();
+
+        let result = detect_input_source(Some(test_file.clone()));
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+
+        assert!(result.is_ok(), "Should return File variant for existing file");
+        let source = result.unwrap();
+        assert!(
+            matches!(source, InputSource::File(_)),
+            "Should be File variant, got: {:?}",
+            source
+        );
+    }
+
     #[test]
     fn detect_returns_file_not_found_for_missing_file() {
-        // Files are no longer supported through detect_input_source
-        // Use FileSource::read() directly for file input
         let temp_dir = std::env::temp_dir();
         let missing_file = temp_dir.join("nonexistent_detect_test_12345.jsonl");
 
         let result = detect_input_source(Some(missing_file.clone()));
 
-        assert!(matches!(result, Err(InputError::FileNotFound { .. })));
+        assert!(
+            matches!(result, Err(InputError::FileNotFound { .. })),
+            "Should return FileNotFound for missing file, got: {:?}",
+            result
+        );
         if let Err(InputError::FileNotFound { path }) = result {
             assert_eq!(path, missing_file);
         }

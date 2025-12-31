@@ -295,36 +295,71 @@ TUI applications typically use an event loop. Mixing async tokio with ratatui's 
 ### Architecture
 
 ```rust
+/// Unified input source. Sum type for file vs stdin.
+/// poll() returns parsed entries, not raw strings (parse at boundary).
 enum InputSource {
-    File { path: PathBuf, tailer: FileTailer },
-    Stdin { reader: BufReader<Stdin>, complete: bool },
+    File(FileSource),
+    Stdin(StdinSource),
 }
 
 impl InputSource {
-    fn poll(&mut self) -> Option<Vec<String>> {
+    /// Poll for new entries. Returns parsed LogEntry, not raw strings.
+    fn poll(&mut self) -> Result<Vec<LogEntry>, InputError> {
         match self {
-            InputSource::File { tailer, .. } => tailer.poll_new_lines(),
-            InputSource::Stdin { reader, complete } => {
-                if *complete { return None; }
-                // Non-blocking read using crossterm's event polling
-                // or a separate thread with channel
-            }
+            InputSource::File(f) => f.drain_entries(), // All on first call, empty after
+            InputSource::Stdin(s) => s.poll_and_parse(), // Incremental streaming
         }
+    }
+
+    /// Is this source still live (may produce more entries)?
+    fn is_live(&self) -> bool {
+        match self {
+            InputSource::File(_) => false, // Files are always static
+            InputSource::Stdin(s) => !s.is_eof(),
+        }
+    }
+}
+
+/// File input: read-once, static mode (FR-007).
+struct FileSource {
+    entries: Option<Vec<LogEntry>>, // Some until drained, then None
+}
+
+impl FileSource {
+    fn new(path: PathBuf) -> Result<Self, InputError> {
+        let entries = Self::read_all(&path)?;
+        Ok(Self { entries: Some(entries) })
+    }
+
+    fn drain_entries(&mut self) -> Result<Vec<LogEntry>, InputError> {
+        Ok(self.entries.take().unwrap_or_default())
+    }
+}
+
+/// Stdin input: streaming mode (FR-042).
+struct StdinSource {
+    reader: BufReader<Stdin>,
+    eof: bool,
+}
+
+impl StdinSource {
+    fn poll_and_parse(&mut self) -> Result<Vec<LogEntry>, InputError> {
+        // Non-blocking read, parse lines to LogEntry
+        // Sets eof = true when stdin closes
     }
 }
 ```
 
-### Stdin Detection
+### Input Detection
 
 ```rust
-fn detect_input_source(args: &Args) -> InputSource {
-    if let Some(path) = &args.file {
-        InputSource::File { path: path.clone(), tailer: FileTailer::new(path) }
-    } else if atty::isnt(atty::Stream::Stdin) {
-        InputSource::Stdin { reader: BufReader::new(io::stdin()), complete: false }
-    } else {
-        // No file and no piped input - error
-        panic!("No input source: provide a file path or pipe data to stdin");
+fn detect_input_source(file: Option<PathBuf>) -> Result<InputSource, InputError> {
+    match file {
+        Some(path) => Ok(InputSource::File(FileSource::new(path)?)),
+        None if atty::isnt(atty::Stream::Stdin) => {
+            Ok(InputSource::Stdin(StdinSource::new()))
+        }
+        None => Err(InputError::NoInput),
     }
 }
 ```

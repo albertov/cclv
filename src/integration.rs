@@ -4,8 +4,27 @@
 //! management for the main event loop. These functions are testable without
 //! needing actual I/O.
 
-use crate::model::{ConversationEntry, ParseError};
+use crate::model::{ConversationEntry, LogEntry, ParseError};
 use crate::parser;
+
+/// Convert parsed LogEntry vector into ConversationEntry vector.
+///
+/// This is a pure function that wraps LogEntry in ConversationEntry::Valid.
+/// Used when entries are already parsed (e.g., from FileSource or StdinSource).
+///
+/// # Arguments
+///
+/// * `entries` - Parsed LogEntry vector
+///
+/// # Returns
+///
+/// Vector of ConversationEntry::Valid
+pub fn process_entries(entries: Vec<LogEntry>) -> Vec<ConversationEntry> {
+    entries
+        .into_iter()
+        .map(|entry| ConversationEntry::Valid(Box::new(entry)))
+        .collect()
+}
 
 /// Process new JSONL lines into conversation entries (valid or malformed).
 ///
