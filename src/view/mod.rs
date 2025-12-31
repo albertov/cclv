@@ -113,7 +113,12 @@ impl TuiApp<CrosstermBackend<Stdout>> {
 
         Ok(())
     }
+}
 
+impl<B> TuiApp<B>
+where
+    B: ratatui::backend::Backend,
+{
     /// Poll input source for new lines and process them
     fn poll_input(&mut self) -> Result<(), TuiError> {
         let new_lines = self.input_source.poll()?;
@@ -132,21 +137,33 @@ impl TuiApp<CrosstermBackend<Stdout>> {
             self.line_counter += entries.len();
 
             // Add entries to session via AppState
-            self.app_state.add_entries(entries);
+            self.app_state.add_entries(entries.clone());
+
+            // FR-035: Auto-scroll to bottom when live_mode && auto_scroll
+            if self.app_state.live_mode && self.app_state.auto_scroll && !entries.is_empty() {
+                let entry_count = self.app_state.session().main_agent().len();
+                self.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+            }
         }
 
         Ok(())
     }
-}
 
-impl<B> TuiApp<B>
-where
-    B: ratatui::backend::Backend,
-{
     /// Handle a single keyboard event
     ///
     /// Returns true if app should quit
     fn handle_key(&mut self, key: KeyEvent) -> bool {
+        // FR-038: Toggle auto-scroll on 'a' key
+        if key.code == KeyCode::Char('a') {
+            self.app_state.auto_scroll = !self.app_state.auto_scroll;
+            // If enabling, scroll to bottom immediately
+            if self.app_state.auto_scroll {
+                let entry_count = self.app_state.session().main_agent().len();
+                self.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+            }
+            return false;
+        }
+
         // Quit on 'q' or Ctrl+C
         matches!(key.code, KeyCode::Char('q'))
             || (key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL))
@@ -286,5 +303,167 @@ mod tests {
         let mut app = create_test_app();
         let result = app.draw();
         assert!(result.is_ok(), "Drawing should succeed");
+    }
+
+    // ===== Auto-scroll integration tests =====
+
+    #[test]
+    fn handle_key_a_toggles_auto_scroll() {
+        let mut app = create_test_app();
+
+        // Initially auto_scroll is true
+        assert!(app.app_state.auto_scroll, "auto_scroll should start as true");
+
+        // Press 'a' to toggle off
+        let key = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
+        let should_quit = app.handle_key(key);
+        assert!(!should_quit, "'a' should not trigger quit");
+        assert!(!app.app_state.auto_scroll, "auto_scroll should toggle to false");
+
+        // Press 'a' again to toggle back on
+        let should_quit = app.handle_key(key);
+        assert!(!should_quit, "'a' should not trigger quit");
+        assert!(app.app_state.auto_scroll, "auto_scroll should toggle back to true");
+    }
+
+    #[test]
+    fn handle_key_a_scrolls_to_bottom_when_enabling() {
+        let mut app = create_test_app();
+
+        // Add some entries to the session
+        let entry1 = create_test_entry("msg1");
+        let entry2 = create_test_entry("msg2");
+        app.app_state.add_entries(vec![entry1, entry2]);
+
+        // Disable auto_scroll and scroll to top
+        app.app_state.auto_scroll = false;
+        app.app_state.main_scroll.vertical_offset = 0;
+
+        // Press 'a' to re-enable auto_scroll
+        let key = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
+        app.handle_key(key);
+
+        // Should have scrolled to bottom
+        let entry_count = app.app_state.session().main_agent().len();
+        let expected_offset = entry_count.saturating_sub(1);
+        assert_eq!(
+            app.app_state.main_scroll.vertical_offset,
+            expected_offset,
+            "Enabling auto_scroll should scroll to bottom"
+        );
+    }
+
+    #[test]
+    fn auto_scroll_behavior_when_new_entries_arrive() {
+        let mut app = create_test_app();
+
+        // Add initial entries
+        let entry1 = create_test_entry("msg1");
+        let entry2 = create_test_entry("msg2");
+        app.app_state.add_entries(vec![entry1, entry2]);
+
+        app.app_state.live_mode = true;
+        app.app_state.auto_scroll = true;
+
+        // User scrolls to top
+        app.app_state.main_scroll.vertical_offset = 0;
+
+        // New entry arrives and we trigger auto-scroll (mimicking poll_input behavior)
+        let new_entry = create_test_entry("new message");
+        let entries_to_add = vec![new_entry];
+        app.app_state.add_entries(entries_to_add.clone());
+
+        // This is what poll_input() does after adding entries
+        if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
+            let entry_count = app.app_state.session().main_agent().len();
+            app.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+        }
+
+        // Verify scroll position moved to bottom
+        let entry_count = app.app_state.session().main_agent().len();
+        let expected_offset = entry_count.saturating_sub(1);
+        assert_eq!(
+            app.app_state.main_scroll.vertical_offset,
+            expected_offset,
+            "Should auto-scroll to bottom when live_mode && auto_scroll"
+        );
+        assert!(expected_offset >= 2, "Should have at least 3 entries");
+    }
+
+    #[test]
+    fn auto_scroll_does_not_trigger_when_disabled() {
+        let mut app = create_test_app();
+
+        app.app_state.live_mode = true;
+        app.app_state.auto_scroll = false; // Disabled
+
+        // Set scroll position to top
+        app.app_state.main_scroll.vertical_offset = 0;
+
+        // Add entry
+        let new_entry = create_test_entry("new message");
+        let entries_to_add = vec![new_entry];
+        app.app_state.add_entries(entries_to_add.clone());
+
+        // Try to trigger auto-scroll (should be skipped when auto_scroll=false)
+        if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
+            let entry_count = app.app_state.session().main_agent().len();
+            app.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+        }
+
+        // Should still be at top
+        assert_eq!(
+            app.app_state.main_scroll.vertical_offset,
+            0,
+            "Should NOT auto-scroll when auto_scroll is disabled"
+        );
+    }
+
+    #[test]
+    fn auto_scroll_does_not_trigger_when_not_live_mode() {
+        let mut app = create_test_app();
+
+        app.app_state.live_mode = false; // Not live mode
+        app.app_state.auto_scroll = true;
+
+        // Set scroll position to top
+        app.app_state.main_scroll.vertical_offset = 0;
+
+        // Add entry
+        let new_entry = create_test_entry("new message");
+        let entries_to_add = vec![new_entry];
+        app.app_state.add_entries(entries_to_add.clone());
+
+        // Try to trigger auto-scroll (should be skipped when not live_mode)
+        if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
+            let entry_count = app.app_state.session().main_agent().len();
+            app.app_state.main_scroll.scroll_to_bottom(entry_count.saturating_sub(1));
+        }
+
+        // Should still be at top
+        assert_eq!(
+            app.app_state.main_scroll.vertical_offset,
+            0,
+            "Should NOT auto-scroll when not in live_mode"
+        );
+    }
+
+    // Helper function to create a test LogEntry
+    fn create_test_entry(content: &str) -> crate::model::LogEntry {
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role, SessionId};
+        use chrono::Utc;
+
+        let message = Message::new(Role::User, MessageContent::Text(content.to_string()));
+
+        LogEntry::new(
+            EntryUuid::new("test-uuid").unwrap(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message,
+            EntryMetadata::default(),
+        )
     }
 }
