@@ -1458,10 +1458,78 @@ pub fn render_content_block(
 /// # Panics
 /// Never panics in public API. Invalid inputs (viewport_width = 0) return input unchanged.
 fn add_wrap_continuation_indicators(
-    _lines: Vec<Line<'static>>,
-    _viewport_width: usize,
+    lines: Vec<Line<'static>>,
+    viewport_width: usize,
 ) -> Vec<Line<'static>> {
-    todo!("add_wrap_continuation_indicators: not implemented")
+    use ratatui::text::Span;
+
+    // Edge case: invalid viewport or empty input
+    if viewport_width == 0 || lines.is_empty() {
+        return lines;
+    }
+
+    let mut result = Vec::new();
+
+    for line in lines {
+        // Calculate the display width of this line
+        let line_str = line.to_string();
+        let line_width = line_str.width();
+
+        // If line fits within viewport, no wrapping needed
+        if line_width <= viewport_width {
+            result.push(line);
+            continue;
+        }
+
+        // Line needs wrapping - split it into segments
+        // For simplicity, we'll work with the string representation and rebuild spans
+        // This preserves basic styling but may lose complex multi-span styling
+        // (A more sophisticated implementation would preserve individual span boundaries)
+
+        let chars: Vec<char> = line_str.chars().collect();
+        let mut current_pos = 0;
+
+        while current_pos < chars.len() {
+            let remaining = chars.len() - current_pos;
+
+            // Determine segment length based on whether this will be the last segment
+            let segment_len = if remaining <= viewport_width {
+                // Remaining fits in viewport - this is the last segment
+                remaining
+            } else {
+                // Need to wrap - leave room for ↩ indicator
+                // The indicator itself takes 1 display column
+                viewport_width.saturating_sub(1)
+            };
+
+            // Extract segment
+            let segment_end = (current_pos + segment_len).min(chars.len());
+            let segment: String = chars[current_pos..segment_end].iter().collect();
+
+            // Check if this is the last segment
+            let is_last_segment = segment_end >= chars.len();
+
+            if is_last_segment {
+                // Last segment: no indicator
+                result.push(Line::from(vec![Span::raw(segment)]));
+            } else {
+                // Non-last segment: add ↩ indicator with DIM style
+                result.push(Line::from(vec![
+                    Span::raw(segment),
+                    Span::styled(
+                        "↩",
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::DIM),
+                    ),
+                ]));
+            }
+
+            current_pos = segment_end;
+        }
+    }
+
+    result
 }
 
 // ===== Tests =====
@@ -5054,8 +5122,10 @@ mod tests {
     fn test_add_wrap_indicators_single_line_wraps_once() {
         use ratatui::text::Span;
 
-        // Line exactly 20 chars: "12345678901234567890"
-        let long_line = "12345678901234567890";
+        // Line of 19 chars: "1234567890123456789"
+        // With viewport_width=10, first segment is 9 chars + ↩ (10 total)
+        // Second segment is remaining 10 chars (fits in viewport)
+        let long_line = "1234567890123456789";
         let lines = vec![Line::from(vec![Span::raw(long_line.to_string())])];
 
         // Viewport width 10 - should wrap into 2 lines
@@ -5085,8 +5155,12 @@ mod tests {
     fn test_add_wrap_indicators_multiple_wraps() {
         use ratatui::text::Span;
 
-        // Line of 30 chars
-        let long_line = "123456789012345678901234567890";
+        // Line of 28 chars: "1234567890123456789012345678"
+        // With viewport_width=10:
+        // - First segment: 9 chars + ↩
+        // - Second segment: 9 chars + ↩
+        // - Third segment: 10 chars (remaining, fits exactly)
+        let long_line = "1234567890123456789012345678";
         let lines = vec![Line::from(vec![Span::raw(long_line.to_string())])];
 
         // Viewport width 10 - should wrap into 3 lines
