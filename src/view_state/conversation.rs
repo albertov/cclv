@@ -190,6 +190,17 @@ impl ConversationViewState {
         self.model.as_ref()
     }
 
+    /// Set model information if not already set.
+    /// Returns true if model was set, false if already had a model.
+    pub fn set_model_if_none(&mut self, model: crate::model::ModelInfo) -> bool {
+        if self.model.is_none() {
+            self.model = Some(model);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Get model ID from first system:init entry.
     #[deprecated(note = "Use model() instead - this is for backward compatibility")]
     pub fn model_id(&self) -> Option<&str> {

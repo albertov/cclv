@@ -144,7 +144,24 @@ impl SessionViewState {
 
     /// Add entry to subagent conversation.
     /// Creates the subagent view-state eagerly via subagent_mut().
+    ///
+    /// # Model Extraction (cclv-5ur.40.13)
+    /// If the entry is an assistant message with a model field, and the subagent
+    /// has no model yet, extracts and stores the model in ConversationViewState.
     pub fn add_subagent_entry(&mut self, agent_id: AgentId, entry: ConversationEntry) {
+        // Extract model from assistant message if present (cclv-5ur.40.13)
+        if let ConversationEntry::Valid(log_entry) = &entry {
+            if let Some(model) = log_entry.message().model() {
+                // Clone model before getting mutable reference to avoid borrow checker issues
+                let model_clone = model.clone();
+                let subagent = self.subagent_mut(&agent_id);
+                subagent.set_model_if_none(model_clone);
+                subagent.append_entries(vec![entry]);
+                return;
+            }
+        }
+
+        // No model to extract, just append
         self.subagent_mut(&agent_id).append_entries(vec![entry]);
     }
 
