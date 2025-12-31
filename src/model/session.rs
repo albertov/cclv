@@ -67,7 +67,9 @@
 //! - **Automatic routing**: Session handles routing logic; callers just add entries
 //! - **Graceful degradation**: Malformed entries and incomplete subagents are preserved
 
-use crate::model::{AgentId, ConversationEntry, LogEntry, MalformedEntry, ModelInfo, SessionId};
+use crate::model::{
+    AgentId, ConversationEntry, LogEntry, MalformedEntry, ModelInfo, SessionId, SystemMetadata,
+};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
@@ -294,6 +296,33 @@ impl AgentConversation {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    /// Find the system:init entry in this conversation and return its metadata.
+    ///
+    /// Returns the system metadata from the first System entry with subtype "init".
+    /// Returns `None` if no system:init entry is found.
+    pub fn system_init_metadata(&self) -> Option<&SystemMetadata> {
+        self.entries
+            .iter()
+            .filter_map(|conv_entry| match conv_entry {
+                ConversationEntry::Valid(log_entry) => log_entry
+                    .system_metadata()
+                    .filter(|&sys_meta| sys_meta.subtype == "init"),
+                ConversationEntry::Malformed(_) => None,
+            })
+            .next()
+    }
+}
+
+impl Session {
+    /// Get session metadata from the system:init entry.
+    ///
+    /// Returns system metadata (cwd, model, tools, agents, skills) from the
+    /// first system:init entry in the main agent's conversation.
+    /// Returns `None` if no system:init entry exists.
+    pub fn system_metadata(&self) -> Option<&SystemMetadata> {
+        self.main_agent.system_init_metadata()
+    }
 }
 
 // ===== Tests =====
@@ -301,7 +330,9 @@ impl AgentConversation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{EntryMetadata, EntryType, EntryUuid, Message, MessageContent, Role};
+    use crate::model::{
+        EntryMetadata, EntryType, EntryUuid, Message, MessageContent, Role, SystemMetadata,
+    };
 
     // ===== Test Helpers =====
 
@@ -851,5 +882,175 @@ mod tests {
         assert!(conv.entries()[0].is_valid());
         assert!(conv.entries()[1].is_malformed());
         assert!(conv.entries()[2].is_valid());
+    }
+
+    // ===== Session::system_metadata() Tests (FMT-011) =====
+
+    #[test]
+    fn session_system_metadata_returns_none_when_no_system_init_entry() {
+        let session = Session::new(make_session_id("session-1"));
+
+        // No system:init entry added yet
+        assert!(
+            session.system_metadata().is_none(),
+            "Should return None when no system:init entry exists"
+        );
+    }
+
+    #[test]
+    fn session_system_metadata_returns_some_when_system_init_exists() {
+        use std::path::PathBuf;
+
+        let mut session = Session::new(make_session_id("session-1"));
+
+        // Create system:init entry with metadata
+        let sys_meta = SystemMetadata {
+            subtype: "init".to_string(),
+            cwd: Some(PathBuf::from("/home/claude/cclv")),
+            model: Some("claude-opus-4-5-20251101".to_string()),
+            tools: vec!["Read".to_string(), "Write".to_string(), "Bash".to_string()],
+            agents: vec!["general-purpose".to_string()],
+            skills: vec!["commit".to_string(), "test-driven-development".to_string()],
+        };
+
+        let entry = LogEntry::new_with_system_metadata(
+            make_entry_uuid("sys-init-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            make_timestamp(),
+            EntryType::System,
+            make_message(),
+            EntryMetadata::default(),
+            Some(sys_meta),
+        );
+
+        session.add_entry(entry);
+
+        // Should find the system metadata
+        let metadata = session
+            .system_metadata()
+            .expect("Should have system metadata");
+
+        assert_eq!(metadata.subtype, "init");
+        assert_eq!(metadata.cwd, Some(PathBuf::from("/home/claude/cclv")));
+        assert_eq!(
+            metadata.model,
+            Some("claude-opus-4-5-20251101".to_string())
+        );
+        assert_eq!(metadata.tools.len(), 3);
+        assert_eq!(metadata.agents.len(), 1);
+        assert_eq!(metadata.skills.len(), 2);
+    }
+
+    #[test]
+    fn session_system_metadata_finds_first_system_init_entry() {
+        use std::path::PathBuf;
+
+        let mut session = Session::new(make_session_id("session-1"));
+
+        // Add a non-system entry first
+        let user_entry = LogEntry::new(
+            make_entry_uuid("user-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            make_timestamp(),
+            EntryType::User,
+            make_message(),
+            EntryMetadata::default(),
+        );
+        session.add_entry(user_entry);
+
+        // Add system:init entry
+        let sys_meta_first = SystemMetadata {
+            subtype: "init".to_string(),
+            cwd: Some(PathBuf::from("/first")),
+            model: Some("model-first".to_string()),
+            tools: vec!["Tool1".to_string()],
+            agents: vec![],
+            skills: vec![],
+        };
+
+        let sys_entry_first = LogEntry::new_with_system_metadata(
+            make_entry_uuid("sys-init-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            make_timestamp_offset(1),
+            EntryType::System,
+            make_message(),
+            EntryMetadata::default(),
+            Some(sys_meta_first),
+        );
+        session.add_entry(sys_entry_first);
+
+        // Add another system entry (should not be returned)
+        let sys_meta_second = SystemMetadata {
+            subtype: "init".to_string(),
+            cwd: Some(PathBuf::from("/second")),
+            model: Some("model-second".to_string()),
+            tools: vec!["Tool2".to_string()],
+            agents: vec![],
+            skills: vec![],
+        };
+
+        let sys_entry_second = LogEntry::new_with_system_metadata(
+            make_entry_uuid("sys-init-2"),
+            None,
+            make_session_id("session-1"),
+            None,
+            make_timestamp_offset(2),
+            EntryType::System,
+            make_message(),
+            EntryMetadata::default(),
+            Some(sys_meta_second),
+        );
+        session.add_entry(sys_entry_second);
+
+        // Should return the FIRST system:init entry
+        let metadata = session
+            .system_metadata()
+            .expect("Should have system metadata");
+
+        assert_eq!(metadata.cwd, Some(PathBuf::from("/first")));
+        assert_eq!(metadata.model, Some("model-first".to_string()));
+        assert_eq!(metadata.tools, vec!["Tool1".to_string()]);
+    }
+
+    #[test]
+    fn session_system_metadata_only_looks_in_main_agent() {
+        use std::path::PathBuf;
+
+        let mut session = Session::new(make_session_id("session-1"));
+
+        // Add system:init to a subagent (should be ignored)
+        let sys_meta = SystemMetadata {
+            subtype: "init".to_string(),
+            cwd: Some(PathBuf::from("/subagent")),
+            model: Some("subagent-model".to_string()),
+            tools: vec!["SubTool".to_string()],
+            agents: vec![],
+            skills: vec![],
+        };
+
+        let subagent_entry = LogEntry::new_with_system_metadata(
+            make_entry_uuid("sub-sys-1"),
+            None,
+            make_session_id("session-1"),
+            Some(make_agent_id("agent-abc")), // This is a subagent entry
+            make_timestamp(),
+            EntryType::System,
+            make_message(),
+            EntryMetadata::default(),
+            Some(sys_meta),
+        );
+        session.add_entry(subagent_entry);
+
+        // Should NOT find system metadata from subagent
+        assert!(
+            session.system_metadata().is_none(),
+            "Should only look in main agent, not subagents"
+        );
     }
 }

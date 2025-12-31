@@ -1748,3 +1748,88 @@ fn buffer_to_string(buffer: &ratatui::buffer::Buffer) -> String {
     }
     lines.join("\n")
 }
+
+// ===== FMT-011: Session Metadata Display Tests =====
+
+#[test]
+fn render_header_shows_session_metadata_when_available() {
+    use crate::model::{
+        EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
+        SystemMetadata,
+    };
+    use chrono::Utc;
+    use std::path::PathBuf;
+
+    let mut terminal = create_test_terminal();
+    let session_id = SessionId::new("test-session").unwrap();
+    let mut session = Session::new(session_id);
+
+    // Add system:init entry with metadata
+    let sys_meta = SystemMetadata {
+        subtype: "init".to_string(),
+        cwd: Some(PathBuf::from("/home/claude/cclv")),
+        model: Some("claude-opus-4-5-20251101".to_string()),
+        tools: vec!["Read".to_string(), "Write".to_string(), "Bash".to_string()],
+        agents: vec!["general-purpose".to_string()],
+        skills: vec!["commit".to_string(), "tdd".to_string()],
+    };
+
+    let entry = LogEntry::new_with_system_metadata(
+        EntryUuid::new("sys-init-1").unwrap(),
+        None,
+        SessionId::new("test-session").unwrap(),
+        None,
+        Utc::now(),
+        EntryType::System,
+        Message::new(Role::User, MessageContent::Text("init".to_string())),
+        EntryMetadata::default(),
+        Some(sys_meta),
+    );
+    session.add_entry(entry);
+
+    let app_state = AppState::new(session);
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &app_state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer();
+    let rendered = buffer_to_string(buffer);
+
+    // Header should contain working directory
+    assert!(
+        rendered.contains("/home/claude/cclv"),
+        "Header should display cwd from system metadata"
+    );
+
+    // Header should contain tool count
+    assert!(
+        rendered.contains("3 tools") || rendered.contains("Tools: 3"),
+        "Header should display tool count"
+    );
+}
+
+#[test]
+fn render_header_shows_fallback_when_no_system_metadata() {
+    let mut terminal = create_test_terminal();
+    let session = create_session_no_subagents();
+    let app_state = AppState::new(session);
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &app_state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer();
+    let rendered = buffer_to_string(buffer);
+
+    // Should still render the header without crashing
+    // Just verify it contains "Model:" text (doesn't crash on None)
+    assert!(
+        rendered.contains("Model:"),
+        "Header should render successfully even without system metadata"
+    );
+}

@@ -404,10 +404,11 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(paragraph, area);
 }
 
-/// Render the header bar showing model name, agent ID, and live indicator.
+/// Render the header bar showing model name, agent ID, and session metadata.
 ///
 /// Displays:
 /// - Model name (from ModelInfo.display_name()) for current conversation
+/// - Session metadata (cwd, tools count, agents count, skills count) from system:init
 /// - [LIVE] indicator when live_mode && auto_scroll are both true
 /// - Agent identifier based on focused pane (Main Agent vs subagent ID)
 fn render_header(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -444,8 +445,30 @@ fn render_header(frame: &mut Frame, area: Rect, state: &AppState) {
         ""
     };
 
-    // Format: "Model: Sonnet | Main Agent [LIVE]"
-    let header_text = format!("Model: {} | {}{}", model_name, agent_label, live_indicator);
+    // Get session metadata from system:init entry
+    let metadata_text = if let Some(sys_meta) = state.session().system_metadata() {
+        let cwd_display = sys_meta
+            .cwd
+            .as_ref()
+            .and_then(|p| p.to_str())
+            .unwrap_or("?");
+        let tools_count = sys_meta.tools.len();
+        let agents_count = sys_meta.agents.len();
+        let skills_count = sys_meta.skills.len();
+
+        format!(
+            " | {} | {} tools, {} agents, {} skills",
+            cwd_display, tools_count, agents_count, skills_count
+        )
+    } else {
+        String::new()
+    };
+
+    // Format: "Model: Sonnet | Main Agent [LIVE] | /path | 45 tools, 3 agents, 20 skills"
+    let header_text = format!(
+        "Model: {} | {}{}{}",
+        model_name, agent_label, live_indicator, metadata_text
+    );
 
     let style = if state.live_mode && state.auto_scroll {
         Style::default().fg(Color::Green)
