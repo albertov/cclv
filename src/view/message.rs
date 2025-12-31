@@ -8,7 +8,7 @@ use crate::model::{AgentConversation, ContentBlock, ToolCall};
 use crate::state::ScrollState;
 use ratatui::{
     layout::Rect,
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
     Frame,
@@ -84,8 +84,28 @@ pub fn render_conversation_view(
 ///
 /// # Returns
 /// Vector of ratatui `Line` objects representing the rendered tool use block
-pub fn render_tool_use(_tool_call: &ToolCall) -> Vec<Line<'static>> {
-    todo!("render_tool_use")
+pub fn render_tool_use(tool_call: &ToolCall) -> Vec<Line<'static>> {
+    use ratatui::text::Span;
+
+    let mut lines = Vec::new();
+
+    // Tool name header
+    let tool_name = tool_call.name().as_str();
+    let header = format!("🔧 Tool: {}", tool_name);
+    lines.push(Line::from(vec![Span::styled(
+        header,
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )]));
+
+    // Tool input/parameters
+    let input_json = serde_json::to_string_pretty(tool_call.input()).unwrap_or_default();
+    for line in input_json.lines() {
+        lines.push(Line::from(format!("  {}", line)));
+    }
+
+    lines
 }
 
 #[allow(dead_code)] // Stub - tests will use this
@@ -101,8 +121,21 @@ pub fn render_tool_use(_tool_call: &ToolCall) -> Vec<Line<'static>> {
 ///
 /// # Returns
 /// Vector of ratatui `Line` objects representing the rendered tool result
-pub fn render_tool_result(_content: &str, _is_error: bool) -> Vec<Line<'static>> {
-    todo!("render_tool_result")
+pub fn render_tool_result(content: &str, is_error: bool) -> Vec<Line<'static>> {
+    use ratatui::text::Span;
+
+    let mut lines = Vec::new();
+
+    for line in content.lines() {
+        let rendered_line = if is_error {
+            Line::from(vec![Span::styled(line.to_string(), Style::default().fg(Color::Red))])
+        } else {
+            Line::from(line.to_string())
+        };
+        lines.push(rendered_line);
+    }
+
+    lines
 }
 
 #[allow(dead_code)] // Stub - tests will use this
@@ -115,8 +148,32 @@ pub fn render_tool_result(_content: &str, _is_error: bool) -> Vec<Line<'static>>
 ///
 /// # Returns
 /// Vector of ratatui `Line` objects representing the rendered block
-pub fn render_content_block(_block: &ContentBlock) -> Vec<Line<'static>> {
-    todo!("render_content_block")
+pub fn render_content_block(block: &ContentBlock) -> Vec<Line<'static>> {
+    use ratatui::text::Span;
+
+    match block {
+        ContentBlock::Text { text } => text
+            .lines()
+            .map(|line| Line::from(line.to_string()))
+            .collect(),
+        ContentBlock::ToolUse(tool_call) => render_tool_use(tool_call),
+        ContentBlock::ToolResult {
+            tool_use_id: _,
+            content,
+            is_error,
+        } => render_tool_result(content, *is_error),
+        ContentBlock::Thinking { thinking } => thinking
+            .lines()
+            .map(|line| {
+                Line::from(vec![Span::styled(
+                    line.to_string(),
+                    Style::default()
+                        .add_modifier(Modifier::ITALIC)
+                        .add_modifier(Modifier::DIM),
+                )])
+            })
+            .collect(),
+    }
 }
 
 // ===== Tests =====
@@ -125,7 +182,6 @@ pub fn render_content_block(_block: &ContentBlock) -> Vec<Line<'static>> {
 mod tests {
     use super::*;
     use crate::model::{ToolName, ToolUseId};
-    use ratatui::style::Stylize;
 
     // ===== render_tool_use Tests =====
 
