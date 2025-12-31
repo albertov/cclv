@@ -205,6 +205,7 @@ impl AcceptanceTestHarness {
     /// # Returns
     /// * `true` - App is running normally
     /// * `false` - App has quit or crashed
+    #[allow(dead_code)]
     pub fn is_running(&self) -> bool {
         self.running
     }
