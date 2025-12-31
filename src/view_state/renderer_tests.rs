@@ -971,7 +971,12 @@ fn test_initial_prompt_label_appears_for_first_entry_in_subagent_view() {
     );
 
     // Verify the label has Magenta color and Bold modifier
-    let label_span = &lines[0].spans[0];
+    // Note: With entry_index prefix, first span is "   1│" (index), second span is the label
+    let label_span = if lines[0].spans.len() > 1 {
+        &lines[0].spans[1] // Second span after index prefix
+    } else {
+        &lines[0].spans[0] // No index prefix
+    };
     assert_eq!(
         label_span.style.fg,
         Some(ratatui::style::Color::Magenta),

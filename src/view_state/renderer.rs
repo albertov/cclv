@@ -87,7 +87,7 @@ pub fn compute_entry_lines(
     summary_lines: usize,
     styles: &MessageStyles,
     entry_index: Option<usize>,
-    _is_subagent_view: bool,
+    is_subagent_view: bool,
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 
@@ -105,6 +105,17 @@ pub fn compute_entry_lines(
 
     // Get role-based style for this entry
     let role_style = styles.style_for_role(message.role());
+
+    // Add "Initial Prompt" label for first message in subagent view (FR-XXX)
+    // This label appears BEFORE the entry content and gets the entry index prefix
+    if is_subagent_view && entry_index == Some(0) {
+        lines.push(Line::from(vec![Span::styled(
+            "🔷 Initial Prompt",
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+        )]));
+    }
 
     // Handle message content
     match message.content() {
