@@ -259,7 +259,7 @@ A developer is looking for a specific piece of information in a long session. Th
 - **SC-004**: Application startup to first render takes less than 1 second for typical log files (<10MB)
 - **SC-005**: Memory usage proportional to file size (v1 loads entire file; future versions may optimize)
 - **SC-006**: Users can perform all primary actions (view, navigate, search, view stats) using only keyboard
-- **SC-007**: 90% of users can identify which model is being used and current tool being called within 5 seconds of viewing
+- **SC-007**: Model name MUST be displayed in the header bar; current tool call MUST be visible in the message stream. (User research metric: 90% identification within 5 seconds - verified manually)
 
 ## Technical Constraints
 

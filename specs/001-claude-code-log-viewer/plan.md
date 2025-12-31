@@ -407,7 +407,8 @@ Static binaries:
 | Polish | cclv-07v.8 | ✅ Complete | Theme selection, snapshot tests |
 | Line Wrapping | cclv-07v.9 | ✅ Complete | Core + per-entry + section-level rendering |
 | Logging Pane | cclv-07v.9.17 | ✅ Complete | Toggleable bottom panel, ring buffer, severity badges |
-| **JSONL Format Fix** | cclv-07v.11 | 🔲 **NEW P0** | **Parser cannot parse actual Claude Code output** |
+| JSONL Format Fix | cclv-07v.11 | ✅ Complete | Parser matches actual Claude Code output |
+| **Acceptance Testing** | cclv-31l | 🔲 **NEW P1** | **Automated end-to-end acceptance tests** |
 
 ---
 
@@ -990,6 +991,265 @@ pub struct TokenUsage {
 
 ---
 
+## Phase: Acceptance Testing (cclv-31l)
+
+**Purpose**: Add automated end-to-end acceptance tests for all user stories using a layered testing approach. The primary goal is to catch regressions like the scroll crash bug, verify all acceptance scenarios, and enable confident refactoring.
+
+**Discovered Issue**: App crashes when scrolling down 4-5 times in the real session log. This must be caught by acceptance tests.
+
+### Testing Strategy: Layered Approach
+
+Based on research into TUI testing best practices, we implement two complementary testing layers:
+
+| Layer | Approach | Speed | Use Case |
+|-------|----------|-------|----------|
+| **Layer 1** | TestBackend + handle_key | ⚡ Fast | State verification, crash detection, unit-level |
+| **Layer 2** | expectrl (Rust pexpect) | 🐢 Slow | True E2E smoke tests, process-level |
+
+### Existing Test Infrastructure (Leverage)
+
+The codebase already has excellent foundations:
+
+```text
+tests/
+├── view_snapshots.rs       # TestBackend + insta (widget snapshots) ✅
+├── property_tests.rs       # proptest (invariants) ✅
+├── parse_real_logs.rs      # Integration (fixture parsing) ✅
+├── tui_integration.rs      # Basic TUI tests ✅
+├── key_action_tests.rs     # Key binding tests ✅
+├── log_pane_integration_test.rs  # Log pane tests ✅
+├── wrap_property_tests.rs  # Wrap feature tests ✅
+└── fixtures/
+    └── cc-session-log.jsonl  # Real 180MB session log ✅
+```
+
+**Key Insight**: `TuiApp<B>` is already generic over backend, and `create_test_app()` helper exists. The infrastructure is mostly there.
+
+### Layer 1: TestBackend Acceptance Tests (Primary)
+
+Extend the existing TestBackend pattern to cover all user story acceptance scenarios.
+
+#### Architecture
+
+```rust
+/// Test harness for acceptance testing
+pub struct AcceptanceTestHarness {
+    app: TuiApp<TestBackend>,
+    width: u16,
+    height: u16,
+}
+
+impl AcceptanceTestHarness {
+    /// Load fixture into test app
+    pub fn from_fixture(path: &str) -> Result<Self, TuiError>;
+
+    /// Load fixture with custom terminal size
+    pub fn from_fixture_with_size(path: &str, width: u16, height: u16) -> Result<Self, TuiError>;
+
+    /// Send a single key event
+    pub fn send_key(&mut self, key: KeyCode) -> bool;
+
+    /// Send key with modifiers
+    pub fn send_key_with_mods(&mut self, key: KeyCode, mods: KeyModifiers) -> bool;
+
+    /// Send a sequence of keys
+    pub fn send_keys(&mut self, keys: &[KeyCode]);
+
+    /// Type text (for search input)
+    pub fn type_text(&mut self, text: &str);
+
+    /// Force render and return buffer as string
+    pub fn render_to_string(&mut self) -> String;
+
+    /// Assert snapshot of current render
+    pub fn assert_snapshot(&mut self, name: &str);
+
+    /// Access app state for assertions
+    pub fn state(&self) -> &AppState;
+
+    /// Check if app is still running (didn't crash/quit)
+    pub fn is_running(&self) -> bool;
+}
+```
+
+#### Test Coverage by User Story
+
+**US1 - Monitor Live Agent Session (8 scenarios)**:
+- `us1_scenario1_realtime_display`: Load fixture, verify entries displayed
+- `us1_scenario2_stdin_input`: Test stdin source handling
+- `us1_scenario3_subagent_tab_appears`: Verify subagent tabs created
+- `us1_scenario4_tool_calls_display`: Check tool call rendering
+- `us1_scenario5_model_name_header`: Verify model in header
+- `us1_scenario6_auto_scroll_on_new`: Live mode scrolls to new content
+- `us1_scenario7_auto_scroll_pause`: Scrolling up pauses auto-scroll
+- `us1_scenario8_auto_scroll_resume`: Scroll to bottom resumes
+
+**US2 - Analyze Completed Session (7 scenarios)**:
+- `us2_scenario1_load_navigate`: Load full fixture, scroll without crash
+- `us2_scenario2_switch_subagent_tabs`: Tab navigation works
+- `us2_scenario3_search_highlight`: Search highlights matches
+- `us2_scenario4_markdown_rendering`: Code blocks syntax highlighted
+- `us2_scenario5_collapse_default`: Long messages collapsed
+- `us2_scenario6_expand_message`: Expand works
+- `us2_scenario7_collapse_message`: Collapse works
+
+**US3 - Usage Statistics (4 scenarios)**:
+- `us3_scenario1_stats_display`: Stats panel shows tokens/cost
+- `us3_scenario2_filter_main_agent`: Filter works
+- `us3_scenario3_tool_breakdown`: Tool counts displayed
+- `us3_scenario4_filter_subagent`: Subagent filter works
+
+**US4 - Keyboard Navigation (8 scenarios)**:
+- `us4_scenario1_tab_cycles_focus`: Tab key cycles panes
+- `us4_scenario2_arrow_switches_tabs`: Arrow keys in subagent pane
+- `us4_scenario3_jk_scroll`: j/k scroll messages
+- `us4_scenario4_slash_search`: / activates search
+- `us4_scenario5_n_N_matches`: n/N navigate matches
+- `us4_scenario6_enter_expands`: Enter expands message
+- `us4_scenario7_enter_collapses`: Enter collapses expanded
+- `us4_scenario8_horizontal_scroll`: h/l scroll horizontally
+
+**US5 - Search (4 scenarios)**:
+- `us5_scenario1_search_highlights`: Search term highlighted
+- `us5_scenario2_tab_indicators`: Tabs with matches indicated
+- `us5_scenario3_navigate_to_match`: Jump to match in subagent
+- `us5_scenario4_clear_search`: Esc clears highlighting
+
+**Crash Regression Tests**:
+- `crash_scroll_down_many_times`: Scroll down 20 times without crash
+- `crash_scroll_up_past_top`: Scroll up from top doesn't crash
+- `crash_rapid_tab_switching`: Fast tab switching doesn't crash
+- `crash_search_empty_results`: Search with no matches doesn't crash
+- `crash_large_fixture_navigation`: Full fixture navigation works
+
+### Layer 2: expectrl Smoke Tests (Secondary)
+
+True end-to-end tests that spawn the actual binary. Slower but catches process-level issues.
+
+#### Design
+
+```rust
+// tests/e2e_smoke.rs
+use expectrl::spawn;
+use std::time::Duration;
+
+/// Smoke test: app starts and quits cleanly
+#[test]
+#[cfg(feature = "e2e-tests")]
+fn smoke_app_starts_and_quits() {
+    let mut session = spawn("cargo run -- tests/fixtures/minimal_session.jsonl")
+        .expect("Failed to spawn app");
+
+    // Wait for app to render
+    session.expect_timeout("Session", Duration::from_secs(5))
+        .expect("App should display session");
+
+    // Quit
+    session.send("q").expect("Failed to send quit");
+    session.expect_eof().expect("App should exit cleanly");
+}
+
+/// Smoke test: scrolling doesn't crash
+#[test]
+#[cfg(feature = "e2e-tests")]
+fn smoke_scroll_does_not_crash() {
+    let mut session = spawn("cargo run -- tests/fixtures/cc-session-log.jsonl")
+        .expect("Failed to spawn app");
+
+    // Wait for load
+    session.expect_timeout("Session", Duration::from_secs(10))
+        .expect("App should load large fixture");
+
+    // Scroll down many times
+    for _ in 0..20 {
+        session.send("\x1b[B").expect("Failed to send down arrow");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    // Quit - if we get here, no crash
+    session.send("q").expect("Failed to send quit");
+    session.expect_eof().expect("App should exit cleanly");
+}
+
+/// Smoke test: search functionality
+#[test]
+#[cfg(feature = "e2e-tests")]
+fn smoke_search_works() {
+    let mut session = spawn("cargo run -- tests/fixtures/minimal_session.jsonl")
+        .expect("Failed to spawn app");
+
+    session.expect_timeout("Session", Duration::from_secs(5)).unwrap();
+
+    // Open search
+    session.send("/").expect("Failed to open search");
+    session.expect_timeout("Search:", Duration::from_secs(1)).unwrap();
+
+    // Type and submit
+    session.send("test\n").expect("Failed to search");
+
+    // Quit
+    session.send("\x1b").expect("Failed to escape");  // Escape
+    session.send("q").expect("Failed to quit");
+    session.expect_eof().unwrap();
+}
+```
+
+**Note**: E2E tests are gated behind the `e2e-tests` feature flag. Run with:
+```bash
+cargo test --features e2e-tests
+```
+
+### Dependencies
+
+```toml
+# Cargo.toml additions
+
+[features]
+e2e-tests = ["dep:expectrl"]  # Enable E2E smoke tests
+
+[dev-dependencies]
+# ... existing ...
+expectrl = { version = "0.7", optional = true }  # For E2E smoke tests
+```
+
+### Tasks
+
+| Bead | Task | Description | Priority |
+|------|------|-------------|----------|
+| cclv-31l.1 | AT-001 | Create AcceptanceTestHarness with from_fixture(), send_key() | P1 |
+| cclv-31l.4 | AT-002 | Add render_to_string() and assert_snapshot() to harness | P1 |
+| cclv-31l.5 | AT-003 | Implement US1 acceptance tests (8 scenarios) | P1 |
+| cclv-31l.6 | AT-004 | Implement US2 acceptance tests (7 scenarios) | P1 |
+| cclv-31l.7 | AT-005 | Implement US3 acceptance tests (4 scenarios) | P1 |
+| cclv-31l.8 | AT-006 | Implement US4 acceptance tests (8 scenarios) | P1 |
+| cclv-31l.9 | AT-007 | Implement US5 acceptance tests (4 scenarios) | P1 |
+| cclv-31l.2 | AT-008 | Implement crash regression tests (5 scenarios) | P0 |
+| cclv-31l.10 | AT-009 | Add expectrl dependency and smoke test module | P2 |
+| cclv-31l.11 | AT-010 | Implement expectrl smoke tests (startup, scroll, search) | P2 |
+| cclv-31l.12 | AT-011 | Add CI workflow for acceptance tests | P2 |
+| cclv-31l.3 | AT-012 | Fix scroll crash bug discovered by tests | P0 |
+
+### Risk Mitigation
+
+| Risk | Mitigation |
+|------|------------|
+| TestBackend doesn't catch rendering bugs | Layer 2 expectrl tests verify actual output |
+| expectrl tests are flaky (timing) | Use generous timeouts, mark as #[ignore] for regular runs |
+| Large fixture slows CI | Keep full fixture tests in separate feature flag |
+| Terminal size variations | Test at multiple sizes (80x24, 120x40, minimal 40x10) |
+
+### Verification Criteria
+
+1. **All 31 acceptance scenarios pass**: Each user story scenario has a passing test
+2. **Crash regression caught**: Scroll test reproduces and verifies fix of scroll bug
+3. **Full fixture test**: App loads and navigates 180MB fixture without crash
+4. **CI integration**: Tests run automatically on PR
+5. **Smoke tests pass**: expectrl tests verify real binary behavior
+
+**Checkpoint**: `cargo test --test acceptance` passes all scenarios; `cargo test --features e2e-tests` runs E2E smoke tests.
+
+---
+
 ## Generated Artifacts
 
 | Artifact | Path | Status |
@@ -1002,29 +1262,38 @@ pub struct TokenUsage {
 | Nix Flake | flake.nix | ✅ Implemented |
 | Dev Shell | nix/devshell.nix | ✅ Implemented |
 | Formatter Config | nix/treefmt.nix | ✅ Implemented |
-| Source Code | src/ | ✅ Complete (pending JSONL format fix) |
+| Source Code | src/ | ✅ Complete |
+| Acceptance Tests | tests/acceptance.rs, tests/e2e_smoke.rs | 🔲 Planned (cclv-31l) |
 
 ---
 
-## Next Steps
+## Current Status
 
-1. **Fix JSONL Format Compatibility (cclv-07v.11)** - **CRITICAL P0** from spec clarification 2025-12-26:
-   - Parser cannot parse actual Claude Code JSONL output (fails dogfooding)
-   - See new "Phase: JSONL Format Fix" section below
+**Active Work**: Acceptance Testing (cclv-31l) - 12 open tasks
 
-2. All other phases complete - see Recently Completed below
+| Task | Priority | Status |
+|------|----------|--------|
+| AT-012: Fix scroll crash bug | P0 | Open (cclv-31l.3) |
+| AT-008: Crash regression tests | P0 | Open (cclv-31l.2) |
+| AT-001 to AT-007: User story tests | P1 | Open |
+| AT-009 to AT-011: E2E smoke tests | P2 | Open |
 
-### Recently Completed
+**All Core Implementation Complete**:
+- ✅ Setup, Foundational, US1-US5, Polish phases
+- ✅ Line Wrapping (FR-039 to FR-053)
+- ✅ Logging Pane (FR-054 to FR-060)
+- ✅ JSONL Format Compatibility (FR-009a to FR-009d)
 
-- ✅ **Section-Level Rendering** (cclv-07v.9.20): Code blocks don't wrap, prose wraps within same entry
-- ✅ **Theme selection** (cclv-07v.8.7): Theme field in CLI args
-- ✅ **Snapshot tests** (cclv-07v.8.9): Key view component snapshots
-- ✅ **Line Wrapping core** (cclv-07v.9.1–9.13): WrapMode, per-item toggle, wrap indicators, status bar
-- ✅ **Per-entry Paragraph refactor** (cclv-07v.9.14): Architecture supports per-item wrap settings
-- ✅ **Logging Pane** (cclv-07v.9.17): Toggleable bottom panel, ring buffer, severity badges
-- ✅ **Config file loading** (cclv-07v.8.8): TOML config with precedence chain
+### Known Issues
 
-### Critical Blocker
+| Bead | Severity | Description |
+|------|----------|-------------|
+| cclv-31l.3 | P0 | Scroll crash when navigating large files (AT-012) |
 
-⚠️ **JSONL Format Fix (cclv-07v.11)** - The application cannot parse actual Claude Code session logs due to format mismatches between the parser's expected format and actual output. This blocks the primary dogfooding use case.
+### Remaining Work
+
+1. **P0**: Fix scroll crash (cclv-31l.3) - blocks acceptance testing
+2. **P1**: Complete acceptance test harness and user story tests
+3. **P2**: Add expectrl E2E smoke tests and CI integration
+4. **Future**: Performance benchmarking, user documentation
 
