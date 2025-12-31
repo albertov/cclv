@@ -33,8 +33,8 @@ fn crash_scroll_down_many_times() {
     // DOING: Load fixture and scroll down 20 times
     // EXPECT: App should remain running throughout
 
-    let mut harness = AcceptanceTestHarness::from_fixture(MINIMAL_SESSION)
-        .expect("Should load minimal session fixture");
+    let mut harness = AcceptanceTestHarness::from_fixture(LARGE_FIXTURE)
+        .expect("Should load large fixture to test scroll crash bug");
 
     // Verify initial state
     assert!(
