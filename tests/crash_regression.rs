@@ -283,3 +283,100 @@ fn crash_large_fixture_navigation() {
         "App should remain running after extensive navigation in 180MB fixture"
     );
 }
+
+/// Test: Buffer bounds crash regression (cclv-31l.13)
+///
+/// Specific test for the buffer index out of bounds crash:
+/// "index outside of buffer: the area is Rect { x: 0, y: 0, width: 181, height: 46 }
+///  but index is (1, 46)"
+///
+/// The issue is that view rendering writes to y=46 which is outside buffer height (0-45).
+/// This is an off-by-one error in scroll/cursor position calculation that fails to clamp
+/// to viewport bounds.
+///
+/// EXPECT: App survives scrolling and rendering without buffer bounds panic
+#[test]
+fn crash_buffer_bounds_regression() {
+    // DOING: Load large fixture with specific terminal size matching crash report
+    // EXPECT: Reproduce buffer bounds crash scenario
+
+    let mut harness = AcceptanceTestHarness::from_fixture_with_size(LARGE_FIXTURE, 181, 46)
+        .expect("Should load large fixture with crash dimensions");
+
+    assert!(
+        harness.is_running(),
+        "Should start running with large fixture"
+    );
+
+    // The crash occurs when rendering writes beyond viewport bounds
+    // This happens during scrolling when y coordinates aren't properly clamped
+
+    // Scroll down and render to trigger the crash scenario
+    for i in 0..10 {
+        harness.send_key(KeyCode::Char('j'));
+
+        // Explicitly render to catch buffer bounds panics
+        // The panic occurs during rendering, not during key handling
+        let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            harness.render_to_string()
+        }));
+
+        assert!(
+            render_result.is_ok(),
+            "App crashed during rendering on scroll iteration {} - buffer bounds check failed (y=46 in height=46 buffer)",
+            i + 1
+        );
+
+        assert!(
+            harness.is_running(),
+            "App should still be running after scroll iteration {}",
+            i + 1
+        );
+    }
+
+    // Scroll down more aggressively
+    for i in 0..20 {
+        harness.send_key(KeyCode::Char('j'));
+
+        let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            harness.render_to_string()
+        }));
+
+        assert!(
+            render_result.is_ok(),
+            "App crashed during rendering on scroll iteration {} - buffer bounds not clamped properly",
+            i + 10
+        );
+    }
+
+    // Try PageDown which advances scroll position significantly
+    for i in 0..5 {
+        harness.send_key(KeyCode::PageDown);
+
+        let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            harness.render_to_string()
+        }));
+
+        assert!(
+            render_result.is_ok(),
+            "App crashed during rendering on PageDown iteration {} - large scroll advance triggers bounds violation",
+            i + 1
+        );
+    }
+
+    // Final render check
+    let final_render = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        harness.render_to_string()
+    }));
+
+    assert!(
+        final_render.is_ok(),
+        "Final render should succeed - all y coordinates properly clamped to viewport"
+    );
+
+    // VERIFY: App should still be running
+    assert!(
+        harness.is_running(),
+        "App should remain running - no buffer bounds violations"
+    );
+}
