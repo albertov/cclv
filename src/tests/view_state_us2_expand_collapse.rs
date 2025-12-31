@@ -6,12 +6,12 @@
 //! 3. Toggle response under 16ms
 //! 4. Entries above viewport toggle without affecting visible entries
 
-use cclv::model::{
+use crate::model::{
     ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent,
     PricingConfig, Role, SessionId,
 };
-use cclv::state::WrapMode;
-use cclv::view_state::{
+use crate::state::WrapMode;
+use crate::view_state::{
     conversation::ConversationViewState,
     layout_params::LayoutParams,
     scroll::ScrollPosition,

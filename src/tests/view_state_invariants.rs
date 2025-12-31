@@ -19,12 +19,12 @@
 
 #![allow(dead_code)] // Allow unused helper strategies
 
-use cclv::model::{
+use crate::model::{
     AgentId, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, MalformedEntry,
     Message, MessageContent, PricingConfig, Role, SessionId,
 };
-use cclv::state::WrapMode;
-use cclv::view_state::{
+use crate::state::WrapMode;
+use crate::view_state::{
     conversation::ConversationViewState,
     entry_view::EntryView,
     hit_test::HitTestResult,

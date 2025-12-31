@@ -6,7 +6,7 @@
 //! 3. Statistics total_usage == main + sum(subagents)
 //! 4. ScrollState bounds: vertical_offset ≤ max_entries after any action sequence
 
-use cclv::model::{
+use crate::model::{
     AgentId, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
     SessionId, SessionStats, TokenUsage, ToolName, ToolUseId,
 };

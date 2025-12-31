@@ -1,7 +1,7 @@
 //! Tests for KeyAction enum and KeyBindings.
 
-use cclv::config::KeyBindings;
-use cclv::model::KeyAction;
+use crate::config::KeyBindings;
+use crate::model::KeyAction;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 /// Test that KeyAction enum has all required variants.

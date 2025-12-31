@@ -8,12 +8,12 @@
 //!
 //! These are acceptance tests that verify end-to-end behavior.
 
-use cclv::model::{
+use crate::model::{
     ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent,
     PricingConfig, Role, SessionId,
 };
-use cclv::state::WrapMode;
-use cclv::view_state::{
+use crate::state::WrapMode;
+use crate::view_state::{
     conversation::ConversationViewState,
     layout_params::LayoutParams,
     types::{EntryIndex, LineOffset, ViewportDimensions},
