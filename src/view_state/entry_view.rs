@@ -108,6 +108,7 @@ impl EntryView {
             Self::COLLAPSE_THRESHOLD,
             Self::SUMMARY_LINES,
             &styles,
+            None, // TODO: Pass entry index when implemented
         );
         Self {
             entry,
@@ -183,6 +184,7 @@ impl EntryView {
             Self::COLLAPSE_THRESHOLD,
             Self::SUMMARY_LINES,
             &styles,
+            None, // TODO: Pass entry index when implemented
         );
     }
 

@@ -71,11 +71,11 @@ use ratatui::{
 /// ```ignore
 /// let entry = /* ConversationEntry with 100-line Thinking block */;
 /// let styles = MessageStyles::new();
-/// let collapsed_lines = compute_entry_lines(&entry, false, WrapMode::Wrap, 80, 10, 3, &styles);
-/// // Should return ~4 lines (3 summary + 1 collapse indicator)
+/// let collapsed_lines = compute_entry_lines(&entry, false, WrapMode::Wrap, 80, 10, 3, &styles, Some(0));
+/// // Should return ~4 lines (3 summary + 1 collapse indicator), each prefixed with "   1│"
 ///
-/// let expanded_lines = compute_entry_lines(&entry, true, WrapMode::Wrap, 80, 10, 3, &styles);
-/// // Should return ~100 lines (all content)
+/// let expanded_lines = compute_entry_lines(&entry, true, WrapMode::Wrap, 80, 10, 3, &styles, None);
+/// // Should return ~100 lines (all content), without index prefixes
 /// ```
 pub fn compute_entry_lines(
     entry: &ConversationEntry,
@@ -85,7 +85,10 @@ pub fn compute_entry_lines(
     collapse_threshold: usize,
     summary_lines: usize,
     styles: &MessageStyles,
+    entry_index: Option<usize>,
 ) -> Vec<Line<'static>> {
+    // TODO: Implement entry_index prefix logic
+    let _ = entry_index;
     let mut lines = Vec::new();
 
     // Only handle Valid entries for now (minimal implementation)

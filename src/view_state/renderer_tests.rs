@@ -30,6 +30,7 @@ fn test_user_entry_has_cyan_color() {
         10,
         3,
         &styles,
+        None, // No index prefix for existing tests
     );
 
     // FR-021: User messages should have Cyan color
@@ -62,6 +63,7 @@ fn test_assistant_entry_has_green_color() {
         10,
         3,
         &styles,
+        None, // No index prefix for existing tests
     );
 
     // FR-022: Assistant messages should have Green color
@@ -123,6 +125,7 @@ fn test_collapsed_thinking_block_respects_collapse_threshold() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: Collapsed Thinking block should show:
@@ -171,6 +174,7 @@ fn test_expanded_thinking_block_shows_all_lines() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: Expanded Thinking block should show all 100 lines + 1 separator
@@ -210,6 +214,7 @@ fn test_small_thinking_block_never_collapses() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: Below-threshold entry shows all lines even when "collapsed"
@@ -271,6 +276,7 @@ fn test_collapsed_text_content_respects_collapse_threshold() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: Collapsed Text content should show:
@@ -324,6 +330,7 @@ fn test_expanded_text_content_shows_all_lines() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: Expanded Text content should show all 100 lines + 1 separator
@@ -363,6 +370,7 @@ fn test_small_text_content_never_collapses() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: Below-threshold text entry shows all lines even when "collapsed"
@@ -409,6 +417,7 @@ fn test_text_block_wraps_long_lines() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
@@ -443,6 +452,7 @@ fn test_text_block_nowrap_does_not_wrap() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: NoWrap mode keeps the 100-char line as a single line
@@ -502,6 +512,7 @@ fn test_tool_result_wraps_long_lines() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: With content_width = 40 - 2 = 38 chars, a 100-char line
@@ -536,6 +547,7 @@ fn test_tool_result_nowrap_does_not_wrap() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: NoWrap mode keeps the 100-char line as a single line
@@ -600,6 +612,7 @@ fn test_tool_use_wraps_long_input_lines() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: ToolUse renders as:
@@ -639,6 +652,7 @@ fn test_tool_use_nowrap_does_not_wrap() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     let nowrap_lines = compute_entry_lines(
@@ -649,6 +663,7 @@ fn test_tool_use_nowrap_does_not_wrap() {
         collapse_threshold,
         summary_lines,
         &default_styles(),
+        None, // No index prefix for existing tests
     );
 
     // ASSERTION: NoWrap mode should produce FEWER lines than Wrap mode
@@ -659,4 +674,236 @@ fn test_tool_use_nowrap_does_not_wrap() {
         nowrap_lines.len(),
         wrapped_lines.len()
     );
+}
+
+// ============================================================================
+// ENTRY INDEX PREFIX TESTS - Test that entry indices appear as prefixes
+// ============================================================================
+
+#[test]
+fn test_entry_index_0_shows_as_1_prefix() {
+    // Create entry with simple text
+    let text = "Test message";
+    let entry = create_entry_with_text(text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        Some(0), // Entry index 0 should display as "   1│"
+    );
+
+    // ASSERTION: Every content line should have "   1│" prefix
+    // (excluding the separator line at the end)
+    let content_lines = &lines[..lines.len() - 1]; // All but last (separator)
+
+    for line in content_lines {
+        let line_text: String = line.spans.iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+
+        assert!(
+            line_text.starts_with("   1│"),
+            "Line should start with '   1│', got: '{}'",
+            line_text
+        );
+    }
+
+    // Verify the prefix span has DarkGray color and DIM modifier
+    let first_span = &lines[0].spans[0];
+    assert_eq!(
+        first_span.style.fg,
+        Some(ratatui::style::Color::DarkGray),
+        "Index prefix should be DarkGray"
+    );
+    assert!(
+        first_span.style.add_modifier.contains(ratatui::style::Modifier::DIM),
+        "Index prefix should have DIM modifier"
+    );
+}
+
+#[test]
+fn test_entry_index_41_shows_as_42_prefix() {
+    // Create entry with simple text
+    let text = "Test message";
+    let entry = create_entry_with_text(text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        Some(41), // Entry index 41 should display as "  42│"
+    );
+
+    // ASSERTION: Every content line should have "  42│" prefix (right-aligned in 4 chars)
+    let content_lines = &lines[..lines.len() - 1]; // All but last (separator)
+
+    for line in content_lines {
+        let line_text: String = line.spans.iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+
+        assert!(
+            line_text.starts_with("  42│"),
+            "Line should start with '  42│', got: '{}'",
+            line_text
+        );
+    }
+}
+
+#[test]
+fn test_entry_index_999_shows_as_1000_prefix() {
+    // Create entry with simple text
+    let text = "Test message";
+    let entry = create_entry_with_text(text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        Some(999), // Entry index 999 should display as "1000│" (4 digits)
+    );
+
+    // ASSERTION: Every content line should have "1000│" prefix (right-aligned in 4 chars)
+    let content_lines = &lines[..lines.len() - 1]; // All but last (separator)
+
+    for line in content_lines {
+        let line_text: String = line.spans.iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+
+        assert!(
+            line_text.starts_with("1000│"),
+            "Line should start with '1000│', got: '{}'",
+            line_text
+        );
+    }
+}
+
+#[test]
+fn test_entry_index_none_shows_no_prefix() {
+    // Create entry with simple text
+    let text = "Test message";
+    let entry = create_entry_with_text(text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        None, // No index = no prefix
+    );
+
+    // ASSERTION: Lines should NOT have index prefix
+    let content_lines = &lines[..lines.len() - 1]; // All but last (separator)
+
+    for line in content_lines {
+        let line_text: String = line.spans.iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+
+        assert!(
+            !line_text.contains("│"),
+            "Line should NOT have '│' separator when entry_index is None, got: '{}'",
+            line_text
+        );
+    }
+}
+
+#[test]
+fn test_entry_index_prefix_on_multiline_entry() {
+    // Create entry with 5 lines of text
+    let text = (0..5).map(|i| format!("Line {}", i)).collect::<Vec<_>>().join("\n");
+    let entry = create_entry_with_text(&text);
+
+    let styles = default_styles();
+    let lines = compute_entry_lines(
+        &entry,
+        true, // expanded (show all lines)
+        WrapMode::Wrap,
+        80,
+        10,
+        3,
+        &styles,
+        Some(0), // Entry index 0 should display as "   1│"
+    );
+
+    // ASSERTION: All 5 content lines should have "   1│" prefix
+    // Total lines = 5 content + 1 separator = 6
+    assert_eq!(lines.len(), 6, "Should have 5 content lines + 1 separator");
+
+    let content_lines = &lines[..5]; // First 5 lines are content
+
+    for (i, line) in content_lines.iter().enumerate() {
+        let line_text: String = line.spans.iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+
+        assert!(
+            line_text.starts_with("   1│"),
+            "Line {} should start with '   1│', got: '{}'",
+            i,
+            line_text
+        );
+    }
+}
+
+#[test]
+fn test_entry_index_prefix_on_collapsed_entry() {
+    // Create entry with 100 lines (will collapse)
+    let text = (0..100).map(|i| format!("Line {}", i)).collect::<Vec<_>>().join("\n");
+    let entry = create_entry_with_text(&text);
+
+    let collapse_threshold = 10;
+    let summary_lines = 3;
+    let styles = default_styles();
+
+    let lines = compute_entry_lines(
+        &entry,
+        false, // collapsed
+        WrapMode::Wrap,
+        80,
+        collapse_threshold,
+        summary_lines,
+        &styles,
+        Some(9), // Entry index 9 should display as "  10│"
+    );
+
+    // ASSERTION: Should have 3 summary lines + 1 collapse indicator + 1 separator = 5 total
+    assert_eq!(lines.len(), 5, "Collapsed entry should have 5 lines");
+
+    // All lines except separator should have "  10│" prefix
+    let content_lines = &lines[..4]; // 3 summary + 1 collapse indicator
+
+    for (i, line) in content_lines.iter().enumerate() {
+        let line_text: String = line.spans.iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+
+        assert!(
+            line_text.starts_with("  10│"),
+            "Line {} should start with '  10│', got: '{}'",
+            i,
+            line_text
+        );
+    }
 }
