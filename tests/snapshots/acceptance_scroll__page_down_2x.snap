@@ -3,7 +3,7 @@ source: tests/acceptance_scroll.rs
 expression: second_page_output
 ---
 Model: Unknown | Main Agent | ? | 0 tools, 0 agents, 0 skills
-┌Main Agent (20 entries)───────────────────────────────────────────────────────┐
+┌Main Agent (20 entries) ▶─────────────────────────────────────────────────────┐
 │3. **Check checklists**: Check if there are any checklists                    │
 │4. **Load implementation context**: Read the spec files                       │
 │5. **Find ready work**: Use bd ready to find available work                   │

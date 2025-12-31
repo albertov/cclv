@@ -432,7 +432,7 @@ impl<'a> Widget for ConversationView<'a> {
         let entry_count = self.view_state.len();
 
         // Build title with agent info
-        let title = if let Some(agent_id) = self.view_state.agent_id() {
+        let base_title = if let Some(agent_id) = self.view_state.agent_id() {
             // Subagent conversation
             let model_info = self
                 .view_state
@@ -452,18 +452,6 @@ impl<'a> Widget for ConversationView<'a> {
                 .unwrap_or_default();
             format!("Main Agent{} ({} entries)", model_info, entry_count)
         };
-
-        // Style based on focus
-        let border_color = if self.focused {
-            Color::Cyan
-        } else {
-            Color::Gray
-        };
-
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(title)
-            .style(Style::default().fg(border_color));
 
         // Calculate viewport dimensions (area minus borders)
         let viewport_height = area.height.saturating_sub(2);
@@ -527,8 +515,12 @@ impl<'a> Widget for ConversationView<'a> {
             }
         }
 
-        // Apply horizontal scroll offset if in NoWrap mode
+        // Check if content extends beyond viewport BEFORE applying horizontal offset
+        // (because offset trims the lines, hiding the fact they were long)
         let horizontal_offset = self.view_state.horizontal_offset();
+        let has_long_lines_flag = has_long_lines(&lines, viewport_width as usize);
+
+        // Apply horizontal scroll offset if in NoWrap mode
         let final_lines: Vec<Line<'static>> = if self.global_wrap == WrapMode::NoWrap && horizontal_offset > 0 {
             lines
                 .into_iter()
@@ -537,6 +529,23 @@ impl<'a> Widget for ConversationView<'a> {
         } else {
             lines
         };
+
+        // Add scroll indicators to title if content extends beyond viewport
+        let has_left = horizontal_offset > 0;
+        let has_right = has_long_lines_flag;
+        let title = add_scroll_indicators_to_title(base_title, has_left, has_right);
+
+        // Style based on focus
+        let border_color = if self.focused {
+            Color::Cyan
+        } else {
+            Color::Gray
+        };
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(title)
+            .style(Style::default().fg(border_color));
 
         // Render paragraph without additional wrapping
         // Lines are already pre-wrapped by compute_entry_lines based on wrap mode
@@ -1174,14 +1183,12 @@ fn has_long_lines(lines: &[Line], viewport_width: usize) -> bool {
     })
 }
 
-/// Add horizontal scroll indicators to lines if needed.
+/// Add horizontal scroll indicators to title if needed.
 ///
 /// Prepends ◀ if offset > 0 (can scroll left).
 /// Appends ▶ if content extends beyond viewport (can scroll right).
 ///
 /// Returns modified title string with indicators.
-// TODO(cclv-07v.9): Wire up once horizontal scroll enabled
-#[allow(dead_code)]
 fn add_scroll_indicators_to_title(base_title: String, has_left: bool, has_right: bool) -> String {
     let mut title = base_title;
 
