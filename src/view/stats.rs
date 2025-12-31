@@ -1624,4 +1624,104 @@ mod tests {
             content
         );
     }
+
+    // ===== FMT-010: Actual cost display tests =====
+
+    #[test]
+    fn stats_panel_displays_actual_cost_when_available() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: stats with actual_cost_usd = Some(1.5) from result entry
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1_000_000,
+                output_tokens: 1_000_000,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            main_agent_tool_counts: HashMap::new(),
+            subagent_tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 5,
+            actual_cost_usd: Some(1.5), // Actual cost from result entry
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Should display "Actual Cost:" when actual_cost_usd is Some
+        assert!(
+            content.contains("Actual Cost:"),
+            "Expected 'Actual Cost:' label when actual_cost_usd is Some, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("$1.50"),
+            "Expected actual cost '$1.50' from result entry, got:\n{}",
+            content
+        );
+    }
+
+    #[test]
+    fn stats_panel_displays_estimated_cost_when_actual_cost_unavailable() {
+        use crate::model::TokenUsage;
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use std::collections::HashMap;
+
+        // Setup: stats with actual_cost_usd = None (no result entry yet)
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1_000_000,
+                output_tokens: 1_000_000,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage::default(),
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            main_agent_tool_counts: HashMap::new(),
+            subagent_tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 5,
+            actual_cost_usd: None, // No result entry yet
+        };
+
+        let filter = StatsFilter::Global;
+        let pricing = PricingConfig::default();
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
+
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
+        panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
+
+        let content = buffer_to_string(&buffer);
+
+        // Should display "Estimated Cost:" when actual_cost_usd is None
+        assert!(
+            content.contains("Estimated Cost:"),
+            "Expected 'Estimated Cost:' label when actual_cost_usd is None, got:\n{}",
+            content
+        );
+        assert!(
+            content.contains("$90.00"),
+            "Expected estimated cost '$90.00' (1M input + 1M output at Opus pricing), got:\n{}",
+            content
+        );
+    }
 }
