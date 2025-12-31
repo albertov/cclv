@@ -518,18 +518,51 @@ fn snapshot_message_with_thinking_block() {
 }
 
 // ===== Search Highlighting Snapshot Tests =====
-//
-// LIMITATION: Search highlighting tests are not possible via the public API.
-// The `render_conversation_view_with_search` function is private and not exported
-// from the view module. Search highlighting is integrated at the layout level,
-// not at the ConversationView widget level.
-//
-// To properly test search highlighting (FR-011-014), tests would need to either:
-// 1. Export render_conversation_view_with_search as a public function
-// 2. Add a with_search() builder method to ConversationView
-// 3. Test at the layout level via full AppState rendering
-//
-// For now, search highlighting is tested indirectly through integration tests
-// and manual testing. This is documented as a known limitation of the snapshot
-// test suite.
+
+#[test]
+fn snapshot_message_with_search_highlighting() {
+    use cclv::state::{SearchQuery, SearchState};
+    use cclv::view::render_conversation_view_with_search;
+
+    // Create a message with searchable text
+    let text = "This is a test message with some searchable content.\nAnother line with test keyword.";
+    let entry = create_test_log_entry(
+        "msg-search",
+        Role::Assistant,
+        MessageContent::Text(text.to_string()),
+        EntryType::Assistant,
+    );
+
+    let conversation = create_test_conversation(vec![entry.clone()]);
+    let mut scroll_state = ScrollState::default();
+    scroll_state.toggle_expand(entry.uuid());
+    let styles = MessageStyles::new();
+
+    // Create active search state with query "test"
+    let query = SearchQuery::new("test").expect("Valid search query");
+    let search = SearchState::Active {
+        query,
+        matches: vec![], // Matches populated by execute_search in real app
+        current_match: 0,
+    };
+
+    let mut terminal = create_terminal(80, 20);
+    terminal
+        .draw(|frame| {
+            render_conversation_view_with_search(
+                frame,
+                frame.area(),
+                &conversation,
+                &scroll_state,
+                &search,
+                &styles,
+                false,
+                WrapMode::Wrap,
+            );
+        })
+        .unwrap();
+
+    let output = buffer_to_string(terminal.backend().buffer());
+    insta::assert_snapshot!("message_with_search_highlighting", output);
+}
 

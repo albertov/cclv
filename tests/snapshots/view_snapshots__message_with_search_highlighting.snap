@@ -1,0 +1,25 @@
+---
+source: tests/view_snapshots.rs
+assertion_line: 566
+expression: output
+---
+┌Main Agent (1 entries)────────────────────────────────────────────────────────┐
+│This is a test message with some searchable content.                          │
+│Another line with test keyword.                                               │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
