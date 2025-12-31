@@ -380,7 +380,7 @@ fn render_header_hides_live_indicator_when_live_mode_false() {
         .unwrap();
 
     let buffer = terminal.backend().buffer().clone();
-    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+    let _content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
 
     // Should NOT contain [LIVE] in header area
     // Note: Status bar might still show LIVE, but we're testing header specifically
@@ -454,8 +454,6 @@ fn render_header_shows_main_agent_label() {
 
 #[test]
 fn render_header_shows_subagent_id_when_subagent_focused() {
-    use crate::model::{AgentId, EntryMetadata, EntryType, EntryUuid, Message, MessageContent, Role};
-    use chrono::Utc;
 
     let mut terminal = create_test_terminal();
     let session = create_session_with_subagents();

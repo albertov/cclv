@@ -123,7 +123,7 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState) {
 
 /// Render the status bar with hints and live mode indicator.
 fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
-    let live_indicator = if state.live_mode {
+    let live_indicator = if state.live_mode && state.auto_scroll {
         " [LIVE] "
     } else {
         ""
@@ -131,7 +131,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let status_text = format!("{}q: quit | Tab: switch pane", live_indicator);
 
-    let style = if state.live_mode {
+    let style = if state.live_mode && state.auto_scroll {
         Style::default().fg(Color::Green)
     } else {
         Style::default().fg(Color::Gray)
