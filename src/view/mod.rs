@@ -416,30 +416,34 @@ where
                 self.app_state.auto_scroll = !self.app_state.auto_scroll;
                 // If enabling, scroll to bottom immediately
                 if self.app_state.auto_scroll {
-                    let viewport_height = self
-                        .terminal
-                        .size()
-                        .map(|rect| rect.height as usize)
-                        .unwrap_or(20)
-                        .saturating_sub(5);
+                    let size = self.terminal.size().ok().unwrap_or_else(|| {
+                        let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
+                        ratatui::layout::Size { width: w, height: h }
+                    });
+                    let viewport = crate::view_state::types::ViewportDimensions::new(
+                        size.width,
+                        size.height.saturating_sub(5),
+                    );
                     self.app_state = scroll_handler::handle_scroll_action(
                         self.app_state.clone(),
                         KeyAction::ScrollToBottom,
-                        viewport_height,
+                        viewport,
                     );
                 }
             }
             KeyAction::ScrollToLatest => {
-                let viewport_height = self
-                    .terminal
-                    .size()
-                    .map(|rect| rect.height as usize)
-                    .unwrap_or(20)
-                    .saturating_sub(5);
+                let size = self.terminal.size().ok().unwrap_or_else(|| {
+                    let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
+                    ratatui::layout::Size { width: w, height: h }
+                });
+                let viewport = crate::view_state::types::ViewportDimensions::new(
+                    size.width,
+                    size.height.saturating_sub(5),
+                );
                 self.app_state = scroll_handler::handle_scroll_action(
                     self.app_state.clone(),
                     KeyAction::ScrollToBottom,
-                    viewport_height,
+                    viewport,
                 );
             }
 
@@ -480,20 +484,22 @@ where
             | KeyAction::PageDown
             | KeyAction::ScrollToTop
             | KeyAction::ScrollToBottom => {
-                // Calculate viewport height from terminal size
-                let viewport_height = self
-                    .terminal
-                    .size()
-                    .map(|rect| rect.height as usize)
-                    .unwrap_or(20)
-                    .saturating_sub(5); // Reserve space for header/footer
+                // Calculate viewport dimensions from terminal size
+                let size = self.terminal.size().ok().unwrap_or_else(|| {
+                    let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
+                    ratatui::layout::Size { width: w, height: h }
+                });
+                let viewport = crate::view_state::types::ViewportDimensions::new(
+                    size.width,
+                    size.height.saturating_sub(5), // Reserve space for header/footer
+                );
 
                 // Clone app_state, apply scroll action, then replace
                 // This is safe because AppState is cheap to clone (Rc internals)
                 let new_state = scroll_handler::handle_scroll_action(
                     self.app_state.clone(),
                     action,
-                    viewport_height,
+                    viewport,
                 );
                 self.app_state = new_state;
             }
@@ -606,35 +612,39 @@ where
         // Handle scroll events
         match mouse.kind {
             MouseEventKind::ScrollUp => {
-                // Calculate viewport height from terminal size
-                let viewport_height = self
-                    .terminal
-                    .size()
-                    .map(|rect| rect.height as usize)
-                    .unwrap_or(20)
-                    .saturating_sub(5); // Reserve space for header/footer
+                // Calculate viewport dimensions from terminal size
+                let size = self.terminal.size().ok().unwrap_or_else(|| {
+                    let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
+                    ratatui::layout::Size { width: w, height: h }
+                });
+                let viewport = crate::view_state::types::ViewportDimensions::new(
+                    size.width,
+                    size.height.saturating_sub(5), // Reserve space for header/footer
+                );
 
                 let new_state = crate::state::mouse_handler::handle_mouse_scroll(
                     self.app_state.clone(),
                     true, // is_scroll_up
-                    viewport_height,
+                    viewport,
                 );
                 self.app_state = new_state;
                 return;
             }
             MouseEventKind::ScrollDown => {
-                // Calculate viewport height from terminal size
-                let viewport_height = self
-                    .terminal
-                    .size()
-                    .map(|rect| rect.height as usize)
-                    .unwrap_or(20)
-                    .saturating_sub(5); // Reserve space for header/footer
+                // Calculate viewport dimensions from terminal size
+                let size = self.terminal.size().ok().unwrap_or_else(|| {
+                    let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
+                    ratatui::layout::Size { width: w, height: h }
+                });
+                let viewport = crate::view_state::types::ViewportDimensions::new(
+                    size.width,
+                    size.height.saturating_sub(5), // Reserve space for header/footer
+                );
 
                 let new_state = crate::state::mouse_handler::handle_mouse_scroll(
                     self.app_state.clone(),
                     false, // is_scroll_up
-                    viewport_height,
+                    viewport,
                 );
                 self.app_state = new_state;
                 return;
@@ -688,16 +698,18 @@ where
 
         // FR-035: Auto-scroll to bottom when live_mode && auto_scroll && new entries
         if had_pending && self.app_state.live_mode && self.app_state.auto_scroll {
-            let viewport_height = self
-                .terminal
-                .size()
-                .map(|rect| rect.height as usize)
-                .unwrap_or(20)
-                .saturating_sub(5);
+            let size = self.terminal.size().ok().unwrap_or_else(|| {
+                let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
+                ratatui::layout::Size { width: w, height: h }
+            });
+            let viewport = crate::view_state::types::ViewportDimensions::new(
+                size.width,
+                size.height.saturating_sub(5),
+            );
             self.app_state = scroll_handler::handle_scroll_action(
                 self.app_state.clone(),
                 KeyAction::ScrollToBottom,
-                viewport_height,
+                viewport,
             );
         }
 
@@ -1029,10 +1041,11 @@ mod tests {
 
         // This is what poll_input() does after adding entries
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
+            let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
             app.app_state = scroll_handler::handle_scroll_action(
                 app.app_state.clone(),
                 KeyAction::ScrollToBottom,
-                10, // viewport_height for test
+                viewport,
             );
         }
 
@@ -1060,10 +1073,11 @@ mod tests {
 
         // Try to trigger auto-scroll (should be skipped when auto_scroll=false)
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
+            let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
             app.app_state = scroll_handler::handle_scroll_action(
                 app.app_state.clone(),
                 KeyAction::ScrollToBottom,
-                10, // viewport_height for test
+                viewport,
             );
         }
 
@@ -1088,10 +1102,11 @@ mod tests {
 
         // Try to trigger auto-scroll (should be skipped when not live_mode)
         if app.app_state.live_mode && app.app_state.auto_scroll && !entries_to_add.is_empty() {
+            let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
             app.app_state = scroll_handler::handle_scroll_action(
                 app.app_state.clone(),
                 KeyAction::ScrollToBottom,
-                10, // viewport_height for test
+                viewport,
             );
         }
 

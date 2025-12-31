@@ -414,6 +414,41 @@ impl ConversationViewState {
         )
     }
 
+    /// Check if scroll position is at bottom of content.
+    ///
+    /// Used for FR-036: auto-scroll pause when user scrolls away from bottom.
+    ///
+    /// # Arguments
+    /// - `viewport`: Viewport dimensions
+    ///
+    /// # Returns
+    /// `true` if the bottom of the content is visible in the viewport.
+    /// This means the last line of content is within the viewport.
+    pub fn is_at_bottom(&self, viewport: ViewportDimensions) -> bool {
+        if self.total_height == 0 {
+            return true; // Empty content is always "at bottom"
+        }
+
+        // Content fits entirely in viewport - always at bottom
+        if self.total_height <= viewport.height as usize {
+            return true;
+        }
+
+        // Resolve current scroll position to line offset
+        let scroll_offset = self.scroll.resolve(
+            self.total_height,
+            viewport.height as usize,
+            |idx| self.entry_cumulative_y(idx)
+        );
+
+        // Calculate the maximum scroll offset (bottom position)
+        // When scrolled to bottom: scroll_offset = total_height - viewport_height
+        let max_scroll = self.total_height.saturating_sub(viewport.height as usize);
+
+        // We're at bottom if scroll_offset >= max_scroll
+        scroll_offset.get() >= max_scroll
+    }
+
     /// Hit-test a screen coordinate.
     /// O(log n) complexity.
     ///

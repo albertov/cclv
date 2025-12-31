@@ -317,7 +317,7 @@ pub fn handle_mouse_click(
 /// # Arguments
 /// * `state` - Current application state
 /// * `is_scroll_up` - true for scroll up, false for scroll down
-/// * `viewport_height` - Height of the visible viewport (for scroll calculations)
+/// * `viewport` - Viewport dimensions (width and height) for scroll calculations
 ///
 /// # Returns
 /// Updated AppState with scroll position changed based on focused pane.
@@ -331,7 +331,7 @@ pub fn handle_mouse_click(
 pub fn handle_mouse_scroll(
     state: AppState,
     is_scroll_up: bool,
-    viewport_height: usize,
+    viewport: crate::view_state::types::ViewportDimensions,
 ) -> AppState {
     use crate::model::KeyAction;
 
@@ -342,7 +342,7 @@ pub fn handle_mouse_scroll(
         KeyAction::ScrollDown
     };
 
-    crate::state::scroll_handler::handle_scroll_action(state, action, viewport_height)
+    crate::state::scroll_handler::handle_scroll_action(state, action, viewport)
 }
 
 // ===== Tests =====

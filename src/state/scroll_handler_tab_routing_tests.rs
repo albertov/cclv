@@ -96,7 +96,8 @@ fn scroll_routes_to_selected_tab_0_main_agent() {
         .set_scroll(ScrollPosition::AtLine(LineOffset::new(10)));
 
     // Scroll down should target MAIN agent (selected_tab=0), NOT subagent (focus)
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, 10);
+    let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
 
     // Verify: Main agent scroll position changed
     let main_scroll = new_state
@@ -139,7 +140,8 @@ fn scroll_routes_to_selected_tab_1_subagent() {
         .set_scroll(ScrollPosition::AtLine(LineOffset::new(5)));
 
     // Scroll down should target FIRST subagent (selected_tab=1), NOT main (focus)
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, 10);
+    let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
 
     // Verify: First subagent scroll position changed
     let subagent_scroll = new_state
@@ -181,7 +183,8 @@ fn scroll_routes_to_selected_tab_2_second_subagent() {
         .set_scroll(ScrollPosition::AtLine(LineOffset::new(8)));
 
     // Scroll down should target SECOND subagent (selected_tab=2)
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, 10);
+    let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
 
     // Verify: Second subagent scroll position changed
     let subagent_scroll = new_state
@@ -231,7 +234,8 @@ fn scrolling_tab_0_does_not_affect_tab_1() {
         .set_scroll(ScrollPosition::AtLine(LineOffset::new(20)));
 
     // Scroll main agent (tab 0)
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, 10);
+    let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
 
     // Verify: Main agent scrolled
     let main_scroll = new_state
@@ -292,7 +296,8 @@ fn scrolling_tab_1_does_not_affect_tab_0() {
         .set_scroll(ScrollPosition::AtLine(LineOffset::new(25)));
 
     // Scroll first subagent (tab 1)
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, 10);
+    let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
 
     // Verify: Subagent scrolled
     let sub1_scroll = new_state
@@ -344,7 +349,8 @@ fn scroll_position_preserved_when_switching_tabs() {
         .set_scroll(ScrollPosition::AtLine(LineOffset::new(10)));
 
     // Scroll main agent
-    let state = handle_scroll_action(state, KeyAction::ScrollDown, 10);
+    let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+    let state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
 
     // Verify main scrolled to 11
     let main_scroll = state
@@ -365,7 +371,8 @@ fn scroll_position_preserved_when_switching_tabs() {
     state.selected_tab = Some(1);
 
     // Scroll tab 1
-    let state = handle_scroll_action(state, KeyAction::ScrollDown, 10);
+    let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+    let state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
 
     // Switch back to tab 0
     let mut state = state;
@@ -409,7 +416,8 @@ fn scroll_defaults_to_main_when_selected_tab_is_none() {
         .set_scroll(ScrollPosition::AtLine(LineOffset::new(5)));
 
     // Scroll down
-    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, 10);
+    let viewport = crate::view_state::types::ViewportDimensions::new(80, 10);
+    let new_state = handle_scroll_action(state, KeyAction::ScrollDown, viewport);
 
     // Verify: Main agent scroll changed (default behavior)
     let main_scroll = new_state
