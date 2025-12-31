@@ -1174,8 +1174,6 @@ fn apply_horizontal_offset(line: Line<'static>, offset: usize) -> Line<'static> 
 /// Check if any line in the collection exceeds the viewport width.
 ///
 /// Uses visual width (not byte count) for correct Unicode handling.
-// TODO(cclv-07v.9): Wire up once horizontal scroll enabled
-#[allow(dead_code)]
 fn has_long_lines(lines: &[Line], viewport_width: usize) -> bool {
     lines.iter().any(|line| {
         let width: usize = line.spans.iter().map(|s| s.content.width()).sum();
