@@ -94,6 +94,16 @@ impl SessionStats {
 
         input_cost + output_cost + cache_cost
     }
+
+    /// Get filtered token usage based on the current stats filter.
+    ///
+    /// Returns:
+    /// - `StatsFilter::Global`: total_usage (all agents)
+    /// - `StatsFilter::MainAgent`: main_agent_usage only
+    /// - `StatsFilter::Subagent(id)`: usage for specific subagent, or default if not found
+    pub fn filtered_usage(&self, filter: &StatsFilter) -> TokenUsage {
+        todo!("SessionStats::filtered_usage")
+    }
 }
 
 // ===== StatsFilter =====
@@ -723,5 +733,165 @@ mod tests {
         assert_eq!(pricing.input_cost_per_million, 10.0);
         assert_eq!(pricing.output_cost_per_million, 50.0);
         assert_eq!(pricing.cached_input_cost_per_million, Some(1.0));
+    }
+
+    // ===== SessionStats::filtered_usage Tests =====
+
+    #[test]
+    fn filtered_usage_global_returns_total_usage() {
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1000,
+                output_tokens: 500,
+                cache_creation_input_tokens: 100,
+                cache_read_input_tokens: 50,
+            },
+            main_agent_usage: TokenUsage {
+                input_tokens: 600,
+                output_tokens: 300,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 10,
+        };
+
+        let filter = StatsFilter::Global;
+        let usage = stats.filtered_usage(&filter);
+
+        assert_eq!(usage.input_tokens, 1000);
+        assert_eq!(usage.output_tokens, 500);
+        assert_eq!(usage.cache_creation_input_tokens, 100);
+        assert_eq!(usage.cache_read_input_tokens, 50);
+    }
+
+    #[test]
+    fn filtered_usage_main_agent_returns_main_agent_usage() {
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1000,
+                output_tokens: 500,
+                cache_creation_input_tokens: 100,
+                cache_read_input_tokens: 50,
+            },
+            main_agent_usage: TokenUsage {
+                input_tokens: 600,
+                output_tokens: 300,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            subagent_usage: HashMap::new(),
+            tool_counts: HashMap::new(),
+            subagent_count: 0,
+            entry_count: 10,
+        };
+
+        let filter = StatsFilter::MainAgent;
+        let usage = stats.filtered_usage(&filter);
+
+        assert_eq!(usage.input_tokens, 600);
+        assert_eq!(usage.output_tokens, 300);
+        assert_eq!(usage.cache_creation_input_tokens, 0);
+        assert_eq!(usage.cache_read_input_tokens, 0);
+    }
+
+    #[test]
+    fn filtered_usage_subagent_returns_specific_subagent_usage() {
+        let agent1 = make_agent_id("agent-1");
+        let agent2 = make_agent_id("agent-2");
+
+        let mut subagent_usage = HashMap::new();
+        subagent_usage.insert(
+            agent1.clone(),
+            TokenUsage {
+                input_tokens: 400,
+                output_tokens: 200,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+        );
+        subagent_usage.insert(
+            agent2.clone(),
+            TokenUsage {
+                input_tokens: 300,
+                output_tokens: 150,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+        );
+
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 1000,
+                output_tokens: 500,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage {
+                input_tokens: 300,
+                output_tokens: 150,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            subagent_usage,
+            tool_counts: HashMap::new(),
+            subagent_count: 2,
+            entry_count: 20,
+        };
+
+        let filter = StatsFilter::Subagent(agent1);
+        let usage = stats.filtered_usage(&filter);
+
+        assert_eq!(usage.input_tokens, 400);
+        assert_eq!(usage.output_tokens, 200);
+        assert_eq!(usage.cache_creation_input_tokens, 0);
+        assert_eq!(usage.cache_read_input_tokens, 0);
+    }
+
+    #[test]
+    fn filtered_usage_subagent_returns_default_when_agent_not_found() {
+        let agent1 = make_agent_id("agent-1");
+        let agent_missing = make_agent_id("agent-missing");
+
+        let mut subagent_usage = HashMap::new();
+        subagent_usage.insert(
+            agent1.clone(),
+            TokenUsage {
+                input_tokens: 400,
+                output_tokens: 200,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+        );
+
+        let stats = SessionStats {
+            total_usage: TokenUsage {
+                input_tokens: 700,
+                output_tokens: 350,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            main_agent_usage: TokenUsage {
+                input_tokens: 300,
+                output_tokens: 150,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            },
+            subagent_usage,
+            tool_counts: HashMap::new(),
+            subagent_count: 1,
+            entry_count: 15,
+        };
+
+        let filter = StatsFilter::Subagent(agent_missing);
+        let usage = stats.filtered_usage(&filter);
+
+        // Should return default (zeros) for missing agent
+        assert_eq!(usage.input_tokens, 0);
+        assert_eq!(usage.output_tokens, 0);
+        assert_eq!(usage.cache_creation_input_tokens, 0);
+        assert_eq!(usage.cache_read_input_tokens, 0);
     }
 }
