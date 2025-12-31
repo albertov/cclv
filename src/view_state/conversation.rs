@@ -865,4 +865,188 @@ mod tests {
             "Appending should invalidate layout params"
         );
     }
+
+    // === set_wrap_override Tests ===
+
+    #[test]
+    fn set_wrap_override_updates_entry_state() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let mut state = ConversationViewState::new(entries);
+
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+        state.recompute_layout(params, fixed_height_calculator(10));
+
+        // Initially no override, uses global
+        assert_eq!(state.get(EntryIndex::new(0)).unwrap().wrap_override(), None);
+        assert_eq!(
+            state.get(EntryIndex::new(0)).unwrap().effective_wrap(WrapMode::Wrap),
+            WrapMode::Wrap
+        );
+
+        // Set override to NoWrap
+        state.set_wrap_override(
+            EntryIndex::new(0),
+            Some(WrapMode::NoWrap),
+            params,
+            fixed_height_calculator(10),
+        );
+
+        assert_eq!(
+            state.get(EntryIndex::new(0)).unwrap().wrap_override(),
+            Some(WrapMode::NoWrap)
+        );
+    }
+
+    #[test]
+    fn set_wrap_override_returns_previous_value() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let mut state = ConversationViewState::new(entries);
+
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+        state.recompute_layout(params, fixed_height_calculator(10));
+
+        // First call: previous was None
+        let result = state.set_wrap_override(
+            EntryIndex::new(0),
+            Some(WrapMode::NoWrap),
+            params,
+            fixed_height_calculator(10),
+        );
+        assert_eq!(result, Some(None));
+
+        // Second call: previous was Some(NoWrap)
+        let result = state.set_wrap_override(
+            EntryIndex::new(0),
+            Some(WrapMode::Wrap),
+            params,
+            fixed_height_calculator(10),
+        );
+        assert_eq!(result, Some(Some(WrapMode::NoWrap)));
+
+        // Third call: clearing override
+        let result = state.set_wrap_override(
+            EntryIndex::new(0),
+            None,
+            params,
+            fixed_height_calculator(10),
+        );
+        assert_eq!(result, Some(Some(WrapMode::Wrap)));
+    }
+
+    #[test]
+    fn set_wrap_override_returns_none_for_invalid_index() {
+        let mut state = ConversationViewState::empty();
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+
+        let result = state.set_wrap_override(
+            EntryIndex::new(0),
+            Some(WrapMode::NoWrap),
+            params,
+            fixed_height_calculator(10),
+        );
+
+        assert_eq!(result, None);
+
+        // Also test out of bounds on non-empty state
+        let mut state = ConversationViewState::new(vec![make_valid_entry("uuid-1")]);
+        state.recompute_layout(params, fixed_height_calculator(10));
+
+        let result = state.set_wrap_override(
+            EntryIndex::new(999),
+            Some(WrapMode::NoWrap),
+            params,
+            fixed_height_calculator(10),
+        );
+
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn set_wrap_override_triggers_relayout_from_index() {
+        let entries = vec![
+            make_valid_entry("uuid-1"),
+            make_valid_entry("uuid-2"),
+            make_valid_entry("uuid-3"),
+        ];
+        let mut state = ConversationViewState::new(entries);
+
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+
+        // Variable height based on wrap mode
+        let variable_height = |_entry: &ConversationEntry, _expanded: bool, wrap: WrapMode| {
+            match wrap {
+                WrapMode::Wrap => LineHeight::new(10).unwrap(),
+                WrapMode::NoWrap => LineHeight::new(5).unwrap(),
+            }
+        };
+
+        state.recompute_layout(params, variable_height);
+        // Initial: all Wrap mode, heights [10, 10, 10], cumulative_y [0, 10, 20], total=30
+
+        assert_eq!(state.get(EntryIndex::new(0)).unwrap().layout().cumulative_y().get(), 0);
+        assert_eq!(state.get(EntryIndex::new(1)).unwrap().layout().cumulative_y().get(), 10);
+        assert_eq!(state.get(EntryIndex::new(2)).unwrap().layout().cumulative_y().get(), 20);
+        assert_eq!(state.total_height(), 30);
+
+        // Set wrap override on entry 1 to NoWrap (height becomes 5)
+        state.set_wrap_override(EntryIndex::new(1), Some(WrapMode::NoWrap), params, variable_height);
+
+        // After: heights [10, 5, 10], cumulative_y [0, 10, 15], total=25
+        assert_eq!(state.get(EntryIndex::new(0)).unwrap().layout().cumulative_y().get(), 0);
+        assert_eq!(state.get(EntryIndex::new(1)).unwrap().layout().cumulative_y().get(), 10);
+        assert_eq!(state.get(EntryIndex::new(2)).unwrap().layout().cumulative_y().get(), 15); // Shifted up by 5
+        assert_eq!(state.total_height(), 25);
+    }
+
+    #[test]
+    fn set_wrap_override_affects_effective_wrap() {
+        let entries = vec![make_valid_entry("uuid-1")];
+        let mut state = ConversationViewState::new(entries);
+
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+        state.recompute_layout(params, fixed_height_calculator(10));
+
+        let entry = state.get(EntryIndex::new(0)).unwrap();
+
+        // Initially uses global
+        assert_eq!(entry.effective_wrap(WrapMode::Wrap), WrapMode::Wrap);
+        assert_eq!(entry.effective_wrap(WrapMode::NoWrap), WrapMode::NoWrap);
+
+        // Set override to NoWrap
+        state.set_wrap_override(
+            EntryIndex::new(0),
+            Some(WrapMode::NoWrap),
+            params,
+            fixed_height_calculator(10),
+        );
+
+        let entry = state.get(EntryIndex::new(0)).unwrap();
+
+        // Now always returns override regardless of global
+        assert_eq!(entry.effective_wrap(WrapMode::Wrap), WrapMode::NoWrap);
+        assert_eq!(entry.effective_wrap(WrapMode::NoWrap), WrapMode::NoWrap);
+
+        // Set override to Wrap
+        state.set_wrap_override(
+            EntryIndex::new(0),
+            Some(WrapMode::Wrap),
+            params,
+            fixed_height_calculator(10),
+        );
+
+        let entry = state.get(EntryIndex::new(0)).unwrap();
+
+        // Now always returns Wrap
+        assert_eq!(entry.effective_wrap(WrapMode::Wrap), WrapMode::Wrap);
+        assert_eq!(entry.effective_wrap(WrapMode::NoWrap), WrapMode::Wrap);
+
+        // Clear override
+        state.set_wrap_override(EntryIndex::new(0), None, params, fixed_height_calculator(10));
+
+        let entry = state.get(EntryIndex::new(0)).unwrap();
+
+        // Back to using global
+        assert_eq!(entry.effective_wrap(WrapMode::Wrap), WrapMode::Wrap);
+        assert_eq!(entry.effective_wrap(WrapMode::NoWrap), WrapMode::NoWrap);
+    }
 }
