@@ -332,3 +332,137 @@ fn constructor_parameters_affect_rendering() {
 //     let entry = make_valid_entry();
 //     let _ = EntryView::with_layout(entry, EntryIndex::new(0), /* layout */); // Should NOT compile
 // }
+
+// ===== Per-Entry Wrap Override Tests (Bug cclv-5ur.18) =====
+
+/// Helper to create an entry with long line for wrap testing.
+fn make_entry_with_long_line() -> ConversationEntry {
+    // 100-character line to test wrapping behavior
+    let long_line = "x".repeat(100);
+    let message = Message::new(Role::User, MessageContent::Text(long_line));
+    let log_entry = LogEntry::new(
+        make_entry_uuid("long-line-uuid"),
+        None,
+        make_session_id("session-1"),
+        None,
+        make_timestamp(),
+        EntryType::User,
+        message,
+        EntryMetadata::default(),
+    );
+    ConversationEntry::Valid(Box::new(log_entry))
+}
+
+#[test]
+fn recompute_lines_respects_global_wrap_mode() {
+    // ACCEPTANCE: wrap_lines() returns one line per source line when WrapMode::NoWrap
+    let entry = make_entry_with_long_line();
+    let index = EntryIndex::new(0);
+    let mut view = EntryView::with_rendered_lines(entry, index, WrapMode::Wrap, 40);
+
+    // Initial: Global Wrap mode (should wrap 100-char line)
+    let initial_lines = view.rendered_lines().len();
+    // With width=40, content_width=38, 100 chars wraps to ceil(100/38)=3 lines + 1 separator = 4
+    assert!(
+        initial_lines >= 3,
+        "Global Wrap mode should wrap long line (expected >=3, got {})",
+        initial_lines
+    );
+
+    // Recompute with Global NoWrap mode
+    view.recompute_lines(WrapMode::NoWrap, 40);
+
+    let nowrap_lines = view.rendered_lines().len();
+    // NoWrap: 1 content line + 1 separator = 2
+    assert_eq!(
+        nowrap_lines, 2,
+        "Global NoWrap mode should NOT wrap (expected 2, got {})",
+        nowrap_lines
+    );
+}
+
+#[test]
+fn recompute_lines_respects_per_entry_wrap_override() {
+    // ACCEPTANCE: EntryView.effective_wrap(global_wrap) is checked before rendering
+    let entry = make_entry_with_long_line();
+    let index = EntryIndex::new(0);
+    let mut view = EntryView::with_rendered_lines(entry, index, WrapMode::Wrap, 40);
+
+    // Set per-entry override to NoWrap
+    view.set_wrap_override(Some(WrapMode::NoWrap));
+
+    // Recompute with GLOBAL Wrap mode (but entry override should take precedence)
+    view.recompute_lines(WrapMode::Wrap, 40);
+
+    let lines = view.rendered_lines().len();
+    // Entry override is NoWrap, so should NOT wrap: 1 content + 1 separator = 2
+    assert_eq!(
+        lines, 2,
+        "Per-entry NoWrap override should prevent wrapping even when global is Wrap (expected 2, got {})",
+        lines
+    );
+}
+
+#[test]
+fn recompute_lines_override_none_uses_global() {
+    // ACCEPTANCE: When wrap_override is None, use global wrap mode
+    let entry = make_entry_with_long_line();
+    let index = EntryIndex::new(0);
+    let mut view = EntryView::with_rendered_lines(entry, index, WrapMode::NoWrap, 40);
+
+    // Ensure no override set
+    assert_eq!(
+        view.wrap_override(),
+        None,
+        "wrap_override should be None initially"
+    );
+
+    // Recompute with global Wrap mode
+    view.recompute_lines(WrapMode::Wrap, 40);
+
+    let lines = view.rendered_lines().len();
+    // No override, so global Wrap mode applies: should wrap
+    assert!(
+        lines >= 3,
+        "No override means global Wrap mode applies (expected >=3, got {})",
+        lines
+    );
+}
+
+#[test]
+fn effective_wrap_returns_override_when_set() {
+    let entry = make_valid_entry();
+    let index = EntryIndex::new(0);
+    let mut view = EntryView::with_rendered_lines(entry, index, WrapMode::Wrap, 80);
+
+    // Set override
+    view.set_wrap_override(Some(WrapMode::NoWrap));
+
+    // effective_wrap should return override, not global
+    assert_eq!(
+        view.effective_wrap(WrapMode::Wrap),
+        WrapMode::NoWrap,
+        "effective_wrap should return override when set"
+    );
+}
+
+#[test]
+fn effective_wrap_returns_global_when_no_override() {
+    let entry = make_valid_entry();
+    let index = EntryIndex::new(0);
+    let view = EntryView::with_rendered_lines(entry, index, WrapMode::Wrap, 80);
+
+    // No override set
+    assert_eq!(
+        view.wrap_override(),
+        None,
+        "wrap_override should be None initially"
+    );
+
+    // effective_wrap should return global
+    assert_eq!(
+        view.effective_wrap(WrapMode::NoWrap),
+        WrapMode::NoWrap,
+        "effective_wrap should return global when no override"
+    );
+}
