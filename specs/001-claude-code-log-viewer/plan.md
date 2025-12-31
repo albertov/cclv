@@ -1104,8 +1104,8 @@ impl AcceptanceTestHarness {
 - `us3_scenario4_filter_subagent`: Subagent filter works
 
 **US4 - Keyboard Navigation (8 scenarios)**:
-- `us4_scenario1_tab_cycles_focus`: Tab key cycles panes
-- `us4_scenario2_arrow_switches_tabs`: Arrow keys in subagent pane
+- `us4_scenario1_tab_cycles_tabs`: Tab key cycles conversation tabs (Main → subagent1 → ...)
+- `us4_scenario2_number_keys_select_tabs`: Number keys 1-9 select tabs directly
 - `us4_scenario3_jk_scroll`: j/k scroll messages
 - `us4_scenario4_slash_search`: / activates search
 - `us4_scenario5_n_N_matches`: n/N navigate matches

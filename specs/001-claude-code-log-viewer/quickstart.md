@@ -96,7 +96,9 @@ tail -f "$LATEST" | cclogview
 ### Navigation
 - `j`/`k` or `↓`/`↑` - Scroll up/down
 - `h`/`l` or `←`/`→` - Scroll left/right (for long lines)
-- `Tab` - Switch between panes
+- `Tab` or `]` - Next conversation tab
+- `[` - Previous conversation tab
+- `1`-`9` - Select tab by number (1=Main, 2=first subagent, etc.)
 
 ### Message Interaction
 - `Enter` or `Space` - Expand/collapse message

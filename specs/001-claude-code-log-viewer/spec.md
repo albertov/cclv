@@ -114,8 +114,8 @@ A power user wants to navigate the log viewer entirely with keyboard shortcuts. 
 
 **Acceptance Scenarios**:
 
-1. **Given** the viewer is open, **When** user presses Tab, **Then** focus moves between main pane, subagent pane, and stats panel
-2. **Given** focus is on subagent pane, **When** user presses left/right arrow or number keys, **Then** they switch between subagent tabs
+1. **Given** the viewer is open with multiple tabs, **When** user presses Tab or `]`, **Then** the next conversation tab is selected (cycles Main → subagent1 → subagent2 → Main)
+2. **Given** the viewer is open, **When** user presses number keys 1-9, **Then** the corresponding tab is selected (1=Main, 2=first subagent, etc.)
 3. **Given** focus is on a conversation pane, **When** user presses j/k or up/down arrows, **Then** they scroll through messages
 4. **Given** any state, **When** user presses "/" or Ctrl+F, **Then** the search input is activated
 5. **Given** search results exist, **When** user presses n/N, **Then** they navigate to next/previous match

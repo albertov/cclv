@@ -122,24 +122,13 @@ Print version information.
 | `g` / `Home` | Go to top |
 | `G` / `End` | Go to bottom |
 
-### Pane Focus
+### Tab Navigation
 
 | Key | Action |
 |-----|--------|
-| `Tab` | Cycle focus between panes (Main → Subagent → Stats) |
-| `1` | Focus main agent pane |
-| `2` | Focus subagent pane |
-| `3` | Focus stats panel |
-
-### Tabs (Subagent Pane)
-
-*Note: These shortcuts only apply when subagent pane is focused.*
-
-| Key | Action |
-|-----|--------|
+| `Tab` / `]` | Next tab (cycles through Main → subagent1 → subagent2 → Main) |
 | `[` / `Shift+Tab` | Previous tab |
-| `]` | Next tab |
-| `1`-`9` | Select tab by number |
+| `1`-`9` | Select tab by number (1=Main, 2=first subagent, etc.) |
 
 ### Message Interaction
 
