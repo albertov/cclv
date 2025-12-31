@@ -5,8 +5,7 @@
 
 use crate::model::KeyAction;
 use crate::state::{AppState, FocusPane};
-use crate::view_state::layout_params::LayoutParams;
-use crate::view_state::types::{EntryIndex, ViewportDimensions};
+use crate::view_state::types::EntryIndex;
 
 /// Handle a message expand/collapse keyboard action.
 ///
@@ -19,20 +18,13 @@ use crate::view_state::types::{EntryIndex, ViewportDimensions};
 pub fn handle_expand_action(
     mut state: AppState,
     action: KeyAction,
-    viewport_width: u16,
+    _viewport_width: u16,
 ) -> AppState {
     // Early return for non-expandable panes
     match state.focus {
         FocusPane::Stats | FocusPane::Search => return state,
         _ => {}
     }
-
-    // Get layout params and viewport for relayout (needed by toggle_expand)
-    let params = LayoutParams::new(viewport_width, state.global_wrap);
-    let viewport = ViewportDimensions::new(viewport_width, 24); // Height not used for expand
-
-    // Use the real height calculator from view layer
-    let height_calc = crate::view::calculate_entry_height;
 
     // Apply the action based on focus
     match state.focus {
@@ -44,17 +36,16 @@ pub fn handle_expand_action(
                     KeyAction::ToggleExpand => {
                         // Toggle the focused message via ConversationViewState
                         if let Some(focused_idx) = conv_view.focused_message() {
-                            conv_view.toggle_expand(focused_idx, params, viewport, height_calc);
+                            conv_view.toggle_entry_expanded(focused_idx.get());
                         }
                     }
                     KeyAction::ExpandMessage => {
                         // Expand all messages in main pane
                         let count = conv_view.len();
                         for i in 0..count {
-                            let idx = EntryIndex::new(i);
-                            if let Some(entry) = conv_view.get(idx) {
+                            if let Some(entry) = conv_view.get(EntryIndex::new(i)) {
                                 if !entry.is_expanded() {
-                                    conv_view.toggle_expand(idx, params, viewport, height_calc);
+                                    conv_view.toggle_entry_expanded(i);
                                 }
                             }
                         }
@@ -63,10 +54,9 @@ pub fn handle_expand_action(
                         // Collapse all messages in main pane
                         let count = conv_view.len();
                         for i in 0..count {
-                            let idx = EntryIndex::new(i);
-                            if let Some(entry) = conv_view.get(idx) {
+                            if let Some(entry) = conv_view.get(EntryIndex::new(i)) {
                                 if entry.is_expanded() {
-                                    conv_view.toggle_expand(idx, params, viewport, height_calc);
+                                    conv_view.toggle_entry_expanded(i);
                                 }
                             }
                         }

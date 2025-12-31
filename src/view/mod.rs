@@ -1,8 +1,8 @@
 //! TUI rendering and terminal management (impure shell)
 
-mod help;
 #[cfg(test)]
 mod height_calculator_tests;
+mod help;
 mod layout;
 pub mod live_indicator;
 mod message;
@@ -552,11 +552,7 @@ where
             // Message expand/collapse - delegate to pure expand handler
             KeyAction::ToggleExpand | KeyAction::ExpandMessage | KeyAction::CollapseMessage => {
                 // Get viewport width from terminal
-                let viewport_width = self
-                    .terminal
-                    .size()
-                    .map(|rect| rect.width)
-                    .unwrap_or(80);
+                let viewport_width = self.terminal.size().map(|rect| rect.width).unwrap_or(80);
                 let new_state = expand_handler::handle_expand_action(
                     self.app_state.clone(),
                     action,
@@ -609,11 +605,7 @@ where
             // Line wrapping - per-item toggle (w key)
             KeyAction::ToggleWrap => {
                 // Get viewport width from terminal
-                let viewport_width = self
-                    .terminal
-                    .size()
-                    .map(|rect| rect.width)
-                    .unwrap_or(80);
+                let viewport_width = self.terminal.size().map(|rect| rect.width).unwrap_or(80);
                 self.app_state = handle_toggle_wrap(self.app_state.clone(), viewport_width);
             }
 
@@ -700,11 +692,7 @@ where
                 &self.app_state,
             );
             // Get viewport width from terminal
-            let viewport_width = self
-                .terminal
-                .size()
-                .map(|rect| rect.width)
-                .unwrap_or(80);
+            let viewport_width = self.terminal.size().map(|rect| rect.width).unwrap_or(80);
             self.app_state = crate::state::mouse_handler::handle_entry_click(
                 self.app_state.clone(),
                 entry_result,
@@ -940,7 +928,9 @@ mod tests {
             ),
             crate::model::EntryMetadata::default(),
         );
-        app_state.add_entries(vec![crate::model::ConversationEntry::Valid(Box::new(entry))]);
+        app_state.add_entries(vec![crate::model::ConversationEntry::Valid(Box::new(
+            entry,
+        ))]);
 
         let key_bindings = KeyBindings::default();
 
@@ -1712,6 +1702,7 @@ mod tests {
         // Focus on Main pane and set focused message in view-state
         app.app_state.focus = FocusPane::Main;
         if let Some(view) = app.app_state.main_conversation_view_mut() {
+            view.relayout(80, WrapMode::Wrap); // Initialize HeightIndex
             view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(0)));
         }
 
@@ -1804,6 +1795,11 @@ mod tests {
         app.app_state
             .add_entries(vec![ConversationEntry::Valid(Box::new(main_entry))]);
 
+        // Initialize main view HeightIndex
+        if let Some(view) = app.app_state.main_conversation_view_mut() {
+            view.relayout(80, crate::state::WrapMode::Wrap);
+        }
+
         // Add entry to subagent pane
         let agent_id = AgentId::new("test-agent").unwrap();
         let sub_uuid = EntryUuid::new("sub-uuid").unwrap();
@@ -1826,6 +1822,7 @@ mod tests {
         app.app_state.focus = FocusPane::Subagent;
         app.app_state.selected_tab = Some(0);
         if let Some(view) = app.app_state.subagent_conversation_view_mut(0) {
+            view.relayout(80, crate::state::WrapMode::Wrap); // Initialize HeightIndex
             view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(0)));
         }
 

@@ -58,8 +58,9 @@ fn test_toggle_expand_calls_toggle_entry_expanded() {
     state.add_entries(entries);
     state.focus = FocusPane::Main;
 
-    // Set up a focused message
+    // Initialize HeightIndex by calling relayout
     if let Some(view) = state.main_conversation_view_mut() {
+        view.relayout(80, crate::state::WrapMode::Wrap);
         view.set_focused_message(Some(EntryIndex::new(1)));
     }
 
@@ -90,6 +91,11 @@ fn test_expand_all_uses_toggle_entry_expanded() {
     let mut state = AppState::new();
     state.add_entries(entries);
     state.focus = FocusPane::Main;
+
+    // Initialize HeightIndex
+    if let Some(view) = state.main_conversation_view_mut() {
+        view.relayout(80, crate::state::WrapMode::Wrap);
+    }
 
     // Expand all
     let result = handle_expand_action(state, crate::model::KeyAction::ExpandMessage, 80);
@@ -123,8 +129,9 @@ fn test_toggle_maintains_height_index_invariant() {
     state.add_entries(entries);
     state.focus = FocusPane::Main;
 
-    // Set focused message
+    // Initialize HeightIndex and set focused message
     if let Some(view) = state.main_conversation_view_mut() {
+        view.relayout(80, crate::state::WrapMode::Wrap);
         view.set_focused_message(Some(EntryIndex::new(0)));
     }
 
