@@ -151,6 +151,7 @@ fn merge_config_overrides_with_config_file_values() {
         log_file_path: None,
         keybindings: None,
         pricing: None,
+        max_context_tokens: None,
     };
 
     let resolved = merge_config(Some(config_file));
@@ -177,6 +178,7 @@ fn merge_config_uses_defaults_for_none_fields() {
         log_file_path: None,
         keybindings: None,
         pricing: None,
+        max_context_tokens: None,
     };
 
     let resolved = merge_config(Some(config_file));
@@ -240,6 +242,7 @@ fn apply_env_overrides_leaves_other_fields_unchanged() {
         line_wrap: false,
         log_buffer_capacity: 123,
         log_file_path: default_log_path(),
+        max_context_tokens: 200_000,
     };
 
     // Set env var
@@ -599,6 +602,7 @@ fn apply_cli_overrides_theme_override() {
         line_wrap: true,
         log_buffer_capacity: 1000,
         log_file_path: default_log_path(),
+        max_context_tokens: 200_000,
     };
 
     let result = apply_cli_overrides(base.clone(), Some("monokai".to_string()), None, None);
@@ -639,6 +643,7 @@ fn apply_cli_overrides_multiple_overrides() {
         line_wrap: true,
         log_buffer_capacity: 1000,
         log_file_path: default_log_path(),
+        max_context_tokens: 200_000,
     };
 
     let result = apply_cli_overrides(
@@ -680,6 +685,7 @@ fn precedence_chain_defaults_to_config_file() {
         log_file_path: None,
         keybindings: None,
         pricing: None,
+        max_context_tokens: None,
     };
 
     let resolved = merge_config(Some(config_file));
@@ -714,6 +720,7 @@ fn precedence_chain_config_file_to_env_vars() {
         log_file_path: None,
         keybindings: None,
         pricing: None,
+        max_context_tokens: None,
     };
 
     let merged = merge_config(Some(config_file));
@@ -748,6 +755,7 @@ fn precedence_chain_env_vars_to_cli_args() {
         line_wrap: true,
         log_buffer_capacity: 1000,
         log_file_path: default_log_path(),
+        max_context_tokens: 200_000,
     };
 
     // Apply env override
@@ -781,6 +789,7 @@ fn precedence_chain_full_defaults_to_cli() {
         log_file_path: None,
         keybindings: None,
         pricing: None,
+        max_context_tokens: None,
     };
 
     // Step 1: Defaults → Config File
@@ -807,4 +816,96 @@ fn precedence_chain_full_defaults_to_cli() {
 
     // Cleanup
     env::remove_var("CCLV_THEME");
+}
+
+// ===== max_context_tokens Tests =====
+
+#[test]
+fn config_file_parses_max_context_tokens() {
+    let toml_content = r#"
+theme = "base16-ocean"
+max_context_tokens = 300000
+"#;
+
+    let config: ConfigFile = toml::from_str(toml_content).expect("Should parse max_context_tokens");
+
+    assert_eq!(
+        config.max_context_tokens,
+        Some(300000),
+        "max_context_tokens should be parsed"
+    );
+}
+
+#[test]
+fn config_file_allows_missing_max_context_tokens() {
+    let toml_content = r#"
+theme = "base16-ocean"
+"#;
+
+    let config: ConfigFile =
+        toml::from_str(toml_content).expect("Should parse without max_context_tokens");
+
+    assert_eq!(
+        config.max_context_tokens, None,
+        "max_context_tokens should be None when omitted"
+    );
+}
+
+#[test]
+fn resolved_config_default_max_context_tokens_is_200k() {
+    let config = ResolvedConfig::default();
+
+    assert_eq!(
+        config.max_context_tokens, 200_000,
+        "Default max_context_tokens should be 200,000"
+    );
+}
+
+#[test]
+fn merge_config_uses_config_file_max_context_tokens() {
+    let config_file = ConfigFile {
+        theme: None,
+        follow: None,
+        show_stats: None,
+        collapse_threshold: None,
+        summary_lines: None,
+        line_wrap: None,
+        log_buffer_capacity: None,
+        log_file_path: None,
+        keybindings: None,
+        pricing: None,
+        max_context_tokens: Some(500_000),
+    };
+
+    let resolved = merge_config(Some(config_file));
+
+    assert_eq!(
+        resolved.max_context_tokens, 500_000,
+        "Config file max_context_tokens should override default"
+    );
+}
+
+#[test]
+fn merge_config_uses_default_when_max_context_tokens_none() {
+    let config_file = ConfigFile {
+        theme: None,
+        follow: None,
+        show_stats: None,
+        collapse_threshold: None,
+        summary_lines: None,
+        line_wrap: None,
+        log_buffer_capacity: None,
+        log_file_path: None,
+        keybindings: None,
+        pricing: None,
+        max_context_tokens: None,
+    };
+
+    let resolved = merge_config(Some(config_file));
+
+    assert_eq!(
+        resolved.max_context_tokens,
+        ResolvedConfig::default().max_context_tokens,
+        "Should use default max_context_tokens when config file has None"
+    );
 }

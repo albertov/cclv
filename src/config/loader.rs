@@ -76,6 +76,11 @@ pub struct ConfigFile {
     /// Pricing section for cost estimation.
     #[serde(default)]
     pub pricing: Option<PricingConfigSection>,
+
+    /// Maximum context window size in tokens (FR-XXX).
+    /// Default: 200,000 tokens (Claude Opus 4.5 context window).
+    #[serde(default)]
+    pub max_context_tokens: Option<u64>,
 }
 
 /// Pricing configuration section from TOML.
@@ -137,6 +142,9 @@ pub struct ResolvedConfig {
     pub log_buffer_capacity: usize,
     /// Path to log file for tracing output (FR-055).
     pub log_file_path: PathBuf,
+    /// Maximum context window size in tokens (FR-XXX).
+    /// Default: 200,000 tokens (Claude Opus 4.5 context window).
+    pub max_context_tokens: u64,
 }
 
 impl Default for ResolvedConfig {
@@ -150,6 +158,7 @@ impl Default for ResolvedConfig {
             line_wrap: true,
             log_buffer_capacity: 1000,
             log_file_path: default_log_path(),
+            max_context_tokens: 200_000,
         }
     }
 }
@@ -303,6 +312,9 @@ pub fn merge_config(config_file: Option<ConfigFile>) -> ResolvedConfig {
             .log_buffer_capacity
             .unwrap_or(defaults.log_buffer_capacity),
         log_file_path: config.log_file_path.unwrap_or(defaults.log_file_path),
+        max_context_tokens: config
+            .max_context_tokens
+            .unwrap_or(defaults.max_context_tokens),
     }
 }
 
@@ -406,6 +418,7 @@ mod log_path_tests {
             log_file_path: Some(custom_path.clone()),
             keybindings: None,
             pricing: None,
+            max_context_tokens: None,
         };
 
         let resolved = merge_config(Some(config_file));
@@ -428,6 +441,7 @@ mod log_path_tests {
             log_file_path: None,
             keybindings: None,
             pricing: None,
+            max_context_tokens: None,
         };
 
         let resolved = merge_config(Some(config_file));
