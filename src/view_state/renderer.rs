@@ -267,7 +267,7 @@ fn render_block(
 
             // Tool name header (always visible) with ToolUse color (Yellow)
             let tool_name = tool_call.name().as_str();
-            let header = format!("Tool: {}", tool_name);
+            let header = format!("🔧 Tool: {}", tool_name);
             lines.push(Line::from(Span::styled(
                 header,
                 base_style.add_modifier(Modifier::BOLD),
