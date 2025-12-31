@@ -95,22 +95,78 @@ impl AppState {
     /// Only works when focus is on Subagent pane.
     /// Wraps from last to first tab.
     pub fn next_tab(&mut self) {
-        todo!("next_tab")
+        // Only operate when focus is on Subagent pane
+        if self.focus != FocusPane::Subagent {
+            return;
+        }
+
+        let num_subagents = self.session.subagents().len();
+
+        // No-op if no subagents exist
+        if num_subagents == 0 {
+            return;
+        }
+
+        self.selected_tab = match self.selected_tab {
+            None => Some(0), // Initialize to first tab
+            Some(current) => {
+                if current + 1 >= num_subagents {
+                    Some(0) // Wrap to first
+                } else {
+                    Some(current + 1) // Move to next
+                }
+            }
+        };
     }
 
     /// Move to previous subagent tab.
     /// Only works when focus is on Subagent pane.
     /// Wraps from first to last tab.
     pub fn prev_tab(&mut self) {
-        todo!("prev_tab")
+        // Only operate when focus is on Subagent pane
+        if self.focus != FocusPane::Subagent {
+            return;
+        }
+
+        let num_subagents = self.session.subagents().len();
+
+        // No-op if no subagents exist
+        if num_subagents == 0 {
+            return;
+        }
+
+        self.selected_tab = match self.selected_tab {
+            None => Some(0), // Initialize to first tab
+            Some(0) => Some(num_subagents - 1), // Wrap to last
+            Some(current) => Some(current - 1), // Move to previous
+        };
     }
 
     /// Select a specific subagent tab by 1-indexed number.
     /// Only works when focus is on Subagent pane.
     /// Clamps to last tab if number is too high.
     /// Ignores if number is 0.
-    pub fn select_tab(&mut self, _tab_number: usize) {
-        todo!("select_tab")
+    pub fn select_tab(&mut self, tab_number: usize) {
+        // Only operate when focus is on Subagent pane
+        if self.focus != FocusPane::Subagent {
+            return;
+        }
+
+        let num_subagents = self.session.subagents().len();
+
+        // No-op if no subagents exist
+        if num_subagents == 0 {
+            return;
+        }
+
+        // Ignore 0 (invalid 1-indexed input)
+        if tab_number == 0 {
+            return;
+        }
+
+        // Convert from 1-indexed to 0-indexed, clamping to last tab
+        let zero_indexed = tab_number - 1;
+        self.selected_tab = Some(zero_indexed.min(num_subagents - 1));
     }
 }
 
