@@ -220,13 +220,51 @@ impl<'a> ConversationView<'a> {
     #[allow(dead_code)]
     fn calculate_entry_layouts(
         &self,
-        _visible_entries: &[ConversationEntry],
-        _scroll_offset: usize,
-        _viewport_width: usize,
-        _viewport_height: usize,
-        _global_wrap: WrapMode,
+        visible_entries: &[ConversationEntry],
+        scroll_offset: usize,
+        viewport_width: usize,
+        viewport_height: usize,
+        global_wrap: WrapMode,
     ) -> Vec<EntryLayout> {
-        todo!("calculate_entry_layouts")
+        let mut layouts = Vec::new();
+        let mut cumulative_y = 0_usize;
+
+        for entry in visible_entries {
+            // Calculate height for this entry
+            let height = self.calculate_entry_height(entry, viewport_width, global_wrap);
+
+            // Determine if this entry is visible in the viewport
+            // Entry is visible if any part overlaps with [scroll_offset, scroll_offset + viewport_height)
+            let entry_end = cumulative_y + height;
+            let viewport_end = scroll_offset + viewport_height;
+
+            let is_visible = cumulative_y < viewport_end && entry_end > scroll_offset;
+
+            if is_visible {
+                // Calculate y_offset relative to viewport (accounting for scroll)
+                // If entry starts before scroll_offset, it renders at viewport y=0
+                // Otherwise, it renders at (cumulative_y - scroll_offset)
+                let y_offset = if cumulative_y >= scroll_offset {
+                    (cumulative_y - scroll_offset) as u16
+                } else {
+                    0_u16
+                };
+
+                layouts.push(EntryLayout {
+                    y_offset,
+                    height: height as u16,
+                });
+            }
+
+            cumulative_y += height;
+
+            // Early exit if we've passed the visible viewport
+            if cumulative_y >= viewport_end {
+                break;
+            }
+        }
+
+        layouts
     }
 
     /// Determine the range of entries that should be rendered based on viewport.
