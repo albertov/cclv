@@ -184,4 +184,66 @@ mod tests {
             "Tab should use agent ID as label"
         );
     }
+
+    #[test]
+    fn render_tab_bar_handles_out_of_bounds_selection() {
+        let mut terminal = create_test_terminal();
+        let agent1 = agent_id("agent-1");
+        let agent2 = agent_id("agent-2");
+        let agent_ids = vec![&agent1, &agent2];
+
+        // Selecting index 5 when only 2 agents exist should be treated as None
+        let result = terminal.draw(|frame| {
+            render_tab_bar(frame, frame.area(), &agent_ids, Some(5));
+        });
+
+        assert!(result.is_ok(), "Should handle out-of-bounds selection gracefully");
+    }
+
+    #[test]
+    fn render_tab_bar_none_differs_visually_from_some_zero() {
+        use ratatui::style::Color;
+
+        let agent1 = agent_id("agent-1");
+        let agent2 = agent_id("agent-2");
+        let agent_ids = vec![&agent1, &agent2];
+
+        // Render with None selection
+        let mut terminal_none = create_test_terminal();
+        terminal_none
+            .draw(|frame| {
+                render_tab_bar(frame, frame.area(), &agent_ids, None);
+            })
+            .unwrap();
+        let buffer_none = terminal_none.backend().buffer().clone();
+
+        // Render with Some(0) selection
+        let mut terminal_some = create_test_terminal();
+        terminal_some
+            .draw(|frame| {
+                render_tab_bar(frame, frame.area(), &agent_ids, Some(0));
+            })
+            .unwrap();
+        let buffer_some = terminal_some.backend().buffer().clone();
+
+        // The two buffers should differ - None should not highlight any tab,
+        // while Some(0) should highlight the first tab
+        let none_has_yellow = buffer_none
+            .content()
+            .iter()
+            .any(|cell| cell.fg == Color::Yellow);
+        let some_has_yellow = buffer_some
+            .content()
+            .iter()
+            .any(|cell| cell.fg == Color::Yellow);
+
+        assert!(
+            !none_has_yellow,
+            "None selection should not highlight any tab (no yellow)"
+        );
+        assert!(
+            some_has_yellow,
+            "Some(0) selection should highlight first tab (has yellow)"
+        );
+    }
 }

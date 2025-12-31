@@ -59,6 +59,49 @@ fn create_session_with_subagents() -> Session {
     session
 }
 
+fn create_session_with_multiple_subagents() -> Session {
+    use crate::model::{
+        AgentId, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
+    };
+    use chrono::Utc;
+
+    let session_id = SessionId::new("test-session").unwrap();
+    let mut session = Session::new(session_id);
+
+    // Add a main agent entry
+    let main_entry = LogEntry::new(
+        EntryUuid::new("entry-1").unwrap(),
+        None,
+        SessionId::new("test-session").unwrap(),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Main message".to_string())),
+        EntryMetadata::default(),
+    );
+    session.add_entry(main_entry);
+
+    // Add three subagent entries
+    for i in 1..=3 {
+        let subagent_entry = LogEntry::new(
+            EntryUuid::new(format!("entry-{}", i + 1)).unwrap(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            Some(AgentId::new(format!("subagent-{}", i)).unwrap()),
+            Utc::now(),
+            EntryType::User,
+            Message::new(
+                Role::User,
+                MessageContent::Text(format!("Subagent {} message", i)),
+            ),
+            EntryMetadata::default(),
+        );
+        session.add_entry(subagent_entry);
+    }
+
+    session
+}
+
 // ===== calculate_horizontal_constraints Tests =====
 
 #[test]
@@ -191,5 +234,61 @@ fn render_layout_shows_live_indicator_when_live_mode() {
     assert!(
         content.contains("LIVE"),
         "Status bar should show LIVE indicator when in live mode"
+    );
+}
+
+// ===== Tab Bar Integration Tests =====
+
+#[test]
+fn render_layout_displays_tab_bar_in_subagent_pane() {
+    let mut terminal = create_test_terminal();
+    let session = create_session_with_multiple_subagents();
+    let state = AppState::new(session);
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+
+    // Tab bar should contain subagent IDs
+    assert!(
+        content.contains("subagent-1"),
+        "Tab bar should display first subagent ID"
+    );
+    assert!(
+        content.contains("subagent-2"),
+        "Tab bar should display second subagent ID"
+    );
+    assert!(
+        content.contains("subagent-3"),
+        "Tab bar should display third subagent ID"
+    );
+}
+
+#[test]
+fn render_layout_uses_selected_tab_to_display_correct_subagent() {
+    let mut terminal = create_test_terminal();
+    let session = create_session_with_multiple_subagents();
+    let mut state = AppState::new(session);
+    state.selected_tab = Some(1); // Select second subagent
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let content = buffer.content.iter().map(|c| c.symbol()).collect::<String>();
+
+    // The selected tab's conversation should be visible
+    // We verify this by checking that the subagent message is present
+    assert!(
+        content.contains("Subagent 2 message"),
+        "Should display conversation for selected tab (subagent-2)"
     );
 }
