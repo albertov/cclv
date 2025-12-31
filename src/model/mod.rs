@@ -3,9 +3,11 @@
 //! All types in this module are pure data with smart constructors.
 
 pub mod identifiers;
+pub mod message;
 
 // Re-export for convenience
 pub use identifiers::{
     AgentId, EntryUuid, InvalidAgentId, InvalidSessionId, InvalidToolUseId, InvalidUuid,
     SessionId, ToolUseId,
 };
+pub use message::{ContentBlock, Message, MessageContent, Role, ToolCall, ToolName};
