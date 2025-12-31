@@ -1925,6 +1925,83 @@ mod tests {
             "Fraction(0.5) should approximate to half of total_height"
         );
     }
+
+    // === Bug Reproduction: append() leaves stale total_height (cclv-5ur.21) ===
+
+    #[test]
+    fn append_should_update_total_height_for_auto_scroll() {
+        // RED TEST for cclv-5ur.21: Auto-scroll must fill last viewport line with content
+        //
+        // REQUIREMENT: After appending entries, total_height must reflect the new content
+        // so auto-scroll resolution includes the new entries in visible_range.
+        //
+        // This test will FAIL until we fix SessionViewState to use append_entries().
+
+        // Create initial state with 2 entries
+        let entries = vec![
+            make_entry_with_n_lines("uuid-1", 5),
+            make_entry_with_n_lines("uuid-2", 5),
+        ];
+        let mut state = ConversationViewState::new(None, None, entries);
+
+        // Relayout so we have known total_height
+        state.relayout(80, WrapMode::Wrap);
+
+        let height_before = state.total_height();
+        assert!(height_before > 0, "Should have non-zero height after relayout");
+
+        // Append new entry using OLD append() method
+        // (This simulates what SessionViewState::add_main_entry currently does)
+        let new_entries = vec![make_entry_with_n_lines("uuid-3", 5)];
+        state.append(new_entries);
+
+        let height_after = state.total_height();
+
+        // EXPECTATION: total_height should INCREASE after appending new entry
+        // This test will FAIL because append() doesn't update total_height
+        assert!(
+            height_after > height_before,
+            "BUG: append() leaves total_height unchanged ({}), expected increase.\n\
+             Added an entry with ~5 lines of text, but total_height didn't increase.\n\
+             This causes auto-scroll to resolve with stale height, showing blank lines.",
+            height_after
+        );
+    }
+
+    #[test]
+    fn append_entries_updates_total_height_immediately() {
+        // CONTRAST TEST: append_entries() correctly updates total_height
+        //
+        // This is the FIXED behavior that SessionViewState should use.
+
+        // Create initial state with 2 entries
+        let entries = vec![
+            make_entry_with_n_lines("uuid-1", 5),
+            make_entry_with_n_lines("uuid-2", 5),
+        ];
+        let mut state = ConversationViewState::new(None, None, entries);
+
+        // Relayout so we have known total_height
+        state.relayout(80, WrapMode::Wrap);
+
+        let height_before = state.total_height();
+        assert!(height_before > 0, "Should have non-zero height after relayout");
+
+        // Now use NEW append_entries() method
+        let new_entries = vec![make_entry_with_n_lines("uuid-3", 5)];
+        state.append_entries(new_entries);
+
+        let height_after = state.total_height();
+
+        // CORRECT: total_height should INCREASE after appending new entry
+        assert!(
+            height_after > height_before,
+            "append_entries() should increase total_height.\n\
+             Before: {}, After: {}",
+            height_before,
+            height_after
+        );
+    }
 }
 
 // HeightIndex integration tests
