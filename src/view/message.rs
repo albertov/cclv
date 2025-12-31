@@ -3423,4 +3423,352 @@ mod tests {
             "Should have highlighting for search matches"
         );
     }
+
+    // ===== apply_highlights_to_text Tests =====
+
+    #[test]
+    fn apply_highlights_single_line_no_matches() {
+        let text = "Hello world";
+        let matches = vec![];
+        let style = Style::default();
+
+        let line = apply_highlights_to_text(text, &matches, style);
+
+        // Should have single span with no highlighting
+        assert_eq!(line.spans.len(), 1);
+        assert_eq!(line.spans[0].content, "Hello world");
+        assert_eq!(line.spans[0].style, style);
+    }
+
+    #[test]
+    fn apply_highlights_single_line_one_match() {
+        let text = "Hello world";
+        let matches = vec![(6, 5, false)]; // "world"
+        let style = Style::default();
+
+        let line = apply_highlights_to_text(text, &matches, style);
+
+        // Should have 3 spans: before, match, after
+        assert_eq!(line.spans.len(), 2); // "Hello " + highlighted "world"
+        assert_eq!(line.spans[0].content, "Hello ");
+        assert_eq!(line.spans[1].content, "world");
+        assert_eq!(line.spans[1].style.bg, Some(Color::Yellow));
+    }
+
+    #[test]
+    fn apply_highlights_single_line_current_match() {
+        let text = "Hello world";
+        let matches = vec![(6, 5, true)]; // "world" as current
+        let style = Style::default();
+
+        let line = apply_highlights_to_text(text, &matches, style);
+
+        assert_eq!(line.spans.len(), 2);
+        assert_eq!(line.spans[1].content, "world");
+        assert_eq!(line.spans[1].style.bg, Some(Color::Yellow));
+        assert_eq!(line.spans[1].style.add_modifier, Modifier::REVERSED);
+    }
+
+    #[test]
+    fn apply_highlights_single_line_multiple_matches() {
+        let text = "foo bar foo";
+        let matches = vec![
+            (0, 3, false),  // first "foo"
+            (8, 3, false),  // second "foo"
+        ];
+        let style = Style::default();
+
+        let line = apply_highlights_to_text(text, &matches, style);
+
+        // Should have: highlighted "foo", " bar ", highlighted "foo"
+        assert_eq!(line.spans.len(), 3);
+        assert_eq!(line.spans[0].content, "foo");
+        assert_eq!(line.spans[0].style.bg, Some(Color::Yellow));
+        assert_eq!(line.spans[1].content, " bar ");
+        assert_eq!(line.spans[2].content, "foo");
+        assert_eq!(line.spans[2].style.bg, Some(Color::Yellow));
+    }
+
+    // ===== Multi-line Highlighting Tests (EXPOSE THE BUG) =====
+
+    #[test]
+    fn render_multiline_text_with_match_on_second_line() {
+        // ARRANGE: Multi-line text with match on line 2
+        let mut conversation = crate::model::AgentConversation::new(None);
+        let entry_uuid = crate::model::EntryUuid::new("entry-ml1").expect("valid uuid");
+        conversation.add_entry(create_test_log_entry(
+            "entry-ml1",
+            "First line\nSecond line",
+        ));
+
+        let scroll_state = ScrollState::default();
+
+        let query = crate::state::SearchQuery::new("Second").expect("valid query");
+        let matches = vec![crate::state::SearchMatch {
+            agent_id: None,
+            entry_uuid: entry_uuid.clone(),
+            block_index: 0,
+            char_offset: 11, // After "First line\n"
+            length: 6,       // "Second"
+        }];
+        let search_state = crate::state::SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Render
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &search_state,
+                    &create_test_styles(),
+                    false,
+                );
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+        let content: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+
+        // ASSERT: Both lines rendered
+        assert!(
+            content.contains("First"),
+            "Should render first line"
+        );
+        assert!(
+            content.contains("Second"),
+            "Should render second line"
+        );
+
+        // CRITICAL: "Second" should be highlighted
+        let highlighted_cells: Vec<_> = buffer
+            .content()
+            .iter()
+            .filter(|cell| cell.style().bg == Some(Color::Yellow))
+            .collect();
+
+        assert!(
+            !highlighted_cells.is_empty(),
+            "BUG DETECTED: Word 'Second' on line 2 should be highlighted. \
+             Current implementation applies text-wide char offsets to per-line text, \
+             which fails for matches on line 2+."
+        );
+    }
+
+    #[test]
+    fn render_multiline_text_with_match_on_first_line() {
+        // ARRANGE: Multi-line text with match on line 1 (should work with current impl)
+        let mut conversation = crate::model::AgentConversation::new(None);
+        let entry_uuid = crate::model::EntryUuid::new("entry-ml2").expect("valid uuid");
+        conversation.add_entry(create_test_log_entry(
+            "entry-ml2",
+            "First line\nSecond line",
+        ));
+
+        let scroll_state = ScrollState::default();
+
+        let query = crate::state::SearchQuery::new("First").expect("valid query");
+        let matches = vec![crate::state::SearchMatch {
+            agent_id: None,
+            entry_uuid: entry_uuid.clone(),
+            block_index: 0,
+            char_offset: 0, // Start of text
+            length: 5,      // "First"
+        }];
+        let search_state = crate::state::SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Render
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &search_state,
+                    &create_test_styles(),
+                    false,
+                );
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+
+        // ASSERT: "First" should be highlighted (works with current impl)
+        let highlighted_cells: Vec<_> = buffer
+            .content()
+            .iter()
+            .filter(|cell| cell.style().bg == Some(Color::Yellow))
+            .collect();
+
+        assert!(
+            !highlighted_cells.is_empty(),
+            "First line match should be highlighted"
+        );
+    }
+
+    #[test]
+    fn render_multiline_text_with_multiple_matches_across_lines() {
+        // ARRANGE: Matches on both lines
+        let mut conversation = crate::model::AgentConversation::new(None);
+        let entry_uuid = crate::model::EntryUuid::new("entry-ml3").expect("valid uuid");
+        conversation.add_entry(create_test_log_entry(
+            "entry-ml3",
+            "foo bar\nfoo baz",
+        ));
+
+        let scroll_state = ScrollState::default();
+
+        let query = crate::state::SearchQuery::new("foo").expect("valid query");
+        let matches = vec![
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 0, // First "foo"
+                length: 3,
+            },
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 8, // Second "foo" after "foo bar\n"
+                length: 3,
+            },
+        ];
+        let search_state = crate::state::SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Render
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &search_state,
+                    &create_test_styles(),
+                    false,
+                );
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+
+        // ASSERT: Both matches highlighted
+        let yellow_cells: Vec<_> = buffer
+            .content()
+            .iter()
+            .filter(|cell| cell.style().bg == Some(Color::Yellow))
+            .collect();
+
+        assert!(
+            yellow_cells.len() >= 6,
+            "Both 'foo' matches should be highlighted (6 chars). Found {} highlighted cells. \
+             BUG: Current implementation fails for second match on line 2.",
+            yellow_cells.len()
+        );
+    }
+
+    #[test]
+    fn render_multiline_text_with_current_match_on_second_line() {
+        // ARRANGE: Current match on line 2
+        let mut conversation = crate::model::AgentConversation::new(None);
+        let entry_uuid = crate::model::EntryUuid::new("entry-ml4").expect("valid uuid");
+        conversation.add_entry(create_test_log_entry(
+            "entry-ml4",
+            "foo bar\nfoo baz",
+        ));
+
+        let scroll_state = ScrollState::default();
+
+        let query = crate::state::SearchQuery::new("foo").expect("valid query");
+        let matches = vec![
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 0, // First "foo"
+                length: 3,
+            },
+            crate::state::SearchMatch {
+                agent_id: None,
+                entry_uuid: entry_uuid.clone(),
+                block_index: 0,
+                char_offset: 8, // Second "foo" (CURRENT)
+                length: 3,
+            },
+        ];
+        let search_state = crate::state::SearchState::Active {
+            query,
+            matches,
+            current_match: 1, // Current is second match
+        };
+
+        // ACT: Render
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).expect("Failed to create terminal");
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_conversation_view_with_search(
+                    frame,
+                    area,
+                    &conversation,
+                    &scroll_state,
+                    &search_state,
+                    &create_test_styles(),
+                    false,
+                );
+            })
+            .expect("Failed to draw");
+
+        let buffer = terminal.backend().buffer().clone();
+
+        // ASSERT: Should have REVERSED highlighting for current match
+        let yellow_bg: Vec<_> = buffer
+            .content()
+            .iter()
+            .filter(|cell| cell.style().bg == Some(Color::Yellow))
+            .collect();
+
+        let reversed: Vec<_> = buffer
+            .content()
+            .iter()
+            .filter(|cell| cell.style().add_modifier == Modifier::REVERSED)
+            .collect();
+
+        assert!(!yellow_bg.is_empty(), "Should have yellow highlighting");
+        assert!(
+            !reversed.is_empty(),
+            "BUG: Current match on line 2 should have REVERSED modifier. \
+             Current implementation fails due to line-by-line iteration with text-wide offsets."
+        );
+    }
 }
