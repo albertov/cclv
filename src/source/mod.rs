@@ -39,18 +39,7 @@ impl InputSource {
     /// Returns `InputError` for I/O errors or file deletion.
     pub fn poll(&mut self) -> Result<Vec<String>, InputError> {
         match self {
-            InputSource::File(tailer) => {
-                // Check for file changes
-                let has_changes = tailer.poll_changes()?;
-
-                // If changes detected, read new lines
-                if has_changes {
-                    tailer.read_new_lines()
-                } else {
-                    // No changes - check if there's initial content to read
-                    tailer.read_new_lines()
-                }
-            }
+            InputSource::File(tailer) => tailer.read_new_lines(),
             InputSource::Stdin(stdin) => {
                 // Drain all available lines from channel
                 let mut lines = Vec::new();
