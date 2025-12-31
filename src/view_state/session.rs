@@ -796,4 +796,164 @@ mod tests {
             "Subagent should have no model from user message"
         );
     }
+
+    // ===== Main Agent Model Extraction Tests =====
+
+    #[test]
+    fn add_main_entry_extracts_model_from_first_assistant_message() {
+        // TEST: Extract model from first assistant message in main conversation
+        //
+        // BUG FIX: Main agent model is not properly detected. Subagents correctly
+        // extract model via set_model_if_none() in add_subagent_entry(), but main
+        // agent entries don't go through equivalent model extraction.
+        //
+        // REQUIREMENT: When adding an assistant entry with model field to main
+        // conversation that has no model yet, store the model in the ConversationViewState.
+
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        // Create assistant message with model
+        let model_info = crate::model::ModelInfo::new("claude-opus-4-5-20251101");
+        let message = Message::new(
+            Role::Assistant,
+            MessageContent::Text("Response from main agent".to_string()),
+        )
+        .with_model(model_info.clone());
+
+        let entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            make_timestamp(),
+            EntryType::Assistant,
+            message,
+            EntryMetadata::default(),
+        )));
+
+        // Before adding: main conversation has no model
+        assert!(
+            state.main().model().is_none(),
+            "Main conversation should start with no model"
+        );
+
+        // Add assistant entry with model to main conversation
+        state.add_main_entry(entry);
+
+        // After adding: main conversation should have the model
+        assert!(
+            state.main().model().is_some(),
+            "Main conversation should have model extracted from first assistant message"
+        );
+        assert_eq!(
+            state.main().model().unwrap().id(),
+            "claude-opus-4-5-20251101",
+            "Model should match the one from the assistant message"
+        );
+    }
+
+    #[test]
+    fn add_main_entry_does_not_overwrite_existing_model() {
+        // TEST: Don't overwrite if model already set in main conversation
+        //
+        // REQUIREMENT: Only extract model if main conversation has no model yet.
+        // If model is already set, don't overwrite it.
+
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        // Create first assistant message with model
+        let first_model = crate::model::ModelInfo::new("claude-opus-4-5-20251101");
+        let first_message = Message::new(
+            Role::Assistant,
+            MessageContent::Text("First response".to_string()),
+        )
+        .with_model(first_model.clone());
+
+        let first_entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            make_timestamp(),
+            EntryType::Assistant,
+            first_message,
+            EntryMetadata::default(),
+        )));
+
+        // Add first entry (should set model)
+        state.add_main_entry(first_entry);
+
+        assert_eq!(
+            state.main().model().unwrap().id(),
+            "claude-opus-4-5-20251101",
+            "First model should be set"
+        );
+
+        // Create second assistant message with DIFFERENT model
+        let second_model = crate::model::ModelInfo::new("claude-sonnet-4-5-20250929");
+        let second_message = Message::new(
+            Role::Assistant,
+            MessageContent::Text("Second response".to_string()),
+        )
+        .with_model(second_model.clone());
+
+        let second_entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-2"),
+            None,
+            make_session_id("session-1"),
+            None,
+            make_timestamp(),
+            EntryType::Assistant,
+            second_message,
+            EntryMetadata::default(),
+        )));
+
+        // Add second entry (should NOT overwrite model)
+        state.add_main_entry(second_entry);
+
+        assert_eq!(
+            state.main().model().unwrap().id(),
+            "claude-opus-4-5-20251101",
+            "Model should NOT be overwritten - should still be the first one"
+        );
+    }
+
+    #[test]
+    fn add_main_entry_ignores_user_messages_for_model_extraction() {
+        // TEST: Only extract from assistant messages in main conversation
+        //
+        // REQUIREMENT: User messages don't have model field (expected).
+        // Only assistant messages should trigger model extraction.
+
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        // Create user message (no model)
+        let user_message = Message::new(
+            Role::User,
+            MessageContent::Text("User question".to_string()),
+        );
+
+        let user_entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            make_timestamp(),
+            EntryType::User,
+            user_message,
+            EntryMetadata::default(),
+        )));
+
+        // Add user entry to main
+        state.add_main_entry(user_entry);
+
+        // Main conversation should have no model
+        assert!(
+            state.main().model().is_none(),
+            "Main conversation should have no model from user message"
+        );
+    }
 }
