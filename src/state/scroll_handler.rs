@@ -3,10 +3,10 @@
 //! Pure functions that transform AppState in response to scroll actions.
 //! Focus-aware: dispatches actions to the correct ConversationViewState based on current focus.
 //!
-//! # Migration Note
-//! This handler now uses ConversationViewState.set_scroll() with ScrollPosition variants
-//! instead of directly modifying ScrollState.vertical_offset (which has been removed).
-//! Scroll position is now line-based (total_height in lines) rather than entry-based.
+//! # Dual-Write Migration Pattern
+//! This handler uses ConversationViewState.set_scroll() with ScrollPosition (new, semantic)
+//! and also writes the resolved offset to ScrollState.vertical_offset (compatibility).
+//! The dual-write maintains view/message.rs compatibility during migration to visible_range.
 
 use crate::model::KeyAction;
 use crate::state::{AppState, FocusPane};
@@ -29,6 +29,27 @@ pub fn handle_scroll_action(
     match state.focus {
         FocusPane::Stats | FocusPane::Search => return state,
         _ => {}
+    }
+
+    // Handle horizontal scrolling early (doesn't need conversation view-state)
+    match action {
+        KeyAction::ScrollLeft => {
+            match state.focus {
+                FocusPane::Main => state.main_scroll.scroll_left(1),
+                FocusPane::Subagent => state.subagent_scroll.scroll_left(1),
+                _ => {} // Already handled above
+            }
+            return state;
+        }
+        KeyAction::ScrollRight => {
+            match state.focus {
+                FocusPane::Main => state.main_scroll.scroll_right(1),
+                FocusPane::Subagent => state.subagent_scroll.scroll_right(1),
+                _ => {} // Already handled above
+            }
+            return state;
+        }
+        _ => {} // Continue to vertical scrolling
     }
 
     // Get mutable reference to the appropriate conversation view-state
@@ -153,22 +174,33 @@ pub fn handle_scroll_action(
             // Jump to bottom
             ScrollPosition::Bottom
         }
-        KeyAction::ScrollLeft => {
-            // Horizontal scrolling still uses ScrollState
-            state.main_scroll.scroll_left(1);
-            return state;
-        }
-        KeyAction::ScrollRight => {
-            // Horizontal scrolling still uses ScrollState
-            state.main_scroll.scroll_right(1);
-            return state;
-        }
-        // Non-scroll actions are no-ops
+        // Non-scroll actions are no-ops (horizontal scrolling handled earlier)
         _ => return state,
     };
 
     // Apply the new scroll position
-    conversation.set_scroll(new_scroll);
+    conversation.set_scroll(new_scroll.clone());
+
+    // Dual-write: Resolve scroll position and update ScrollState.vertical_offset
+    // This maintains compatibility with view/message.rs during migration.
+    // TODO(cclv-5ur.6.9): Remove when view/message.rs uses visible_range instead.
+    let total_height = conversation.total_height();
+    let resolved_offset = new_scroll.resolve(
+        total_height,
+        viewport_height,
+        |idx| conversation.entry_cumulative_y(idx),
+    );
+
+    // Write to the appropriate ScrollState based on focus
+    match state.focus {
+        FocusPane::Main => {
+            state.main_scroll.vertical_offset = resolved_offset.get();
+        }
+        FocusPane::Subagent => {
+            state.subagent_scroll.vertical_offset = resolved_offset.get();
+        }
+        _ => {} // Stats/Search don't have scroll state
+    }
 
     state
 }

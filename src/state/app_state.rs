@@ -452,10 +452,11 @@ pub enum WrapMode {
 /// for a single conversation pane (either main agent or a subagent).
 ///
 /// NOTE: Scroll position is now managed by ConversationViewState via ScrollPosition.
-/// This struct only tracks per-entry presentation state (expanded, wrap overrides).
+/// The vertical_offset field is maintained via dual-write for view layer compatibility.
 ///
 /// # Invariants
 ///
+/// - `vertical_offset ≥ 0` (managed by scroll_handler via ScrollPosition.resolve())
 /// - `horizontal_offset ≥ 0` (enforced by `scroll_left` saturation)
 /// - `expanded_messages` contains only valid `EntryUuid`s from the conversation
 /// - `focused_message < conversation.entries().len()` when `Some`
@@ -480,10 +481,14 @@ pub enum WrapMode {
 /// - Global=NoWrap, Override present → Wrap for this message
 #[derive(Debug, Clone, Default)]
 pub struct ScrollState {
-    /// DEPRECATED: Vertical scrolling now managed by ConversationViewState.
-    /// This field is a compatibility stub and always returns 0.
-    /// Will be removed by subsequent migration beads.
-    #[deprecated(note = "Use ConversationViewState.scroll() instead")]
+    /// Vertical scroll offset in lines (absolute line offset from top of content).
+    ///
+    /// **COMPATIBILITY**: This field is written by scroll_handler via dual-write pattern
+    /// and read by view/message.rs during rendering. The semantic scroll position is
+    /// managed by ConversationViewState.scroll() using ScrollPosition enum.
+    ///
+    /// **TODO(cclv-5ur.6.9)**: Remove when view/message.rs migrated to use
+    /// ConversationViewState.visible_range() instead of reading this field directly.
     pub vertical_offset: usize,
 
     /// Horizontal scroll offset (number of characters scrolled right from left edge).
@@ -509,37 +514,6 @@ pub struct ScrollState {
 }
 
 impl ScrollState {
-    // ===== DEPRECATED: Stubs for backwards compatibility during migration =====
-    // These will be removed by subsequent beads (cclv-5ur.6.2, cclv-5ur.6.3, cclv-5ur.6.11)
-
-    /// DEPRECATED: Scroll position now managed by ConversationViewState.
-    /// This is a no-op stub for compatibility during migration.
-    #[deprecated(note = "Use ConversationViewState.set_scroll() instead")]
-    pub fn scroll_up(&mut self, _amount: usize) {
-        // No-op: vertical scrolling now handled by ConversationViewState
-    }
-
-    /// DEPRECATED: Scroll position now managed by ConversationViewState.
-    /// This is a no-op stub for compatibility during migration.
-    #[deprecated(note = "Use ConversationViewState.set_scroll() instead")]
-    pub fn scroll_down(&mut self, _amount: usize, _max: usize) {
-        // No-op: vertical scrolling now handled by ConversationViewState
-    }
-
-    /// DEPRECATED: Scroll position now managed by ConversationViewState.
-    /// This is a no-op stub for compatibility during migration.
-    #[deprecated(note = "Use ConversationViewState.set_scroll() instead")]
-    pub fn at_bottom(&self, _max_entries: usize) -> bool {
-        false // Stub return
-    }
-
-    /// DEPRECATED: Scroll position now managed by ConversationViewState.
-    /// This is a no-op stub for compatibility during migration.
-    #[deprecated(note = "Use ConversationViewState.set_scroll() instead")]
-    pub fn scroll_to_bottom(&mut self, _max_entries: usize) {
-        // No-op: vertical scrolling now handled by ConversationViewState
-    }
-
     // ===== Active methods (horizontal scrolling) =====
 
     /// Scroll left by amount, saturating at 0.

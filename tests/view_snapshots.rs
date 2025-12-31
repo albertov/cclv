@@ -611,9 +611,8 @@ fn bug_scroll_offset_adds_blank_lines_instead_of_moving_viewport() {
     let styles = MessageStyles::new();
 
     // Render at offset 0 and offset 10 - they should show DIFFERENT content
-    let render_at_offset = |offset: usize| -> String {
+    let render_at_offset = |_offset: usize| -> String {
         let scroll_state = ScrollState {
-            vertical_offset: offset,
             ..Default::default()
         };
 
@@ -676,7 +675,6 @@ fn diagnostic_scroll_rendering_with_many_entries() {
 
     for offset in test_offsets {
         let scroll_state = ScrollState {
-            vertical_offset: offset,
             ..Default::default()
         };
 

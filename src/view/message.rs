@@ -8182,9 +8182,7 @@ fn test() { println!("Code blocks always NoWrap"); }
 
         // Scroll down significantly
         let mut scroll = ScrollState::default();
-        for _ in 0..100 {
-            scroll.scroll_down(1, 1000);
-        }
+        scroll.vertical_offset = 100; // Simulate scrolling down 100 lines
 
         let search = SearchState::Inactive;
         let styles = create_test_styles();
