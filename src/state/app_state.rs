@@ -204,6 +204,9 @@ pub struct ScrollState {
     pub horizontal_offset: usize,
     pub expanded_messages: HashSet<EntryUuid>,
     pub focused_message: Option<usize>,
+    /// Messages with wrap override (FR-048: per-item toggle overrides global)
+    /// FR-049: ephemeral, not persisted
+    pub wrap_overrides: HashSet<EntryUuid>,
 }
 
 impl ScrollState {
@@ -273,6 +276,17 @@ impl ScrollState {
     /// Get the focused message index.
     pub fn focused_message(&self) -> Option<usize> {
         self.focused_message
+    }
+
+    /// Toggle wrap override for a specific message (FR-050: w key)
+    pub fn toggle_wrap(&mut self, uuid: &EntryUuid) {
+        todo!("toggle_wrap")
+    }
+
+    /// Get effective wrap mode for a message (FR-048)
+    /// Per-item override inverts the global setting
+    pub fn effective_wrap(&self, uuid: &EntryUuid, global: WrapMode) -> WrapMode {
+        todo!("effective_wrap")
     }
 }
 

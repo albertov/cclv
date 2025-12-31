@@ -106,6 +106,7 @@ fn scroll_up_decreases_vertical_offset() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_up(3);
@@ -120,6 +121,7 @@ fn scroll_up_saturates_at_zero() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_up(5);
@@ -154,6 +156,7 @@ fn scroll_down_respects_max_bound() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_down(10, 100);
@@ -179,6 +182,7 @@ fn scroll_left_decreases_horizontal_offset() {
         horizontal_offset: 20,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_left(5);
@@ -193,6 +197,7 @@ fn scroll_left_saturates_at_zero() {
         horizontal_offset: 3,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_left(10);
@@ -313,6 +318,7 @@ fn at_bottom_returns_true_when_at_max() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     assert!(scroll.at_bottom(100));
@@ -325,6 +331,7 @@ fn at_bottom_returns_false_when_below_max() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     assert!(!scroll.at_bottom(100));
@@ -344,6 +351,7 @@ fn at_bottom_returns_false_when_one_below_max() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     assert!(!scroll.at_bottom(100));
@@ -367,6 +375,7 @@ fn scroll_to_bottom_from_middle_position() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_to_bottom(100);
@@ -381,6 +390,7 @@ fn scroll_to_bottom_when_already_at_bottom() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_to_bottom(100);
@@ -395,6 +405,7 @@ fn scroll_to_bottom_with_zero_max() {
         horizontal_offset: 0,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_to_bottom(0);
@@ -409,6 +420,7 @@ fn scroll_to_bottom_does_not_affect_horizontal_offset() {
         horizontal_offset: 25,
         expanded_messages: HashSet::new(),
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_to_bottom(100);
@@ -428,6 +440,7 @@ fn scroll_to_bottom_does_not_affect_expanded_messages() {
             set
         },
         focused_message: None,
+        wrap_overrides: HashSet::new(),
     };
 
     scroll.scroll_to_bottom(100);
@@ -949,6 +962,7 @@ fn collapse_all_does_not_affect_scroll_offsets() {
         horizontal_offset: 5,
         expanded_messages: HashSet::new(),
         focused_message: Some(2),
+        wrap_overrides: HashSet::new(),
     };
 
     let uuid = make_entry_uuid("msg-1");
@@ -1030,4 +1044,119 @@ fn wrap_mode_default_is_wrap() {
 #[test]
 fn wrap_mode_variants_are_distinct() {
     assert_ne!(WrapMode::Wrap, WrapMode::NoWrap);
+}
+
+// ===== ScrollState::wrap_overrides Tests =====
+
+#[test]
+fn wrap_overrides_starts_empty_by_default() {
+    // FR-049: ephemeral state, starts empty
+    let scroll = ScrollState::default();
+
+    assert!(scroll.wrap_overrides.is_empty());
+}
+
+#[test]
+fn toggle_wrap_adds_uuid_when_not_present() {
+    let mut scroll = ScrollState::default();
+    let uuid = make_entry_uuid("msg-1");
+
+    scroll.toggle_wrap(&uuid);
+
+    assert!(scroll.wrap_overrides.contains(&uuid));
+}
+
+#[test]
+fn toggle_wrap_removes_uuid_when_present() {
+    let mut scroll = ScrollState::default();
+    let uuid = make_entry_uuid("msg-1");
+    scroll.wrap_overrides.insert(uuid.clone());
+
+    scroll.toggle_wrap(&uuid);
+
+    assert!(!scroll.wrap_overrides.contains(&uuid));
+}
+
+#[test]
+fn toggle_wrap_twice_returns_to_original_state() {
+    // Property: double toggle is identity
+    let mut scroll = ScrollState::default();
+    let uuid = make_entry_uuid("msg-1");
+
+    scroll.toggle_wrap(&uuid);
+    scroll.toggle_wrap(&uuid);
+
+    assert!(!scroll.wrap_overrides.contains(&uuid));
+}
+
+#[test]
+fn toggle_wrap_twice_from_populated_state_returns_to_original() {
+    // Property: double toggle is identity (starting from populated state)
+    let mut scroll = ScrollState::default();
+    let uuid = make_entry_uuid("msg-1");
+    scroll.wrap_overrides.insert(uuid.clone());
+
+    scroll.toggle_wrap(&uuid);
+    scroll.toggle_wrap(&uuid);
+
+    assert!(scroll.wrap_overrides.contains(&uuid));
+}
+
+#[test]
+fn effective_wrap_returns_global_when_no_override() {
+    // FR-048: No override = use global
+    let scroll = ScrollState::default();
+    let uuid = make_entry_uuid("msg-1");
+
+    assert_eq!(scroll.effective_wrap(&uuid, WrapMode::Wrap), WrapMode::Wrap);
+    assert_eq!(
+        scroll.effective_wrap(&uuid, WrapMode::NoWrap),
+        WrapMode::NoWrap
+    );
+}
+
+#[test]
+fn effective_wrap_inverts_global_when_override_present() {
+    // FR-048: Override inverts global setting
+    let mut scroll = ScrollState::default();
+    let uuid = make_entry_uuid("msg-1");
+    scroll.wrap_overrides.insert(uuid.clone());
+
+    assert_eq!(
+        scroll.effective_wrap(&uuid, WrapMode::Wrap),
+        WrapMode::NoWrap
+    );
+    assert_eq!(
+        scroll.effective_wrap(&uuid, WrapMode::NoWrap),
+        WrapMode::Wrap
+    );
+}
+
+#[test]
+fn effective_wrap_after_toggle_inverts_global() {
+    let mut scroll = ScrollState::default();
+    let uuid = make_entry_uuid("msg-1");
+
+    scroll.toggle_wrap(&uuid);
+
+    assert_eq!(
+        scroll.effective_wrap(&uuid, WrapMode::Wrap),
+        WrapMode::NoWrap
+    );
+}
+
+#[test]
+fn effective_wrap_different_uuids_independent() {
+    // Different messages have independent override state
+    let mut scroll = ScrollState::default();
+    let uuid1 = make_entry_uuid("msg-1");
+    let uuid2 = make_entry_uuid("msg-2");
+
+    scroll.toggle_wrap(&uuid1);
+
+    assert_eq!(
+        scroll.effective_wrap(&uuid1, WrapMode::Wrap),
+        WrapMode::NoWrap
+    );
+    assert_eq!(scroll.effective_wrap(&uuid2, WrapMode::Wrap), WrapMode::Wrap);
 }

@@ -245,6 +245,7 @@ proptest! {
             horizontal_offset: 0,
             expanded_messages: Default::default(),
             focused_message: None,
+            wrap_overrides: Default::default(),
         };
 
         // Apply each action and verify bounds hold
@@ -282,6 +283,7 @@ proptest! {
             horizontal_offset: 0,
             expanded_messages: Default::default(),
             focused_message: None,
+            wrap_overrides: Default::default(),
         };
 
         // Scroll up repeatedly with arbitrary amounts

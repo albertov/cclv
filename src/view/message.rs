@@ -2720,6 +2720,7 @@ mod tests {
             horizontal_offset: 10,
             expanded_messages: HashSet::new(),
             focused_message: None,
+            wrap_overrides: HashSet::new(),
         };
 
         let backend = TestBackend::new(80, 10);
@@ -2795,6 +2796,7 @@ mod tests {
             horizontal_offset: 20,
             expanded_messages: HashSet::new(),
             focused_message: None,
+            wrap_overrides: HashSet::new(),
         };
 
         let backend = TestBackend::new(80, 10);
