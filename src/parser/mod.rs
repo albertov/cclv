@@ -249,6 +249,8 @@ fn parse_entry_type(type_str: &str) -> Option<EntryType> {
         "user" => Some(EntryType::User),
         "assistant" => Some(EntryType::Assistant),
         "summary" => Some(EntryType::Summary),
+        "system" => todo!("parse_entry_type: system variant"),
+        "result" => todo!("parse_entry_type: result variant"),
         _ => None,
     }
 }
@@ -590,6 +592,16 @@ mod tests {
     #[test]
     fn parse_entry_type_recognizes_summary() {
         assert_eq!(parse_entry_type("summary"), Some(EntryType::Summary));
+    }
+
+    #[test]
+    fn parse_entry_type_recognizes_system() {
+        assert_eq!(parse_entry_type("system"), Some(EntryType::System));
+    }
+
+    #[test]
+    fn parse_entry_type_recognizes_result() {
+        assert_eq!(parse_entry_type("result"), Some(EntryType::Result));
     }
 
     #[test]

@@ -16,6 +16,8 @@ use std::path::PathBuf;
 /// - User entries appear as user prompts/messages
 /// - Assistant entries appear as Claude's responses
 /// - Summary entries contain session metadata and summaries
+/// - System entries contain system messages and initialization data
+/// - Result entries contain session end results and final statistics
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryType {
     /// User message or prompt
@@ -24,6 +26,10 @@ pub enum EntryType {
     Assistant,
     /// Session summary or metadata entry
     Summary,
+    /// System message or initialization entry
+    System,
+    /// Session result or completion entry
+    Result,
 }
 
 // ===== EntryMetadata =====
@@ -213,6 +219,16 @@ mod tests {
     #[test]
     fn entry_type_summary_equals_summary() {
         assert_eq!(EntryType::Summary, EntryType::Summary);
+    }
+
+    #[test]
+    fn entry_type_system_equals_system() {
+        assert_eq!(EntryType::System, EntryType::System);
+    }
+
+    #[test]
+    fn entry_type_result_equals_result() {
+        assert_eq!(EntryType::Result, EntryType::Result);
     }
 
     #[test]
