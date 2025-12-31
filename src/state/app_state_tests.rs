@@ -1160,3 +1160,41 @@ fn effective_wrap_different_uuids_independent() {
     );
     assert_eq!(scroll.effective_wrap(&uuid2, WrapMode::Wrap), WrapMode::Wrap);
 }
+
+// ===== AppState::toggle_global_wrap Tests =====
+
+#[test]
+fn toggle_global_wrap_switches_from_wrap_to_nowrap() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    // Default is Wrap (verified by wrap_mode_default_is_wrap test)
+    assert_eq!(state.global_wrap, WrapMode::Wrap);
+
+    state.toggle_global_wrap();
+
+    assert_eq!(state.global_wrap, WrapMode::NoWrap);
+}
+
+#[test]
+fn toggle_global_wrap_switches_from_nowrap_to_wrap() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    state.global_wrap = WrapMode::NoWrap;
+
+    state.toggle_global_wrap();
+
+    assert_eq!(state.global_wrap, WrapMode::Wrap);
+}
+
+#[test]
+fn toggle_global_wrap_twice_returns_to_original() {
+    // Property: double toggle is identity
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    let original = state.global_wrap;
+
+    state.toggle_global_wrap();
+    state.toggle_global_wrap();
+
+    assert_eq!(state.global_wrap, original);
+}

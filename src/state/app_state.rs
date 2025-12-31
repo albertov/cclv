@@ -24,6 +24,7 @@ pub struct AppState {
     pub help_visible: bool,
     pub live_mode: bool,
     pub auto_scroll: bool,
+    pub global_wrap: WrapMode, // FR-039: toggleable line-wrapping
 }
 
 impl AppState {
@@ -41,6 +42,7 @@ impl AppState {
             help_visible: false,
             live_mode: false,
             auto_scroll: true,
+            global_wrap: WrapMode::default(),
         }
     }
 
@@ -169,6 +171,14 @@ impl AppState {
         // Convert from 1-indexed to 0-indexed, clamping to last tab
         let zero_indexed = tab_number - 1;
         self.selected_tab = Some(zero_indexed.min(num_subagents - 1));
+    }
+
+    /// Toggle global wrap mode (FR-050: W key)
+    pub fn toggle_global_wrap(&mut self) {
+        self.global_wrap = match self.global_wrap {
+            WrapMode::Wrap => WrapMode::NoWrap,
+            WrapMode::NoWrap => WrapMode::Wrap,
+        };
     }
 }
 
