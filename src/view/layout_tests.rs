@@ -1404,3 +1404,195 @@ fn render_header_shows_fallback_when_no_system_metadata() {
         "Header should render successfully even without system metadata"
     );
 }
+
+// ===== Unified Tab Model Layout Tests (FR-083-088) =====
+
+/// FR-083: Test that layout does NOT have horizontal split.
+/// There should be a single conversation area, not 60/40 split.
+/// Tab bar appears at top of this single area.
+#[test]
+fn unified_layout_has_no_horizontal_split() {
+    let mut terminal = create_test_terminal();
+    let entries = create_entries_with_subagents();
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    // EXPECTATION: With unified tabs, there should be NO 60/40 horizontal split.
+    // The entire conversation area should be 100% width.
+    // This test will FAIL until we remove calculate_horizontal_constraints
+    // and the horizontal split logic.
+
+    // Strategy: Check that calculate_pane_areas returns only ONE full-width area,
+    // not two split areas.
+    let frame_area = Rect::new(0, 0, 80, 24); // TestBackend size
+    let (main_area, subagent_area) = calculate_pane_areas(frame_area, &state);
+
+    // After unified layout:
+    // - main_area should be full conversation area width
+    // - subagent_area should be None (no separate pane)
+    assert_eq!(
+        subagent_area, None,
+        "FR-083: Should have no separate subagent pane (unified layout)"
+    );
+
+    // Calculate expected conversation area width (accounting for stats panel if visible)
+    // For now, just verify main_area width is reasonable (> 40 columns for 80-wide terminal)
+    assert!(
+        main_area.width > 40,
+        "FR-083: Main area should have full width, got {}",
+        main_area.width
+    );
+}
+
+/// FR-084: Test that tab bar includes main agent at position 0.
+/// Tab 0 should show "Main Agent" label, tabs 1..N are subagents.
+#[test]
+fn unified_tab_bar_includes_main_agent_at_position_zero() {
+    let mut terminal = create_test_terminal();
+    let entries = create_entries_with_multiple_subagents();
+    let mut state = AppState::new();
+    state.add_entries(entries);
+    state.selected_tab = Some(0); // Select main agent tab
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let rendered = format!("{:?}", terminal.backend().buffer());
+
+    // EXPECTATION: Tab bar should contain "Main Agent" label at first position
+    // This will FAIL until we update render_subagent_pane to include main agent
+    assert!(
+        rendered.contains("Main Agent") || rendered.contains("[Main]"),
+        "FR-084: Tab bar should show main agent at position 0"
+    );
+}
+
+/// FR-085: Test that tab bar always shows (even when only main agent exists).
+/// With unified tabs, tab bar is always present showing at minimum "Main Agent".
+#[test]
+fn unified_tab_bar_shows_for_main_only_session() {
+    let mut terminal = create_test_terminal();
+    let entries = create_entries_no_subagents(); // Only main agent
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let rendered = format!("{:?}", terminal.backend().buffer());
+
+    // EXPECTATION: Tab bar should be visible even with only main agent
+    // Currently, tab bar only shows when has_subagents == true
+    // This will FAIL until we always render tab bar
+    assert!(
+        rendered.contains("Main Agent") || rendered.contains("[Main]"),
+        "FR-085: Tab bar should always show, even for main-only sessions"
+    );
+}
+
+/// FR-086: Test that tab bar has 3-line height for all conversations.
+/// Tab bar area should be consistent whether showing main or subagent.
+#[test]
+fn unified_tab_bar_has_consistent_height() {
+    let entries = create_entries_with_subagents();
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    // Calculate tab area
+    let frame_area = Rect::new(0, 0, 80, 24); // TestBackend size
+    let tab_area = calculate_tab_area(frame_area, &state);
+
+    // EXPECTATION: Tab bar should be 3 lines tall
+    // With unified layout, this should be consistent
+    assert_eq!(
+        tab_area.map(|r| r.height),
+        Some(3),
+        "FR-086: Tab bar should be 3 lines tall"
+    );
+}
+
+/// FR-087: Test that selected_tab determines which conversation renders.
+/// When selected_tab = 0, main agent conversation shows.
+/// When selected_tab = N, subagent N-1 conversation shows (0-indexed subagents).
+#[test]
+fn unified_layout_selected_tab_controls_conversation_display() {
+    let mut terminal = create_test_terminal();
+    let entries = create_entries_with_multiple_subagents();
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    // Test 1: selected_tab = 0 should show main agent
+    state.selected_tab = Some(0);
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let rendered_main = format!("{:?}", terminal.backend().buffer());
+
+    // Should contain main agent's content
+    assert!(
+        rendered_main.contains("Main message"),
+        "FR-087: selected_tab=0 should show main agent conversation"
+    );
+
+    // Test 2: selected_tab = 1 should show first subagent
+    state.selected_tab = Some(1);
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let rendered_sub1 = format!("{:?}", terminal.backend().buffer());
+
+    // Should contain first subagent's content
+    assert!(
+        rendered_sub1.contains("Subagent 1 message") || rendered_sub1.contains("subagent-1"),
+        "FR-087: selected_tab=1 should show first subagent conversation"
+    );
+}
+
+/// FR-088: Test that tab selection works regardless of focus pane.
+/// Old behavior: tabs only worked when FocusPane::Subagent.
+/// New behavior: tabs work for Main, Subagent, Stats (not Search modal).
+#[test]
+fn unified_tabs_work_with_main_pane_focused() {
+    let mut terminal = create_test_terminal();
+    let entries = create_entries_with_subagents();
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    // Focus on Main pane (not Subagent)
+    state.focus = FocusPane::Main;
+    state.selected_tab = Some(0); // Main agent
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let rendered = format!("{:?}", terminal.backend().buffer());
+
+    // EXPECTATION: Tab bar should be visible and functional even when Main pane focused
+    // Currently, tab bar only shows when has_subagents && focus == Subagent
+    // This will FAIL until we decouple tab bar from focus state
+    assert!(
+        rendered.contains("Main Agent") || rendered.contains("[Main]"),
+        "FR-088: Tabs should work when Main pane is focused"
+    );
+}
