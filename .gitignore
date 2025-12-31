@@ -18,6 +18,7 @@ Thumbs.db
 
 # Project-specific
 *log.jsonl
+!tests/fixtures/cc-session-log.jsonl
 .worktrees/
 *.log
 
