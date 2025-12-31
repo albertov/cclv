@@ -295,6 +295,30 @@ pub fn handle_mouse_click(
     }
 }
 
+/// Handle a mouse scroll event and update AppState accordingly.
+///
+/// # Arguments
+/// * `state` - Current application state
+/// * `is_scroll_up` - true for scroll up, false for scroll down
+/// * `viewport_height` - Height of the visible viewport (for scroll calculations)
+///
+/// # Returns
+/// Updated AppState with scroll position changed based on focused pane.
+///
+/// # Behavior
+/// - Determines which pane to scroll based on current focus
+/// - Scrolls Main pane when focus is FocusPane::Main
+/// - Scrolls Subagent pane when focus is FocusPane::Subagent
+/// - No scroll when focus is FocusPane::Stats or FocusPane::Search
+/// - Delegates to scroll_handler for actual scroll logic
+pub fn handle_mouse_scroll(
+    _state: AppState,
+    _is_scroll_up: bool,
+    _viewport_height: usize,
+) -> AppState {
+    todo!("handle_mouse_scroll")
+}
+
 // ===== Tests =====
 
 #[cfg(test)]
