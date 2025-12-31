@@ -249,8 +249,8 @@ fn parse_entry_type(type_str: &str) -> Option<EntryType> {
         "user" => Some(EntryType::User),
         "assistant" => Some(EntryType::Assistant),
         "summary" => Some(EntryType::Summary),
-        "system" => todo!("parse_entry_type: system variant"),
-        "result" => todo!("parse_entry_type: result variant"),
+        "system" => Some(EntryType::System),
+        "result" => Some(EntryType::Result),
         _ => None,
     }
 }
