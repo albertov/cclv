@@ -12,7 +12,7 @@ pub use help::render_help_overlay;
 pub use message::ConversationView;
 pub use search_input::SearchInput;
 pub use stats::StatsPanel;
-pub use styles::MessageStyles;
+pub use styles::{ColorConfig, MessageStyles};
 
 use crate::config::keybindings::KeyBindings;
 use crate::integration;
