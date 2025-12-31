@@ -5,6 +5,35 @@
 use crate::model::{ContentBlock, Role};
 use ratatui::style::{Color, Style};
 
+// ===== ColorConfig =====
+
+/// Configuration for color output.
+///
+/// Determines whether colors should be enabled or disabled based on:
+/// - `--no-color` CLI flag
+/// - `NO_COLOR` environment variable
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ColorConfig {
+    enabled: bool,
+}
+
+impl ColorConfig {
+    /// Create a ColorConfig from CLI args and environment.
+    ///
+    /// Priority (first match wins):
+    /// 1. `--no-color` flag (disables colors)
+    /// 2. `NO_COLOR` env var (any value disables colors)
+    /// 3. Default: colors enabled
+    pub fn from_env_and_args(no_color_flag: bool) -> Self {
+        todo!("ColorConfig::from_env_and_args")
+    }
+
+    /// Check if colors are enabled.
+    pub fn colors_enabled(self) -> bool {
+        todo!("ColorConfig::colors_enabled")
+    }
+}
+
 // ===== MessageStyles =====
 
 /// Configuration for message type styling.
@@ -24,12 +53,14 @@ pub struct MessageStyles {
 impl MessageStyles {
     /// Create a new MessageStyles with default color scheme.
     pub fn new() -> Self {
-        Self {
-            user_style: Style::default().fg(Color::Cyan),
-            assistant_style: Style::default().fg(Color::Green),
-            tool_call_style: Style::default().fg(Color::Yellow),
-            error_style: Style::default().fg(Color::Red),
-        }
+        Self::with_color_config(ColorConfig::from_env_and_args(false))
+    }
+
+    /// Create a new MessageStyles with specified color configuration.
+    ///
+    /// If colors are disabled, all styles will use default (no color) styling.
+    pub fn with_color_config(config: ColorConfig) -> Self {
+        todo!("MessageStyles::with_color_config")
     }
 
     /// Get the style for a message role.
@@ -73,6 +104,150 @@ impl Default for MessageStyles {
 mod tests {
     use super::*;
     use crate::model::{ToolCall, ToolName, ToolUseId};
+
+    // ===== ColorConfig Tests =====
+
+    #[test]
+    fn color_config_respects_no_color_flag() {
+        let config = ColorConfig::from_env_and_args(true);
+        assert!(
+            !config.colors_enabled(),
+            "--no-color flag should disable colors"
+        );
+    }
+
+    #[test]
+    fn color_config_respects_no_color_env_var() {
+        // Set NO_COLOR env var
+        std::env::set_var("NO_COLOR", "1");
+        let config = ColorConfig::from_env_and_args(false);
+        assert!(
+            !config.colors_enabled(),
+            "NO_COLOR env var should disable colors"
+        );
+        std::env::remove_var("NO_COLOR");
+    }
+
+    #[test]
+    fn color_config_flag_overrides_env_var() {
+        // Set NO_COLOR env var but also pass --no-color flag
+        std::env::set_var("NO_COLOR", "1");
+        let config = ColorConfig::from_env_and_args(true);
+        assert!(
+            !config.colors_enabled(),
+            "Flag should still disable when env var also present"
+        );
+        std::env::remove_var("NO_COLOR");
+    }
+
+    #[test]
+    fn color_config_enables_colors_by_default() {
+        // Ensure NO_COLOR is not set
+        std::env::remove_var("NO_COLOR");
+        let config = ColorConfig::from_env_and_args(false);
+        assert!(
+            config.colors_enabled(),
+            "Colors should be enabled by default"
+        );
+    }
+
+    #[test]
+    fn color_config_no_color_env_any_value_disables() {
+        // NO_COLOR can be any value (even empty string)
+        std::env::set_var("NO_COLOR", "");
+        let config = ColorConfig::from_env_and_args(false);
+        assert!(
+            !config.colors_enabled(),
+            "NO_COLOR with empty string should disable colors"
+        );
+        std::env::remove_var("NO_COLOR");
+    }
+
+    // ===== MessageStyles with ColorConfig Tests =====
+
+    #[test]
+    fn message_styles_with_color_config_enabled_has_colors() {
+        std::env::remove_var("NO_COLOR");
+        let config = ColorConfig::from_env_and_args(false);
+        let styles = MessageStyles::with_color_config(config);
+
+        let user_style = styles.style_for_role(Role::User);
+        let assistant_style = styles.style_for_role(Role::Assistant);
+
+        assert!(
+            user_style.fg.is_some(),
+            "User style should have color when colors enabled"
+        );
+        assert!(
+            assistant_style.fg.is_some(),
+            "Assistant style should have color when colors enabled"
+        );
+    }
+
+    #[test]
+    fn message_styles_with_color_config_disabled_has_no_colors() {
+        let config = ColorConfig::from_env_and_args(true); // --no-color
+        let styles = MessageStyles::with_color_config(config);
+
+        let user_style = styles.style_for_role(Role::User);
+        let assistant_style = styles.style_for_role(Role::Assistant);
+
+        assert!(
+            user_style.fg.is_none(),
+            "User style should have no color when colors disabled"
+        );
+        assert!(
+            assistant_style.fg.is_none(),
+            "Assistant style should have no color when colors disabled"
+        );
+    }
+
+    #[test]
+    fn message_styles_no_color_disables_tool_call_colors() {
+        let config = ColorConfig::from_env_and_args(true);
+        let styles = MessageStyles::with_color_config(config);
+
+        let id = ToolUseId::new("tool-1").expect("valid id");
+        let tool_call = ToolCall::new(id, ToolName::Read, serde_json::json!({"file": "test.txt"}));
+        let block = ContentBlock::ToolUse(tool_call);
+
+        let style = styles.style_for_content_block(&block);
+
+        // Tool calls should return a style, but with no foreground color
+        assert!(
+            style.is_some(),
+            "ToolUse should still return a style struct"
+        );
+        assert!(
+            style.unwrap().fg.is_none(),
+            "ToolUse style should have no color when colors disabled"
+        );
+    }
+
+    #[test]
+    fn message_styles_no_color_disables_error_colors() {
+        let config = ColorConfig::from_env_and_args(true);
+        let styles = MessageStyles::with_color_config(config);
+
+        let id = ToolUseId::new("result-1").expect("valid id");
+        let block = ContentBlock::ToolResult {
+            tool_use_id: id,
+            content: "Error: file not found".to_string(),
+            is_error: true,
+        };
+
+        let style = styles.style_for_content_block(&block);
+
+        // Errors should return a style, but with no color
+        assert!(
+            style.is_some(),
+            "Error ToolResult should still return a style struct"
+        );
+        assert!(
+            style.unwrap().fg.is_none(),
+            "Error style should have no color when colors disabled"
+        );
+    }
 
     // ===== MessageStyles Construction Tests =====
 
