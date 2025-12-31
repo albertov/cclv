@@ -1,14 +1,13 @@
 //! Statistics panel widget for displaying session metrics.
 
-use super::helpers::{empty_line, key_value_line};
+use super::helpers::{empty_line, key_value_line, styled_block};
 use super::styles::SECTION_HEADER;
 use crate::model::{PricingConfig, SessionStats, StatsFilter};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Style},
     text::Line,
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Paragraph, Widget},
 };
 
 // ===== StatsPanel Widget =====
@@ -63,17 +62,7 @@ impl<'a> Widget for StatsPanel<'a> {
             StatsFilter::Subagent(_) => " Statistics (Subagent) ",
         };
 
-        // Style based on focus
-        let border_color = if self.focused {
-            Color::Yellow
-        } else {
-            Color::White
-        };
-
-        let block = Block::default()
-            .title(title)
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color));
+        let block = styled_block(title, self.focused);
 
         let inner = block.inner(area);
         block.render(area, buf);

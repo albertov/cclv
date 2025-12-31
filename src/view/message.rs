@@ -13,9 +13,11 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Paragraph, Widget},
 };
 use unicode_width::UnicodeWidthStr;
+
+use super::helpers::styled_block;
 
 // ===== Entry Layout =====
 
@@ -157,10 +159,7 @@ impl<'a> Widget for ConversationView<'a> {
                 .model()
                 .map(|m| format!(" [{}]", m.display_name()))
                 .unwrap_or_default();
-            format!(
-                "{}{} ({} entries)",
-                agent_id, model_info, entry_count
-            )
+            format!("{}{} ({} entries)", agent_id, model_info, entry_count)
         } else {
             // Main agent conversation
             let model_info = self
@@ -254,17 +253,7 @@ impl<'a> Widget for ConversationView<'a> {
         let has_right = has_long_lines_flag;
         let title = add_scroll_indicators_to_title(base_title, has_left, has_right);
 
-        // Style based on focus
-        let border_color = if self.focused {
-            Color::Cyan
-        } else {
-            Color::Gray
-        };
-
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(title)
-            .style(Style::default().fg(border_color));
+        let block = styled_block(&title, self.focused);
 
         // Render paragraph without additional wrapping
         // Lines are already pre-wrapped by compute_entry_lines based on wrap mode

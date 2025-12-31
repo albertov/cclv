@@ -5,7 +5,7 @@
 //! 2. Session totals (all agents in current session combined)
 //! 3. Global totals (all sessions - future multi-session support)
 
-use super::helpers::empty_line;
+use super::helpers::{empty_line, styled_block};
 use super::styles::SECTION_HEADER;
 use crate::model::{PricingConfig, SessionStats, StatsFilter};
 use ratatui::{
@@ -100,17 +100,7 @@ impl<'a> Widget for MultiScopeStatsPanel<'a> {
     /// - Wide: three columns side-by-side
     /// - Narrow: three rows stacked vertically
     fn render(self, area: Rect, buf: &mut Buffer) {
-        // Border style based on focus
-        let border_color = if self.focused {
-            Color::Yellow
-        } else {
-            Color::White
-        };
-
-        let block = Block::default()
-            .title(" Multi-Scope Statistics ")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color));
+        let block = styled_block(" Multi-Scope Statistics ", self.focused);
 
         let inner = block.inner(area);
         block.render(area, buf);

@@ -25,7 +25,6 @@ pub fn key_value_line(key: &str, value: impl Display) -> Line<'static> {
 /// - Yellow border when focused, White when unfocused
 ///
 /// This encapsulates the focus border pattern used across stats, message, and other panels.
-#[allow(dead_code)] // Will be used when refactoring call sites
 pub fn styled_block(title: &str, focused: bool) -> Block<'_> {
     let border_color = if focused {
         Color::Yellow
