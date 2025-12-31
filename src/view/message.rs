@@ -241,6 +241,27 @@ fn parse_raw_sections(content: &str) -> Vec<(SectionType, String)> {
     sections
 }
 
+/// Apply search highlighting to rendered sections.
+///
+/// Takes sections with markdown styling already applied and overlays search match
+/// highlighting while preserving section type tags for wrap behavior.
+///
+/// # Arguments
+/// * `sections` - Rendered sections with styling applied
+/// * `entry_uuid` - UUID of the entry being highlighted (to filter matches)
+/// * `search` - Search state containing matches
+///
+/// # Returns
+/// Sections with search highlighting applied to matching text
+#[allow(dead_code)] // Will be used when refactoring search highlighting
+fn apply_search_to_sections(
+    _sections: Vec<RenderedSection>,
+    _entry_uuid: &crate::model::EntryUuid,
+    _search: &crate::state::SearchState,
+) -> Vec<RenderedSection> {
+    todo!("apply_search_to_sections")
+}
+
 /// Parse markdown content into sections (prose and code blocks).
 ///
 /// Splits entry content to enable independent wrap behavior:
@@ -8401,5 +8422,309 @@ fn test() { println!("Code blocks always NoWrap"); }
             "Code block should never wrap, even when global wrap is enabled (found on {} lines)",
             line_count
         );
+    }
+
+    // ===== Section-Level Search Highlighting Tests =====
+
+    #[test]
+    fn test_apply_search_to_sections_preserves_section_types() {
+        use crate::model::EntryUuid;
+        use crate::state::SearchState;
+        use ratatui::text::Line;
+
+        // ARRANGE: Sections with different types
+        let sections = vec![
+            RenderedSection {
+                section_type: SectionType::Prose,
+                lines: vec![Line::from("This is prose")],
+            },
+            RenderedSection {
+                section_type: SectionType::Code,
+                lines: vec![Line::from("    code block")],
+            },
+            RenderedSection {
+                section_type: SectionType::Prose,
+                lines: vec![Line::from("More prose")],
+            },
+        ];
+
+        let uuid = EntryUuid::new("test-entry").expect("valid uuid");
+        let search = SearchState::Inactive;
+
+        // ACT: Apply search (no matches, just passthrough)
+        let result = apply_search_to_sections(sections.clone(), &uuid, &search);
+
+        // ASSERT: Section types preserved
+        assert_eq!(result.len(), 3, "Should preserve section count");
+        assert_eq!(
+            result[0].section_type,
+            SectionType::Prose,
+            "First section should remain Prose"
+        );
+        assert_eq!(
+            result[1].section_type,
+            SectionType::Code,
+            "Second section should remain Code"
+        );
+        assert_eq!(
+            result[2].section_type,
+            SectionType::Prose,
+            "Third section should remain Prose"
+        );
+    }
+
+    #[test]
+    fn test_apply_search_to_sections_highlights_match_in_prose() {
+        use crate::model::EntryUuid;
+        use crate::state::{SearchMatch, SearchQuery, SearchState};
+        use ratatui::text::{Line, Span};
+        use ratatui::style::{Color, Style};
+
+        // ARRANGE: Prose section with "hello world"
+        let sections = vec![RenderedSection {
+            section_type: SectionType::Prose,
+            lines: vec![Line::from(Span::styled(
+                "hello world",
+                Style::default().fg(Color::White),
+            ))],
+        }];
+
+        let uuid = EntryUuid::new("test-entry").expect("valid uuid");
+
+        // Search match on "world" (offset 6, length 5)
+        let matches = vec![SearchMatch {
+            agent_id: None,
+            entry_uuid: uuid.clone(),
+            block_index: 0,
+            char_offset: 6,
+            length: 5,
+        }];
+        let query = SearchQuery::new("world").expect("valid query");
+        let search = SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Apply search highlighting
+        let result = apply_search_to_sections(sections, &uuid, &search);
+
+        // ASSERT: Match is highlighted
+        assert_eq!(result.len(), 1, "Should have one section");
+        assert_eq!(result[0].section_type, SectionType::Prose);
+        assert_eq!(result[0].lines.len(), 1, "Should have one line");
+
+        // Check that line has multiple spans (highlighting splits text)
+        let line = &result[0].lines[0];
+        let spans = &line.spans;
+        assert!(
+            spans.len() > 1,
+            "Highlighted line should have multiple spans (before + match + after)"
+        );
+
+        // Verify the text content is preserved
+        let full_text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(full_text, "hello world", "Text content should be unchanged");
+    }
+
+    #[test]
+    fn test_apply_search_to_sections_highlights_match_in_code() {
+        use crate::model::EntryUuid;
+        use crate::state::{SearchMatch, SearchQuery, SearchState};
+        use ratatui::text::{Line, Span};
+        use ratatui::style::{Color, Style};
+
+        // ARRANGE: Code section with "let x = 42;"
+        let sections = vec![RenderedSection {
+            section_type: SectionType::Code,
+            lines: vec![Line::from(Span::styled(
+                "let x = 42;",
+                Style::default().fg(Color::Green),
+            ))],
+        }];
+
+        let uuid = EntryUuid::new("test-entry").expect("valid uuid");
+
+        // Search match on "42" (offset 8, length 2)
+        let matches = vec![SearchMatch {
+            agent_id: None,
+            entry_uuid: uuid.clone(),
+            block_index: 0,
+            char_offset: 8,
+            length: 2,
+        }];
+        let query = SearchQuery::new("42").expect("valid query");
+        let search = SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Apply search highlighting
+        let result = apply_search_to_sections(sections, &uuid, &search);
+
+        // ASSERT: Match is highlighted in code section
+        assert_eq!(result.len(), 1, "Should have one section");
+        assert_eq!(
+            result[0].section_type,
+            SectionType::Code,
+            "Should preserve Code type"
+        );
+        assert_eq!(result[0].lines.len(), 1, "Should have one line");
+
+        let line = &result[0].lines[0];
+        let spans = &line.spans;
+        assert!(
+            spans.len() > 1,
+            "Highlighted line should have multiple spans"
+        );
+
+        let full_text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(full_text, "let x = 42;", "Text content should be unchanged");
+    }
+
+    #[test]
+    fn test_apply_search_to_sections_preserves_non_matching_sections() {
+        use crate::model::EntryUuid;
+        use crate::state::{SearchMatch, SearchQuery, SearchState};
+        use ratatui::text::{Line, Span};
+        use ratatui::style::{Color, Style};
+
+        // ARRANGE: Multiple sections, only first has match
+        let base_style = Style::default().fg(Color::White);
+        let sections = vec![
+            RenderedSection {
+                section_type: SectionType::Prose,
+                lines: vec![Line::from(Span::styled("hello world", base_style))],
+            },
+            RenderedSection {
+                section_type: SectionType::Code,
+                lines: vec![Line::from(Span::styled("no match here", base_style))],
+            },
+            RenderedSection {
+                section_type: SectionType::Prose,
+                lines: vec![Line::from(Span::styled("also no match", base_style))],
+            },
+        ];
+
+        let uuid = EntryUuid::new("test-entry").expect("valid uuid");
+
+        // Match only in first section
+        let matches = vec![SearchMatch {
+            agent_id: None,
+            entry_uuid: uuid.clone(),
+            block_index: 0,
+            char_offset: 6,
+            length: 5,
+        }];
+        let query = SearchQuery::new("world").expect("valid query");
+        let search = SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Apply search highlighting
+        let result = apply_search_to_sections(sections, &uuid, &search);
+
+        // ASSERT: Non-matching sections unchanged
+        assert_eq!(result.len(), 3, "Should preserve all sections");
+
+        // Second section (Code) should be unchanged
+        assert_eq!(result[1].section_type, SectionType::Code);
+        assert_eq!(result[1].lines.len(), 1);
+        let line_text: String = result[1].lines[0]
+            .spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect();
+        assert_eq!(line_text, "no match here");
+
+        // Third section (Prose) should be unchanged
+        assert_eq!(result[2].section_type, SectionType::Prose);
+        assert_eq!(result[2].lines.len(), 1);
+        let line_text: String = result[2].lines[0]
+            .spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect();
+        assert_eq!(line_text, "also no match");
+    }
+
+    #[test]
+    fn test_apply_search_to_sections_handles_multi_section_entry() {
+        use crate::model::EntryUuid;
+        use crate::state::{SearchMatch, SearchQuery, SearchState};
+        use ratatui::text::{Line, Span};
+        use ratatui::style::{Color, Style};
+
+        // ARRANGE: Entry with prose + code + prose, matches in each
+        let base_style = Style::default().fg(Color::White);
+        let sections = vec![
+            RenderedSection {
+                section_type: SectionType::Prose,
+                lines: vec![Line::from(Span::styled("Find this word", base_style))],
+            },
+            RenderedSection {
+                section_type: SectionType::Code,
+                lines: vec![Line::from(Span::styled("    word in code", base_style))],
+            },
+            RenderedSection {
+                section_type: SectionType::Prose,
+                lines: vec![Line::from(Span::styled("Another word here", base_style))],
+            },
+        ];
+
+        let uuid = EntryUuid::new("test-entry").expect("valid uuid");
+
+        // Matches in all three sections
+        // Note: char_offset is calculated across entire entry text including newlines
+        let matches = vec![
+            SearchMatch {
+                agent_id: None,
+                entry_uuid: uuid.clone(),
+                block_index: 0,
+                char_offset: 10, // "word" in first prose
+                length: 4,
+            },
+            SearchMatch {
+                agent_id: None,
+                entry_uuid: uuid.clone(),
+                block_index: 0,
+                char_offset: 19, // "word" in code (after first prose + newline)
+                length: 4,
+            },
+            SearchMatch {
+                agent_id: None,
+                entry_uuid: uuid.clone(),
+                block_index: 0,
+                char_offset: 44, // "word" in second prose
+                length: 4,
+            },
+        ];
+        let query = SearchQuery::new("word").expect("valid query");
+        let search = SearchState::Active {
+            query,
+            matches,
+            current_match: 0,
+        };
+
+        // ACT: Apply search highlighting
+        let result = apply_search_to_sections(sections, &uuid, &search);
+
+        // ASSERT: All sections present with correct types
+        assert_eq!(result.len(), 3, "Should preserve all sections");
+        assert_eq!(result[0].section_type, SectionType::Prose);
+        assert_eq!(result[1].section_type, SectionType::Code);
+        assert_eq!(result[2].section_type, SectionType::Prose);
+
+        // Each section should have highlighting
+        for (idx, section) in result.iter().enumerate() {
+            assert!(
+                !section.lines.is_empty(),
+                "Section {} should have lines",
+                idx
+            );
+        }
     }
 }
