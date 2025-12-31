@@ -90,6 +90,28 @@ impl AppState {
     pub fn focus_stats(&mut self) {
         self.focus = FocusPane::Stats;
     }
+
+    /// Move to next subagent tab.
+    /// Only works when focus is on Subagent pane.
+    /// Wraps from last to first tab.
+    pub fn next_tab(&mut self) {
+        todo!("next_tab")
+    }
+
+    /// Move to previous subagent tab.
+    /// Only works when focus is on Subagent pane.
+    /// Wraps from first to last tab.
+    pub fn prev_tab(&mut self) {
+        todo!("prev_tab")
+    }
+
+    /// Select a specific subagent tab by 1-indexed number.
+    /// Only works when focus is on Subagent pane.
+    /// Clamps to last tab if number is too high.
+    /// Ignores if number is 0.
+    pub fn select_tab(&mut self, _tab_number: usize) {
+        todo!("select_tab")
+    }
 }
 
 // ===== FocusPane =====

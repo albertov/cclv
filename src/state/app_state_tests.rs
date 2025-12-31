@@ -594,3 +594,255 @@ fn focus_stats_when_already_on_stats() {
 
     assert_eq!(state.focus, FocusPane::Stats);
 }
+
+// ===== AppState::next_tab Tests =====
+
+#[test]
+fn next_tab_does_nothing_when_focus_not_on_subagent() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Main;
+    state.selected_tab = Some(0);
+
+    state.next_tab();
+
+    // Tab should not change when focus is not on Subagent pane
+    assert_eq!(state.selected_tab, Some(0));
+}
+
+#[test]
+fn next_tab_does_nothing_when_no_subagents() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = None;
+
+    state.next_tab();
+
+    assert_eq!(state.selected_tab, None);
+}
+
+#[test]
+fn next_tab_moves_to_next_tab() {
+    let mut session = make_test_session();
+    // Add 3 subagent entries
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+    session.add_conversation_entry(make_subagent_entry("agent-2"));
+    session.add_conversation_entry(make_subagent_entry("agent-3"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0);
+
+    state.next_tab();
+
+    assert_eq!(state.selected_tab, Some(1));
+}
+
+#[test]
+fn next_tab_wraps_from_last_to_first() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+    session.add_conversation_entry(make_subagent_entry("agent-2"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(1); // Last tab
+
+    state.next_tab();
+
+    assert_eq!(state.selected_tab, Some(0)); // Wraps to first
+}
+
+#[test]
+fn next_tab_initializes_to_first_when_none() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = None;
+
+    state.next_tab();
+
+    assert_eq!(state.selected_tab, Some(0));
+}
+
+// ===== AppState::prev_tab Tests =====
+
+#[test]
+fn prev_tab_does_nothing_when_focus_not_on_subagent() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Main;
+    state.selected_tab = Some(1);
+
+    state.prev_tab();
+
+    assert_eq!(state.selected_tab, Some(1));
+}
+
+#[test]
+fn prev_tab_does_nothing_when_no_subagents() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = None;
+
+    state.prev_tab();
+
+    assert_eq!(state.selected_tab, None);
+}
+
+#[test]
+fn prev_tab_moves_to_previous_tab() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+    session.add_conversation_entry(make_subagent_entry("agent-2"));
+    session.add_conversation_entry(make_subagent_entry("agent-3"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(2);
+
+    state.prev_tab();
+
+    assert_eq!(state.selected_tab, Some(1));
+}
+
+#[test]
+fn prev_tab_wraps_from_first_to_last() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+    session.add_conversation_entry(make_subagent_entry("agent-2"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0); // First tab
+
+    state.prev_tab();
+
+    assert_eq!(state.selected_tab, Some(1)); // Wraps to last
+}
+
+#[test]
+fn prev_tab_initializes_to_first_when_none() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = None;
+
+    state.prev_tab();
+
+    assert_eq!(state.selected_tab, Some(0));
+}
+
+// ===== AppState::select_tab Tests =====
+
+#[test]
+fn select_tab_does_nothing_when_focus_not_on_subagent() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Main;
+    state.selected_tab = Some(0);
+
+    state.select_tab(2);
+
+    assert_eq!(state.selected_tab, Some(0));
+}
+
+#[test]
+fn select_tab_does_nothing_when_no_subagents() {
+    let session = make_test_session();
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = None;
+
+    state.select_tab(1);
+
+    assert_eq!(state.selected_tab, None);
+}
+
+#[test]
+fn select_tab_sets_tab_by_one_indexed_number() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+    session.add_conversation_entry(make_subagent_entry("agent-2"));
+    session.add_conversation_entry(make_subagent_entry("agent-3"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0);
+
+    state.select_tab(2); // 1-indexed, selects second tab
+
+    assert_eq!(state.selected_tab, Some(1)); // 0-indexed
+}
+
+#[test]
+fn select_tab_handles_tab_1() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = None;
+
+    state.select_tab(1);
+
+    assert_eq!(state.selected_tab, Some(0));
+}
+
+#[test]
+fn select_tab_clamps_to_last_when_too_high() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+    session.add_conversation_entry(make_subagent_entry("agent-2"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0);
+
+    state.select_tab(9); // Higher than number of tabs
+
+    assert_eq!(state.selected_tab, Some(1)); // Clamped to last tab
+}
+
+#[test]
+fn select_tab_ignores_zero() {
+    let mut session = make_test_session();
+    session.add_conversation_entry(make_subagent_entry("agent-1"));
+
+    let mut state = AppState::new(session);
+    state.focus = FocusPane::Subagent;
+    state.selected_tab = Some(0);
+
+    state.select_tab(0); // Invalid 1-indexed input
+
+    assert_eq!(state.selected_tab, Some(0)); // No change
+}
+
+// ===== Test Helper for Subagent Entries =====
+
+fn make_subagent_entry(agent_id: &str) -> crate::model::ConversationEntry {
+    use crate::model::{AgentId, ConversationEntry, EntryMetadata, EntryType, LogEntry, Message, MessageContent, Role};
+    use chrono::Utc;
+
+    let log_entry = LogEntry::new(
+        make_entry_uuid(&format!("entry-{}", agent_id)),
+        None,
+        make_session_id("test-session"),
+        Some(AgentId::new(agent_id).expect("valid agent id")),
+        Utc::now(),
+        EntryType::Assistant,
+        Message::new(
+            Role::Assistant,
+            MessageContent::Text("Test message".to_string()),
+        ),
+        EntryMetadata::default(),
+    );
+
+    ConversationEntry::Valid(Box::new(log_entry))
+}
