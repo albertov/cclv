@@ -182,6 +182,30 @@ where
             return false;
         }
 
+        // FR-020: Stats filtering by agent
+        // '!' - Filter stats to Global (all agents)
+        if key.code == KeyCode::Char('!') {
+            self.app_state.stats_filter = crate::model::StatsFilter::Global;
+            return false;
+        }
+
+        // '@' - Filter stats to Main Agent only
+        if key.code == KeyCode::Char('@') {
+            self.app_state.stats_filter = crate::model::StatsFilter::MainAgent;
+            return false;
+        }
+
+        // '#' - Filter stats to current Subagent (if tab selected)
+        if key.code == KeyCode::Char('#') {
+            if let Some(tab_index) = self.app_state.selected_tab {
+                let subagent_ids = self.app_state.session().subagent_ids_ordered();
+                if let Some(&agent_id) = subagent_ids.get(tab_index) {
+                    self.app_state.stats_filter = crate::model::StatsFilter::Subagent(agent_id.clone());
+                }
+            }
+            return false;
+        }
+
         // Quit on 'q' or Ctrl+C
         matches!(key.code, KeyCode::Char('q'))
             || (key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL))
