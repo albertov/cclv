@@ -11,7 +11,7 @@
 //! 8. Width increase never increases line count
 
 use cclv::model::{
-    ConversationEntry, ContentBlock, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
+    ContentBlock, ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message,
     MessageContent, Role, SessionId,
 };
 use cclv::state::{ScrollState, WrapMode};

@@ -134,10 +134,7 @@ fn merge_config_uses_defaults_when_none() {
     assert_eq!(resolved.collapse_threshold, defaults.collapse_threshold);
     assert_eq!(resolved.summary_lines, defaults.summary_lines);
     assert_eq!(resolved.line_wrap, defaults.line_wrap);
-    assert_eq!(
-        resolved.log_buffer_capacity,
-        defaults.log_buffer_capacity
-    );
+    assert_eq!(resolved.log_buffer_capacity, defaults.log_buffer_capacity);
 }
 
 #[test]
@@ -188,10 +185,7 @@ fn merge_config_uses_defaults_for_none_fields() {
     assert_eq!(resolved.collapse_threshold, defaults.collapse_threshold);
     assert_eq!(resolved.summary_lines, defaults.summary_lines);
     assert_eq!(resolved.line_wrap, defaults.line_wrap);
-    assert_eq!(
-        resolved.log_buffer_capacity,
-        defaults.log_buffer_capacity
-    );
+    assert_eq!(resolved.log_buffer_capacity, defaults.log_buffer_capacity);
 }
 
 /// RAII guard to ensure environment variable cleanup even under test parallelism.
@@ -459,10 +453,14 @@ input = 10.0
 output = 50.0
 "#;
 
-    let config: ConfigFile = toml::from_str(toml_content).expect("Should parse without cached_input");
+    let config: ConfigFile =
+        toml::from_str(toml_content).expect("Should parse without cached_input");
 
     let pricing = config.pricing.expect("Pricing section should be present");
-    let custom = pricing.models.get("custom").expect("Should have custom model");
+    let custom = pricing
+        .models
+        .get("custom")
+        .expect("Should have custom model");
 
     assert_eq!(custom.input, 10.0);
     assert_eq!(custom.output, 50.0);
@@ -673,7 +671,10 @@ fn precedence_chain_defaults_to_config_file() {
 
     let resolved = merge_config(Some(config_file));
 
-    assert_eq!(resolved.theme, "custom-theme", "Config file overrides default");
+    assert_eq!(
+        resolved.theme, "custom-theme",
+        "Config file overrides default"
+    );
     assert!(!resolved.follow, "Config file overrides default");
     assert_eq!(
         resolved.show_stats,
@@ -739,10 +740,7 @@ fn precedence_chain_env_vars_to_cli_args() {
 
     // Apply CLI override
     let with_cli = apply_cli_overrides(with_env, Some("cli-theme".to_string()), None, None);
-    assert_eq!(
-        with_cli.theme, "cli-theme",
-        "CLI should override env var"
-    );
+    assert_eq!(with_cli.theme, "cli-theme", "CLI should override env var");
 
     // Cleanup
     env::remove_var("CCLV_THEME");

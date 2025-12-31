@@ -96,12 +96,9 @@ pub fn init_with_log_pane(sender: mpsc::Sender<LogPaneEntry>) -> Result<(), Stri
     use tracing_subscriber::EnvFilter;
 
     let layer = LogPaneLayer::new(sender);
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    let subscriber = tracing_subscriber::registry()
-        .with(env_filter)
-        .with(layer);
+    let subscriber = tracing_subscriber::registry().with(env_filter).with(layer);
 
     tracing::subscriber::set_global_default(subscriber)
         .map_err(|e| format!("Failed to set global subscriber: {}", e))

@@ -371,10 +371,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
 
     // Live indicator (green when active)
     if state.live_mode && state.auto_scroll {
-        spans.push(Span::styled(
-            "[LIVE] ",
-            Style::default().fg(Color::Green),
-        ));
+        spans.push(Span::styled("[LIVE] ", Style::default().fg(Color::Green)));
     }
 
     // Unread badge (color-coded by severity - FR-057)
@@ -383,10 +380,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     if count > 0 {
         let badge_text = format_unread_badge(count, max_level);
         let badge_color = max_level.map(severity_color).unwrap_or(Color::Gray);
-        spans.push(Span::styled(
-            badge_text,
-            Style::default().fg(badge_color),
-        ));
+        spans.push(Span::styled(badge_text, Style::default().fg(badge_color)));
         spans.push(Span::styled(" | ", Style::default().fg(Color::Gray)));
     }
 

@@ -108,10 +108,7 @@ pub enum SectionType {
 /// # Returns
 /// Vector of rendered sections preserving section type and order
 #[allow(dead_code)] // Used in render_conversation_view refactoring
-pub fn render_markdown_as_sections(
-    markdown_text: &str,
-    base_style: Style,
-) -> Vec<RenderedSection> {
+pub fn render_markdown_as_sections(markdown_text: &str, base_style: Style) -> Vec<RenderedSection> {
     use ratatui::text::{Line, Span};
 
     // Identify section boundaries in raw text
@@ -353,11 +350,7 @@ fn apply_search_to_sections(
         for line in &section.lines {
             // Extract line text and base style
             let line_text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
-            let base_style = line
-                .spans
-                .first()
-                .map(|s| s.style)
-                .unwrap_or_default();
+            let base_style = line.spans.first().map(|s| s.style).unwrap_or_default();
 
             let line_start = line_offset;
             let line_end = line_start + line_text.len();
@@ -1256,7 +1249,8 @@ fn render_entry_as_sections(
                     let mut lines = Vec::new();
                     if should_collapse {
                         for line in text_lines.iter().take(summary_lines) {
-                            lines.push(Line::from(vec![Span::styled(line.to_string(), role_style)]));
+                            lines
+                                .push(Line::from(vec![Span::styled(line.to_string(), role_style)]));
                         }
                         let remaining = total_lines.saturating_sub(summary_lines);
                         lines.push(Line::from(vec![Span::styled(
@@ -1267,7 +1261,8 @@ fn render_entry_as_sections(
                         )]));
                     } else {
                         for line in text_lines {
-                            lines.push(Line::from(vec![Span::styled(line.to_string(), role_style)]));
+                            lines
+                                .push(Line::from(vec![Span::styled(line.to_string(), role_style)]));
                         }
                     }
 
@@ -1436,7 +1431,10 @@ fn render_content_block_as_sections(
 
                 // Add collapse indicator
                 collapsed_lines.push(Line::from(vec![Span::styled(
-                    format!("(+{} more lines)", total_lines.saturating_sub(summary_lines)),
+                    format!(
+                        "(+{} more lines)",
+                        total_lines.saturating_sub(summary_lines)
+                    ),
                     Style::default()
                         .fg(Color::DarkGray)
                         .add_modifier(Modifier::DIM),
@@ -1485,9 +1483,7 @@ fn render_content_block_as_sections(
                 let mut lines = Vec::new();
                 lines.push(Line::from(vec![Span::styled(
                     "⚠ Tool Error",
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 )]));
                 for line in content.lines() {
                     lines.push(Line::from(vec![Span::styled(
@@ -1838,7 +1834,10 @@ pub fn render_conversation_view(
                 match section.section_type {
                     SectionType::Prose => {
                         // Prose: add wrap continuation indicators (FR-052)
-                        section_lines = add_wrap_continuation_indicators(section_lines, inner_area.width as usize);
+                        section_lines = add_wrap_continuation_indicators(
+                            section_lines,
+                            inner_area.width as usize,
+                        );
                     }
                     SectionType::Code => {
                         // Code: apply horizontal offset for scrolling (never wrap)
@@ -1853,7 +1852,8 @@ pub fn render_conversation_view(
 
                 // Handle clipping for sections scrolled off top
                 if lines_skipped_so_far < lines_to_skip {
-                    let to_skip_in_section = (lines_to_skip - lines_skipped_so_far).min(section_lines.len());
+                    let to_skip_in_section =
+                        (lines_to_skip - lines_skipped_so_far).min(section_lines.len());
                     lines_skipped_so_far += to_skip_in_section;
                     section_lines = section_lines.into_iter().skip(to_skip_in_section).collect();
                 }
@@ -1864,7 +1864,9 @@ pub fn render_conversation_view(
 
                 // Create Paragraph with section-specific wrap setting
                 let section_paragraph = match section.section_type {
-                    SectionType::Prose => Paragraph::new(section_lines.clone()).wrap(Wrap { trim: false }),
+                    SectionType::Prose => {
+                        Paragraph::new(section_lines.clone()).wrap(Wrap { trim: false })
+                    }
                     SectionType::Code => {
                         // Code blocks: render without wrapping
                         // Each line is pre-formatted, shown as-is
@@ -8134,7 +8136,11 @@ fn test() { println!("Code blocks always NoWrap"); }
         assert_eq!(sections.len(), 1, "Should have exactly one section");
         match &sections[0] {
             ContentSection::CodeBlock(lines) => {
-                assert_eq!(lines.len(), 1, "Should have 1 line (fence markers stripped)");
+                assert_eq!(
+                    lines.len(),
+                    1,
+                    "Should have 1 line (fence markers stripped)"
+                );
                 assert_eq!(lines[0].to_string(), "fn main() {}");
             }
             ContentSection::Prose(_) => panic!("Expected CodeBlock, got Prose"),
@@ -8345,8 +8351,7 @@ fn test() { println!("Code blocks always NoWrap"); }
         match &sections[0] {
             ContentSection::CodeBlock(lines) => {
                 assert!(
-                    lines.is_empty()
-                        || lines.len() == 1 && lines[0].to_string().is_empty(),
+                    lines.is_empty() || lines.len() == 1 && lines[0].to_string().is_empty(),
                     "Empty code block should have no lines or one empty line"
                 );
             }
@@ -8417,13 +8422,14 @@ fn test() { println!("Code blocks always NoWrap"); }
         let buffer = terminal.backend().buffer();
 
         // Verify prose wraps by checking if prose text appears on multiple lines
-        let has_wrapped_prose = buffer
-            .content()
-            .windows(buffer.area.width as usize)
-            .any(|window| {
-                let text: String = window.iter().map(|c| c.symbol()).collect();
-                text.contains("This is regular") || text.contains("prose text")
-            });
+        let has_wrapped_prose =
+            buffer
+                .content()
+                .windows(buffer.area.width as usize)
+                .any(|window| {
+                    let text: String = window.iter().map(|c| c.symbol()).collect();
+                    text.contains("This is regular") || text.contains("prose text")
+                });
 
         // Verify code block does NOT wrap by checking it appears on single line (may be truncated)
         // Find lines that contain parts of the function name
@@ -8569,7 +8575,8 @@ fn test() { println!("Code blocks always NoWrap"); }
         use ratatui::{backend::TestBackend, Terminal};
 
         // Entry with only code block
-        let code_only = "```rust\nlet very_long_variable_name_that_exceeds_viewport_width = 42;\n```";
+        let code_only =
+            "```rust\nlet very_long_variable_name_that_exceeds_viewport_width = 42;\n```";
 
         let message = Message::new(
             Role::User,
@@ -8686,8 +8693,8 @@ fn test() { println!("Code blocks always NoWrap"); }
     fn test_apply_search_to_sections_highlights_match_in_prose() {
         use crate::model::EntryUuid;
         use crate::state::{SearchMatch, SearchQuery, SearchState};
-        use ratatui::text::{Line, Span};
         use ratatui::style::{Color, Style};
+        use ratatui::text::{Line, Span};
 
         // ARRANGE: Prose section with "hello world"
         let sections = vec![RenderedSection {
@@ -8740,8 +8747,8 @@ fn test() { println!("Code blocks always NoWrap"); }
     fn test_apply_search_to_sections_highlights_match_in_code() {
         use crate::model::EntryUuid;
         use crate::state::{SearchMatch, SearchQuery, SearchState};
-        use ratatui::text::{Line, Span};
         use ratatui::style::{Color, Style};
+        use ratatui::text::{Line, Span};
 
         // ARRANGE: Code section with "let x = 42;"
         let sections = vec![RenderedSection {
@@ -8796,8 +8803,8 @@ fn test() { println!("Code blocks always NoWrap"); }
     fn test_apply_search_to_sections_preserves_non_matching_sections() {
         use crate::model::EntryUuid;
         use crate::state::{SearchMatch, SearchQuery, SearchState};
-        use ratatui::text::{Line, Span};
         use ratatui::style::{Color, Style};
+        use ratatui::text::{Line, Span};
 
         // ARRANGE: Multiple sections, only first has match
         let base_style = Style::default().fg(Color::White);
@@ -8864,8 +8871,8 @@ fn test() { println!("Code blocks always NoWrap"); }
     fn test_apply_search_to_sections_handles_multi_section_entry() {
         use crate::model::EntryUuid;
         use crate::state::{SearchMatch, SearchQuery, SearchState};
-        use ratatui::text::{Line, Span};
         use ratatui::style::{Color, Style};
+        use ratatui::text::{Line, Span};
 
         // ARRANGE: Entry with prose + code + prose, matches in each
         let base_style = Style::default().fg(Color::White);
