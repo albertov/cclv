@@ -21,7 +21,7 @@ pub use identifiers::{
     ToolUseId,
 };
 pub use key_action::KeyAction;
-pub use log_entry::{EntryMetadata, EntryType, LogEntry};
+pub use log_entry::{EntryMetadata, EntryType, LogEntry, SystemMetadata};
 pub use malformed_entry::MalformedEntry;
 pub use message::{ContentBlock, Message, MessageContent, Role, ToolCall, ToolName};
 pub use session::{AgentConversation, Session};

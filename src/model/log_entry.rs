@@ -50,6 +50,28 @@ pub struct EntryMetadata {
     pub is_sidechain: bool,
 }
 
+// ===== SystemMetadata (FMT-006) =====
+
+/// System entry metadata for system:init and system:hook_response entries.
+///
+/// Contains session initialization information such as model, tools, agents, and skills.
+/// Only present for EntryType::System entries.
+#[derive(Debug, Clone)]
+pub struct SystemMetadata {
+    /// System subtype (e.g., "init", "hook_response")
+    pub subtype: String,
+    /// Current working directory at session start
+    pub cwd: Option<PathBuf>,
+    /// Model identifier (e.g., "claude-opus-4-5-20251101")
+    pub model: Option<String>,
+    /// Available tools for this session
+    pub tools: Vec<String>,
+    /// Available agents for this session
+    pub agents: Vec<String>,
+    /// Available skills for this session
+    pub skills: Vec<String>,
+}
+
 // ===== LogEntry =====
 
 /// A parsed log entry from the JSONL file.
@@ -64,6 +86,7 @@ pub struct LogEntry {
     entry_type: EntryType,
     message: Message,
     metadata: EntryMetadata,
+    system_metadata: Option<SystemMetadata>,
 }
 
 impl LogEntry {
@@ -91,6 +114,36 @@ impl LogEntry {
             entry_type,
             message,
             metadata,
+            system_metadata: None,
+        }
+    }
+
+    /// Create a new log entry with system metadata (for System entries).
+    ///
+    /// This constructor is used by the parser when creating System entries
+    /// that contain session initialization information.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_system_metadata(
+        uuid: EntryUuid,
+        parent_uuid: Option<EntryUuid>,
+        session_id: SessionId,
+        agent_id: Option<AgentId>,
+        timestamp: DateTime<Utc>,
+        entry_type: EntryType,
+        message: Message,
+        metadata: EntryMetadata,
+        system_metadata: Option<SystemMetadata>,
+    ) -> Self {
+        Self {
+            uuid,
+            parent_uuid,
+            session_id,
+            agent_id,
+            timestamp,
+            entry_type,
+            message,
+            metadata,
+            system_metadata,
         }
     }
 
@@ -165,6 +218,14 @@ impl LogEntry {
     /// Returns true if this entry is from a subagent.
     pub fn is_subagent(&self) -> bool {
         self.agent_id.is_some()
+    }
+
+    /// Returns the system metadata if this is a System entry.
+    ///
+    /// System metadata contains session initialization information like
+    /// available tools, agents, and skills. Only present for System entries.
+    pub fn system_metadata(&self) -> Option<&SystemMetadata> {
+        self.system_metadata.as_ref()
     }
 }
 
@@ -578,6 +639,96 @@ mod tests {
         );
 
         assert!(entry.is_subagent());
+    }
+
+    // ===== SystemMetadata Tests (FMT-006) =====
+
+    #[test]
+    fn system_metadata_struct_holds_all_fields() {
+        // RED TEST: SystemMetadata struct with all required fields
+        use std::path::PathBuf;
+
+        let metadata = SystemMetadata {
+            subtype: "init".to_string(),
+            cwd: Some(PathBuf::from("/home/user")),
+            model: Some("claude-opus-4-5-20251101".to_string()),
+            tools: vec!["Read".to_string(), "Write".to_string()],
+            agents: vec!["general-purpose".to_string()],
+            skills: vec!["commit".to_string()],
+        };
+
+        assert_eq!(metadata.subtype, "init");
+        assert_eq!(metadata.cwd, Some(PathBuf::from("/home/user")));
+        assert_eq!(metadata.model, Some("claude-opus-4-5-20251101".to_string()));
+        assert_eq!(metadata.tools.len(), 2);
+        assert_eq!(metadata.agents.len(), 1);
+        assert_eq!(metadata.skills.len(), 1);
+    }
+
+    #[test]
+    fn system_metadata_allows_empty_collections() {
+        // SystemMetadata with empty tools/agents/skills
+        let metadata = SystemMetadata {
+            subtype: "hook_response".to_string(),
+            cwd: None,
+            model: None,
+            tools: vec![],
+            agents: vec![],
+            skills: vec![],
+        };
+
+        assert_eq!(metadata.subtype, "hook_response");
+        assert!(metadata.tools.is_empty());
+        assert!(metadata.agents.is_empty());
+        assert!(metadata.skills.is_empty());
+    }
+
+    #[test]
+    fn log_entry_with_system_metadata() {
+        // RED TEST: LogEntry can have system_metadata field
+        use std::path::PathBuf;
+
+        let sys_meta = SystemMetadata {
+            subtype: "init".to_string(),
+            cwd: Some(PathBuf::from("/test")),
+            model: Some("claude-opus-4-5-20251101".to_string()),
+            tools: vec!["Read".to_string()],
+            agents: vec!["general-purpose".to_string()],
+            skills: vec!["commit".to_string()],
+        };
+
+        let entry = LogEntry::new_with_system_metadata(
+            make_uuid("e1"),
+            None,
+            make_session_id("s1"),
+            None,
+            make_timestamp(),
+            EntryType::System,
+            make_message(),
+            EntryMetadata::default(),
+            Some(sys_meta),
+        );
+
+        let retrieved = entry.system_metadata().expect("Should have system_metadata");
+        assert_eq!(retrieved.subtype, "init");
+        assert_eq!(retrieved.model, Some("claude-opus-4-5-20251101".to_string()));
+    }
+
+    #[test]
+    fn log_entry_system_metadata_is_none_for_non_system_entries() {
+        // System metadata should only exist for System entries
+        let entry = LogEntry::new(
+            make_uuid("e1"),
+            None,
+            make_session_id("s1"),
+            None,
+            make_timestamp(),
+            EntryType::User,
+            make_message(),
+            EntryMetadata::default(),
+        );
+
+        assert!(entry.system_metadata().is_none(), "Non-system entry should have no system_metadata");
     }
 
     // ===== LogEntry::parse API Tests =====

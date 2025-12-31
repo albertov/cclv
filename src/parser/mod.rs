@@ -5,8 +5,8 @@
 
 use crate::model::{
     AgentId, ContentBlock, EntryMetadata, EntryType, EntryUuid, LogEntry, MalformedEntry, Message,
-    MessageContent, ModelInfo, ParseError, Role, SessionId, TokenUsage, ToolCall, ToolName,
-    ToolUseId,
+    MessageContent, ModelInfo, ParseError, Role, SessionId, SystemMetadata, TokenUsage, ToolCall,
+    ToolName, ToolUseId,
 };
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -17,7 +17,8 @@ use std::path::PathBuf;
 struct RawLogEntry {
     #[serde(rename = "type")]
     entry_type: String,
-    message: RawMessage,
+    #[serde(default)]
+    message: Option<RawMessage>,
     #[serde(default)]
     session_id: Option<String>,
     uuid: String,
@@ -35,6 +36,17 @@ struct RawLogEntry {
     version: Option<String>,
     #[serde(default, rename = "isSidechain")]
     is_sidechain: bool,
+    // System entry fields (FMT-006)
+    #[serde(default)]
+    subtype: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default)]
+    tools: Option<Vec<String>>,
+    #[serde(default)]
+    agents: Option<Vec<String>>,
+    #[serde(default)]
+    skills: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -187,15 +199,16 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
     })?;
 
     // Validate and construct UUIDs
-    let uuid = EntryUuid::new(raw_entry.uuid).map_err(|_| ParseError::MissingField {
+    let uuid = EntryUuid::new(&raw_entry.uuid).map_err(|_| ParseError::MissingField {
         line: line_number,
         field: "uuid",
     })?;
 
     let parent_uuid = raw_entry
         .parent_tool_use_id
+        .as_ref()
         .map(|s| {
-            EntryUuid::new(s).map_err(|_| ParseError::MissingField {
+            EntryUuid::new(s.as_str()).map_err(|_| ParseError::MissingField {
                 line: line_number,
                 field: "parent_tool_use_id",
             })
@@ -203,19 +216,22 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
         .transpose()?;
 
     // Validate and construct session ID (use unknown as fallback)
-    let session_id = match raw_entry.session_id {
-        Some(id) if !id.is_empty() => SessionId::new(id).map_err(|_| ParseError::MissingField {
-            line: line_number,
-            field: "sessionId",
-        })?,
+    let session_id = match &raw_entry.session_id {
+        Some(id) if !id.is_empty() => {
+            SessionId::new(id.as_str()).map_err(|_| ParseError::MissingField {
+                line: line_number,
+                field: "sessionId",
+            })?
+        }
         _ => SessionId::unknown(),
     };
 
     // Validate and construct agent ID (optional)
     let agent_id = raw_entry
         .agent_id
+        .as_ref()
         .map(|s| {
-            AgentId::new(s).map_err(|_| ParseError::MissingField {
+            AgentId::new(s.as_str()).map_err(|_| ParseError::MissingField {
                 line: line_number,
                 field: "agentId",
             })
@@ -223,7 +239,7 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
         .transpose()?;
 
     // Parse timestamp (optional - use epoch if missing)
-    let timestamp: DateTime<Utc> = match raw_entry.timestamp {
+    let timestamp: DateTime<Utc> = match &raw_entry.timestamp {
         Some(ts) => ts.parse().map_err(|_| ParseError::InvalidTimestamp {
             line: line_number,
             raw: ts.clone(),
@@ -231,8 +247,21 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
         None => DateTime::UNIX_EPOCH,
     };
 
-    // Parse message
-    let message = parse_message(raw_entry.message)?;
+    // Parse system metadata for System entries BEFORE consuming raw_entry (FMT-006)
+    let system_metadata = if entry_type == EntryType::System {
+        parse_system_metadata(&raw_entry)
+    } else {
+        None
+    };
+
+    // Parse message (optional for system entries)
+    let message = match raw_entry.message {
+        Some(raw_msg) => parse_message(raw_msg)?,
+        None => {
+            // System entries may not have a message - create empty assistant message as placeholder
+            Message::new(Role::Assistant, MessageContent::Text(String::new()))
+        }
+    };
 
     // Construct metadata
     let metadata = EntryMetadata {
@@ -242,7 +271,7 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
         is_sidechain: raw_entry.is_sidechain,
     };
 
-    Ok(LogEntry::new(
+    Ok(LogEntry::new_with_system_metadata(
         uuid,
         parent_uuid,
         session_id,
@@ -251,6 +280,7 @@ pub fn parse_entry(raw: &str, line_number: usize) -> Result<LogEntry, ParseError
         entry_type,
         message,
         metadata,
+        system_metadata,
     ))
 }
 
@@ -264,6 +294,24 @@ fn parse_entry_type(type_str: &str) -> Option<EntryType> {
         "result" => Some(EntryType::Result),
         _ => None,
     }
+}
+
+/// Parse system metadata from a RawLogEntry for System entries.
+///
+/// Extracts subtype, cwd, model, tools, agents, and skills fields.
+/// Returns None if subtype is missing (required for SystemMetadata).
+fn parse_system_metadata(raw: &RawLogEntry) -> Option<SystemMetadata> {
+    // Subtype is required for system metadata
+    let subtype = raw.subtype.as_ref()?.clone();
+
+    Some(SystemMetadata {
+        subtype,
+        cwd: raw.cwd.as_ref().map(PathBuf::from),
+        model: raw.model.clone(),
+        tools: raw.tools.clone().unwrap_or_default(),
+        agents: raw.agents.clone().unwrap_or_default(),
+        skills: raw.skills.clone().unwrap_or_default(),
+    })
 }
 
 /// Parse a raw message into a Message.
@@ -1194,5 +1242,153 @@ mod tests {
         );
         let entry = result.unwrap();
         assert_eq!(entry.uuid().as_str(), "abc-456");
+    }
+
+    // ===== Bug Fix: FMT-006 - SystemMetadata for system entries =====
+
+    #[test]
+    fn parse_entry_system_init_with_metadata() {
+        // RED TEST: Parse system:init entry with all SystemMetadata fields
+        let raw = r#"{"type":"system","subtype":"init","message":{"role":"assistant","content":"Initialized"},"uuid":"sys-001","session_id":"test-session","cwd":"/home/user","model":"claude-opus-4-5-20251101","tools":["Read","Write","Bash"],"agents":["general-purpose"],"skills":["commit","test-driven-development"]}"#;
+
+        let result = parse_entry(raw, 1);
+        assert!(
+            result.is_ok(),
+            "Should parse system:init entry with metadata"
+        );
+        let entry = result.unwrap();
+        assert_eq!(entry.entry_type(), EntryType::System);
+
+        let sys_meta = entry
+            .system_metadata()
+            .expect("System entry should have system_metadata");
+        assert_eq!(sys_meta.subtype, "init");
+        assert_eq!(sys_meta.cwd, Some(std::path::PathBuf::from("/home/user")));
+        assert_eq!(sys_meta.model, Some("claude-opus-4-5-20251101".to_string()));
+        assert_eq!(sys_meta.tools.len(), 3);
+        assert!(sys_meta.tools.contains(&"Read".to_string()));
+        assert!(sys_meta.tools.contains(&"Write".to_string()));
+        assert!(sys_meta.tools.contains(&"Bash".to_string()));
+        assert_eq!(sys_meta.agents.len(), 1);
+        assert_eq!(sys_meta.agents[0], "general-purpose");
+        assert_eq!(sys_meta.skills.len(), 2);
+        assert!(sys_meta.skills.contains(&"commit".to_string()));
+        assert!(sys_meta
+            .skills
+            .contains(&"test-driven-development".to_string()));
+    }
+
+    #[test]
+    fn parse_entry_system_hook_response() {
+        // System:hook_response entry (minimal metadata)
+        let raw = r#"{"type":"system","subtype":"hook_response","message":{"role":"assistant","content":"Hook executed"},"uuid":"sys-002","session_id":"test-session"}"#;
+
+        let result = parse_entry(raw, 1);
+        assert!(result.is_ok(), "Should parse system:hook_response entry");
+        let entry = result.unwrap();
+        assert_eq!(entry.entry_type(), EntryType::System);
+
+        let sys_meta = entry
+            .system_metadata()
+            .expect("System entry should have system_metadata");
+        assert_eq!(sys_meta.subtype, "hook_response");
+        assert!(sys_meta.cwd.is_none());
+        assert!(sys_meta.model.is_none());
+        assert!(sys_meta.tools.is_empty());
+        assert!(sys_meta.agents.is_empty());
+        assert!(sys_meta.skills.is_empty());
+    }
+
+    #[test]
+    fn parse_entry_non_system_has_no_system_metadata() {
+        // User entry should not have system_metadata even if fields are present
+        let raw = r#"{"type":"user","message":{"role":"user","content":"hello"},"uuid":"u-001","session_id":"test-session"}"#;
+
+        let result = parse_entry(raw, 1);
+        assert!(result.is_ok(), "Should parse user entry");
+        let entry = result.unwrap();
+        assert_eq!(entry.entry_type(), EntryType::User);
+        assert!(
+            entry.system_metadata().is_none(),
+            "Non-system entry should not have system_metadata"
+        );
+    }
+
+    #[test]
+    fn parse_entry_system_with_empty_tools_agents_skills() {
+        // System entry with explicit empty arrays
+        let raw = r#"{"type":"system","subtype":"init","message":{"role":"assistant","content":"Init"},"uuid":"sys-003","session_id":"test-session","tools":[],"agents":[],"skills":[]}"#;
+
+        let result = parse_entry(raw, 1);
+        assert!(result.is_ok(), "Should parse system entry with empty arrays");
+        let entry = result.unwrap();
+
+        let sys_meta = entry.system_metadata().expect("Should have system_metadata");
+        assert!(sys_meta.tools.is_empty(), "tools should be empty");
+        assert!(sys_meta.agents.is_empty(), "agents should be empty");
+        assert!(sys_meta.skills.is_empty(), "skills should be empty");
+    }
+
+    #[test]
+    fn parse_entry_real_system_init_from_claude_code() {
+        // Integration test: Real system:init entry from actual Claude Code JSONL output
+        // This tests the complete format as seen in production logs
+        let raw = r#"{"type":"system","subtype":"init","session_id":"e9bc0c98-6abc-4fe7-abc7-123456789abc","uuid":"38df9820-95f4-4a8f-ba30-abcdef123456","cwd":"/home/claude/cclv","model":"claude-opus-4-5-20251101","tools":["Task","Read","Write","Edit","Bash","Grep","Glob"],"agents":["general-purpose"],"skills":["commit","test-driven-development","typed-domain-modeling"]}"#;
+
+        let result = parse_entry(raw, 1);
+        assert!(
+            result.is_ok(),
+            "Should parse real Claude Code system:init entry"
+        );
+        let entry = result.unwrap();
+
+        // Verify basic entry properties
+        assert_eq!(entry.entry_type(), EntryType::System);
+        assert_eq!(
+            entry.session_id().as_str(),
+            "e9bc0c98-6abc-4fe7-abc7-123456789abc"
+        );
+        assert_eq!(
+            entry.uuid().as_str(),
+            "38df9820-95f4-4a8f-ba30-abcdef123456"
+        );
+
+        // Verify system metadata
+        let sys_meta = entry
+            .system_metadata()
+            .expect("Real system:init should have system_metadata");
+
+        assert_eq!(sys_meta.subtype, "init");
+        assert_eq!(
+            sys_meta.cwd,
+            Some(std::path::PathBuf::from("/home/claude/cclv"))
+        );
+        assert_eq!(sys_meta.model, Some("claude-opus-4-5-20251101".to_string()));
+
+        // Verify tools array
+        assert_eq!(sys_meta.tools.len(), 7);
+        let expected_tools = vec!["Task", "Read", "Write", "Edit", "Bash", "Grep", "Glob"];
+        for tool in &expected_tools {
+            assert!(
+                sys_meta.tools.contains(&tool.to_string()),
+                "Should contain tool: {}",
+                tool
+            );
+        }
+
+        // Verify agents array
+        assert_eq!(sys_meta.agents.len(), 1);
+        assert_eq!(sys_meta.agents[0], "general-purpose");
+
+        // Verify skills array
+        assert_eq!(sys_meta.skills.len(), 3);
+        let expected_skills = vec!["commit", "test-driven-development", "typed-domain-modeling"];
+        for skill in &expected_skills {
+            assert!(
+                sys_meta.skills.contains(&skill.to_string()),
+                "Should contain skill: {}",
+                skill
+            );
+        }
     }
 }
