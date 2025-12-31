@@ -1,6 +1,6 @@
 # Data Model: Claude Code Log Viewer
 
-**Date**: 2025-12-25
+**Date**: 2025-12-25 (Updated: 2025-12-26)
 **Status**: Design Complete
 **Related**: [plan.md](./plan.md) | [research.md](./research.md)
 
@@ -609,6 +609,15 @@ Application state as an immutable value with transitions.
 ```rust
 // ===== src/state/app_state.rs =====
 
+/// Global line-wrapping mode.
+/// Default: Wrap (FR-039: wrap enabled when config unset)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WrapMode {
+    #[default]
+    Wrap,
+    NoWrap,
+}
+
 /// Application state. Pure data, no side effects.
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -622,6 +631,7 @@ pub struct AppState {
     pub stats_visible: bool,
     pub live_mode: bool,
     pub auto_scroll: bool,
+    pub global_wrap: WrapMode,  // FR-039: toggleable line-wrapping
 }
 
 impl AppState {
@@ -637,7 +647,16 @@ impl AppState {
             stats_visible: false,
             live_mode: false,
             auto_scroll: true,
+            global_wrap: WrapMode::default(),
         }
+    }
+
+    /// Toggle global wrap mode (FR-050: W key)
+    pub fn toggle_global_wrap(&mut self) {
+        self.global_wrap = match self.global_wrap {
+            WrapMode::Wrap => WrapMode::NoWrap,
+            WrapMode::NoWrap => WrapMode::Wrap,
+        };
     }
 }
 
@@ -657,6 +676,9 @@ pub struct ScrollState {
     pub horizontal_offset: usize,
     pub expanded_messages: HashSet<EntryUuid>,
     pub focused_message: Option<usize>,  // Index of focused message within pane
+    /// Messages with wrap override (FR-048: per-item toggle overrides global)
+    /// FR-049: ephemeral, not persisted
+    pub wrap_overrides: HashSet<EntryUuid>,
 }
 
 impl ScrollState {
@@ -708,6 +730,28 @@ impl ScrollState {
     /// Get the focused message index.
     pub fn focused_message(&self) -> Option<usize> {
         self.focused_message
+    }
+
+    /// Toggle wrap override for a specific message (FR-050: w key)
+    pub fn toggle_wrap(&mut self, uuid: &EntryUuid) {
+        if self.wrap_overrides.contains(uuid) {
+            self.wrap_overrides.remove(uuid);
+        } else {
+            self.wrap_overrides.insert(uuid.clone());
+        }
+    }
+
+    /// Get effective wrap mode for a message (FR-048)
+    /// Per-item override inverts the global setting
+    pub fn effective_wrap(&self, uuid: &EntryUuid, global: WrapMode) -> WrapMode {
+        if self.wrap_overrides.contains(uuid) {
+            match global {
+                WrapMode::Wrap => WrapMode::NoWrap,
+                WrapMode::NoWrap => WrapMode::Wrap,
+            }
+        } else {
+            global
+        }
     }
 }
 ```
@@ -784,6 +828,7 @@ pub struct AppConfig {
     pub show_stats: bool,
     pub collapse_threshold: usize,
     pub summary_lines: usize,
+    pub line_wrap: bool,  // FR-039: default true (wrap enabled)
     pub pricing: PricingConfig,
     pub keybindings: KeybindingConfig,
 }
@@ -796,6 +841,7 @@ impl Default for AppConfig {
             show_stats: false,
             collapse_threshold: 10,
             summary_lines: 3,
+            line_wrap: true,  // FR-039: wrap enabled by default
             pricing: PricingConfig::default(),
             keybindings: KeybindingConfig::default(),
         }
@@ -985,6 +1031,7 @@ follow = true
 show_stats = false
 collapse_threshold = 10
 summary_lines = 3
+line_wrap = true  # FR-039: wrap prose by default (code blocks never wrap)
 
 # Model pricing (per million tokens, USD)
 # Hardcoded defaults: Opus=$15/$75, Sonnet=$3/$15, Haiku=$0.80/$4
@@ -1018,6 +1065,8 @@ output = 75.0
 scroll_up = "k"
 scroll_down = "j"
 quit = "q"
+toggle_wrap = "w"        # FR-050: per-item wrap toggle
+toggle_global_wrap = "W" # FR-050: global wrap toggle
 ```
 
 ---
@@ -1055,6 +1104,10 @@ pub enum KeyAction {
     ExpandMessage,
     CollapseMessage,
     ToggleExpand,
+
+    // Line wrapping (FR-050)
+    ToggleWrap,       // Per-item toggle (w key)
+    ToggleGlobalWrap, // Global toggle (W key)
 
     // Search
     StartSearch,
@@ -1202,4 +1255,12 @@ PricingConfig
 // Cannot construct: SearchState::Active with empty matches
 // Cannot construct: SearchQuery from empty string
 // Cannot construct: EntryUuid from empty string
+
+// 7. Wrap state consistency (FR-048, FR-049)
+// ∀ uuid: effective_wrap(uuid, global) == if wrap_overrides.contains(uuid) { !global } else { global }
+// wrap_overrides is ephemeral: after reload, wrap_overrides.is_empty()
+
+// 8. Wrap toggle idempotence
+// toggle_wrap(uuid); toggle_wrap(uuid) => wrap_overrides state restored
+// toggle_global_wrap(); toggle_global_wrap() => global_wrap state restored
 ```

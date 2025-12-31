@@ -13,12 +13,19 @@
 - Q: How should conversations handle scrolling? → A: Each conversation pane must be independently scrollable
 - Q: How should auto-scroll behave during live mode? → A: Auto-scroll by default; pause when user scrolls away; resume when user returns to bottom
 - Q: What defines a "long message" for collapse threshold? → A: Messages exceeding 10 lines are collapsed by default
-- Q: How should long lines be handled? → A: No line wrapping; horizontal scrolling with left/right arrow keys
+- Q: How should long lines be handled? → A: Toggleable line wrapping (see Session 2025-12-26 for details)
 - Q: What input sources should be supported? → A: File path AND stdin (piped input)
 - Q: How should keyboard bindings be handled? → A: Configurable via enum mapping domain actions to keys
 - Q: What should collapsed message summaries display? → A: First 3 lines + "(+N more lines)" indicator
 - Q: How should model cost/token pricing be configured? → A: Single unified config file (`~/.config/cclv/config.toml`) with pricing section; hardcoded defaults when config absent
 - Q: What programming language should the implementation use? → A: Rust with ratatui
+
+### Session 2025-12-26
+
+- Q: What should the default line-wrapping behavior be? → A: User-configurable in config file; defaults to wrap enabled when not configured
+- Q: What keyboard shortcuts for wrap toggle? → A: `w` for per-item toggle, `W` (shift) for global toggle
+- Q: How should wrap state be visually indicated? → A: Global state in status bar; wrapped lines show subtle arrow (e.g., `↩`) at wrap points
+- Q: Should code blocks wrap differently than prose? → A: Code blocks never wrap (always horizontal scroll); prose follows global setting
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -144,8 +151,14 @@ A developer is looking for a specific piece of information in a long session. Th
 - **FR-032**: System MUST allow users to expand collapsed messages to view full content
 - **FR-033**: System MUST allow users to collapse expanded messages back to summary form
 - **FR-034**: Each conversation pane MUST be independently scrollable (vertical)
-- **FR-039**: System MUST NOT wrap long lines; lines display at full length
-- **FR-040**: System MUST support horizontal scrolling within message views using left/right arrow keys
+- **FR-039**: System MUST support toggleable line-wrapping with configurable global default (wrap enabled when unset)
+- **FR-040**: When wrapping disabled, system MUST support horizontal scrolling within message views using left/right arrow keys
+- **FR-048**: System MUST allow per-conversation-item wrap toggle that overrides the global setting
+- **FR-049**: Per-item wrap state MUST be ephemeral (not persisted across sessions)
+- **FR-050**: Default keybinding for ToggleWrap MUST be `w`; default for ToggleGlobalWrap MUST be `W`
+- **FR-051**: System MUST display global wrap state in the status bar
+- **FR-052**: When lines are wrapped, system MUST display a subtle continuation indicator (e.g., `↩`) at each wrap point to distinguish from intentional line breaks
+- **FR-053**: Code blocks within markdown MUST never wrap regardless of global or per-item wrap settings; they always use horizontal scrolling
 
 **Auto-Scroll Behavior**
 - **FR-035**: When following a live log, system MUST auto-scroll to show new content by default
@@ -209,7 +222,7 @@ A developer is looking for a specific piece of information in a long session. Th
   - Scrolling: ScrollUp, ScrollDown, ScrollLeft, ScrollRight, PageUp, PageDown, ScrollToTop, ScrollToBottom
   - Focus: FocusMain, FocusSubagent, FocusStats, CycleFocus
   - Tabs: NextTab, PrevTab, SelectTab(1-9)
-  - Messages: ExpandMessage, CollapseMessage, ToggleExpand
+  - Messages: ExpandMessage, CollapseMessage, ToggleExpand, ToggleWrap (per-item), ToggleGlobalWrap
   - Search: StartSearch, SubmitSearch, CancelSearch, NextMatch, PrevMatch
   - Stats: ToggleStats, FilterGlobal, FilterMainAgent, FilterSubagent
   - Live mode: ToggleAutoScroll, ScrollToLatest

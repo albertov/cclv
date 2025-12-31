@@ -391,6 +391,134 @@ Static binaries:
 
 ---
 
+## Implementation Status
+
+*Updated: 2025-12-26*
+
+| Phase | Bead ID | Status | Notes |
+|-------|---------|--------|-------|
+| Setup | cclv-07v.1 | ✅ Complete | Nix flake, Cargo.toml, dev shell |
+| Foundational | cclv-07v.2 | ✅ Complete | Core types, parser, test fixtures |
+| US1 - Live Monitoring | cclv-07v.3 | ✅ Complete | File tailing, stdin, split panes, tabs |
+| US2 - Session Analysis | cclv-07v.4 | ✅ Complete | Markdown, syntax highlighting, expand/collapse |
+| US3 - Usage Statistics | cclv-07v.5 | ✅ Complete | Token counts, cost estimation, filtering |
+| US4 - Keyboard Navigation | cclv-07v.6 | ✅ Complete | Key bindings, focus cycling, shortcuts |
+| US5 - Search | cclv-07v.7 | ✅ Complete | Search state machine, highlighting, navigation |
+| Polish | cclv-07v.8 | 🔄 In Progress | Edge cases, config file loading |
+| **Line Wrapping** | cclv-07v.9 | 📋 Planned | Global + per-item toggle (FR-039–FR-053) |
+
+---
+
+## Phase: Line Wrapping Feature
+
+**Purpose**: Add toggleable line-wrapping behavior with global config and per-item overrides.
+
+**Requirements** (from spec clarifications 2025-12-26):
+- FR-039: Toggleable line-wrapping with configurable global default (wrap enabled when unset)
+- FR-040: When wrapping disabled, horizontal scrolling with left/right arrow keys
+- FR-048: Per-conversation-item wrap toggle overrides global setting
+- FR-049: Per-item wrap state is ephemeral (not persisted)
+- FR-050: Default keybindings: `w` (per-item), `W` (global)
+- FR-051: Global wrap state displayed in status bar
+- FR-052: Wrapped lines show continuation indicator (`↩`) at wrap points
+- FR-053: Code blocks never wrap (always horizontal scroll)
+
+### Design Decisions
+
+| Aspect | Decision | Rationale |
+|--------|----------|-----------|
+| Default behavior | Wrap enabled | More readable for prose; power users can disable |
+| Code blocks | Never wrap | Code semantics depend on line boundaries |
+| Per-item state | Ephemeral `HashSet<EntryUuid>` | No persistence needed; mirrors expand/collapse pattern |
+| Visual indicator | `↩` at wrap points | Distinguishes wrap breaks from intentional line breaks |
+
+### Data Model Additions
+
+```rust
+// ===== src/state/app_state.rs additions =====
+
+/// Global wrap configuration
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WrapMode {
+    Wrap,
+    NoWrap,
+}
+
+impl Default for WrapMode {
+    fn default() -> Self {
+        WrapMode::Wrap  // FR-039: default to wrap enabled
+    }
+}
+
+// Add to AppState:
+pub struct AppState {
+    // ... existing fields ...
+    pub global_wrap: WrapMode,
+}
+
+// Add to ScrollState:
+pub struct ScrollState {
+    // ... existing fields ...
+    /// Messages with wrap override (opposite of global setting)
+    pub wrap_overrides: HashSet<EntryUuid>,
+}
+
+impl ScrollState {
+    /// Toggle wrap for a specific message
+    pub fn toggle_wrap(&mut self, uuid: &EntryUuid) {
+        if self.wrap_overrides.contains(uuid) {
+            self.wrap_overrides.remove(uuid);
+        } else {
+            self.wrap_overrides.insert(uuid.clone());
+        }
+    }
+
+    /// Get effective wrap mode for a message
+    pub fn effective_wrap(&self, uuid: &EntryUuid, global: WrapMode) -> WrapMode {
+        if self.wrap_overrides.contains(uuid) {
+            match global {
+                WrapMode::Wrap => WrapMode::NoWrap,
+                WrapMode::NoWrap => WrapMode::Wrap,
+            }
+        } else {
+            global
+        }
+    }
+}
+
+// ===== src/model/key_action.rs additions =====
+
+pub enum KeyAction {
+    // ... existing variants ...
+
+    // Line wrapping (new)
+    ToggleWrap,       // Per-item toggle (w)
+    ToggleGlobalWrap, // Global toggle (W)
+}
+```
+
+### Tasks
+
+| Bead | Task | Description | Dependencies |
+|------|------|-------------|--------------|
+| cclv-07v.9.1 | LW-001 | Add `WrapMode` enum to `src/state/app_state.rs` | None |
+| cclv-07v.9.2 | LW-002 | Add `wrap_overrides: HashSet<EntryUuid>` to `ScrollState` | LW-001 |
+| cclv-07v.9.3 | LW-003 | Add `global_wrap` field to `AppState` | LW-001 |
+| cclv-07v.9.4 | LW-004 | Add `ToggleWrap`, `ToggleGlobalWrap` to `KeyAction` enum | None |
+| cclv-07v.9.5 | LW-005 | Add default keybindings: `w` → ToggleWrap, `W` → ToggleGlobalWrap | LW-004 |
+| cclv-07v.9.6 | LW-006 | Add `line_wrap` config option to `AppConfig` with default `true` | None |
+| cclv-07v.9.7 | LW-007 | Implement wrap state handlers in key event processing | LW-002, LW-003, LW-005 |
+| cclv-07v.9.8 | LW-008 | Update message rendering to respect wrap mode | LW-007 |
+| cclv-07v.9.9 | LW-009 | Add continuation indicator (`↩`) rendering at wrap points | LW-008 |
+| cclv-07v.9.10 | LW-010 | Exempt code blocks from wrapping (always horizontal scroll) | LW-008 |
+| cclv-07v.9.11 | LW-011 | Display global wrap state in status bar | LW-003 |
+| cclv-07v.9.12 | LW-012 | Add tests for wrap state transitions | LW-007 |
+| cclv-07v.9.13 | LW-013 | Add tests for wrap rendering behavior | LW-008, LW-009 |
+
+**Checkpoint**: All wrap-related tests pass; visual verification of wrap indicator and code block exemption.
+
+---
+
 ## Generated Artifacts
 
 | Artifact | Path | Status |
@@ -400,13 +528,17 @@ Static binaries:
 | Data Model | specs/001-claude-code-log-viewer/data-model.md | ✅ Complete |
 | CLI Contract | specs/001-claude-code-log-viewer/contracts/cli.md | ✅ Complete |
 | Quickstart Guide | specs/001-claude-code-log-viewer/quickstart.md | ✅ Complete |
-| Nix Flake | flake.nix | ⏳ Phase 0 |
-| Dev Shell | nix/devshell.nix | ⏳ Phase 0 |
-| Formatter Config | nix/treefmt.nix | ⏳ Phase 0 |
+| Nix Flake | flake.nix | ✅ Implemented |
+| Dev Shell | nix/devshell.nix | ✅ Implemented |
+| Formatter Config | nix/treefmt.nix | ✅ Implemented |
+| Source Code | src/ | ✅ Core complete, polish in progress |
 
 ---
 
 ## Next Steps
 
-Run `/speckit.tasks` to generate the implementation task breakdown.
+1. Complete in-progress Polish tasks (cclv-07v.8.11: eliminate panic/unwrap)
+2. Create beads for Line Wrapping phase tasks (LW-001 through LW-013)
+3. Implement Line Wrapping feature
+4. Close remaining Polish tasks
 
