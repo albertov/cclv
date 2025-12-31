@@ -78,7 +78,6 @@ enum RawContentBlock {
 
 /// Nested cache_creation object from usage field.
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)] // STUB: fields will be used after implementation
 struct RawCacheCreation {
     #[serde(default)]
     ephemeral_5m_input_tokens: u64,
@@ -95,7 +94,6 @@ struct RawTokenUsage {
     #[serde(default)]
     cache_read_input_tokens: u64,
     #[serde(default)]
-    #[allow(dead_code)] // STUB: will be used after implementation
     cache_creation: Option<RawCacheCreation>,
 }
 
@@ -299,14 +297,20 @@ fn parse_message(raw: RawMessage) -> Result<Message, ParseError> {
 
     // Add usage if present
     if let Some(raw_usage) = raw.usage {
+        // Extract ephemeral breakdown from nested cache_creation object
+        let (ephemeral_5m, ephemeral_1h) = raw_usage
+            .cache_creation
+            .as_ref()
+            .map(|cc| (cc.ephemeral_5m_input_tokens, cc.ephemeral_1h_input_tokens))
+            .unwrap_or((0, 0));
+
         let usage = TokenUsage {
             input_tokens: raw_usage.input_tokens,
             output_tokens: raw_usage.output_tokens,
             cache_creation_input_tokens: raw_usage.cache_creation_input_tokens,
             cache_read_input_tokens: raw_usage.cache_read_input_tokens,
-            // STUB: extract from raw_usage.cache_creation
-            ephemeral_5m_cache_tokens: 0,
-            ephemeral_1h_cache_tokens: 0,
+            ephemeral_5m_cache_tokens: ephemeral_5m,
+            ephemeral_1h_cache_tokens: ephemeral_1h,
         };
         message = message.with_usage(usage);
     }
