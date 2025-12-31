@@ -28,36 +28,11 @@ pub fn handle_scroll_action(
         _ => {}
     }
 
-    // Get mutable reference to the appropriate conversation view-state
-    // Route based on selected_tab to match rendering logic (layout.rs:258-286)
-    // Tab 0 = Main Agent, Tabs 1+ = Subagents (index - 1 in subagent list)
-    let selected_tab_index = state.selected_tab.unwrap_or(0);
-
-    let conversation = if selected_tab_index == 0 {
-        // Tab 0: Main agent conversation
-        if let Some(session) = state.log_view_mut().current_session_mut() {
-            session.main_mut()
-        } else {
-            return state; // No session, nothing to scroll
-        }
+    // Get mutable reference to the selected conversation using central routing
+    let conversation = if let Some(conv) = state.selected_conversation_view_mut() {
+        conv
     } else {
-        // Tabs 1+: Subagent conversation (index - 1 in subagent list)
-        let subagent_index = selected_tab_index - 1;
-
-        // Get agent ID at subagent_index and clone to avoid borrow conflicts
-        let mut agent_ids: Vec<_> = state.session_view().subagent_ids().cloned().collect();
-        agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-        let agent_id = agent_ids.get(subagent_index).cloned();
-
-        if let Some(agent_id) = agent_id {
-            if let Some(session) = state.log_view_mut().current_session_mut() {
-                session.subagent_mut(&agent_id)
-            } else {
-                return state;
-            }
-        } else {
-            return state; // Subagent not found
-        }
+        return state; // No conversation selected, nothing to scroll
     };
 
     // Handle horizontal scrolling

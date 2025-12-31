@@ -140,34 +140,28 @@ pub fn detect_entry_click(
                 && click_y < inner_y + inner_height
             {
                 // Use hit_test from ConversationViewState for accurate entry detection
-                if let Some(tab_index) = state.selected_tab {
-                    let session_view = state.session_view();
-                    let mut agent_ids: Vec<_> = session_view.subagent_ids().cloned().collect();
-                    agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-                    if let Some(agent_id) = agent_ids.get(tab_index) {
-                        if let Some(conv_view) = session_view.get_subagent(agent_id) {
-                            use crate::view_state::hit_test::HitTestResult;
+                // Use central routing to get selected conversation view
+                if let Some(conv_view) = state.selected_conversation_view() {
+                    use crate::view_state::hit_test::HitTestResult;
 
-                            // Get scroll offset
-                            let scroll_offset = conv_view.scroll().resolve(
-                                conv_view.total_height(),
-                                inner_height as usize,
-                                |idx| conv_view.entry_cumulative_y(idx),
-                            );
+                    // Get scroll offset
+                    let scroll_offset = conv_view.scroll().resolve(
+                        conv_view.total_height(),
+                        inner_height as usize,
+                        |idx| conv_view.entry_cumulative_y(idx),
+                    );
 
-                            // Calculate viewport-relative Y position
-                            let viewport_y = click_y.saturating_sub(inner_y);
-                            let viewport_x = click_x.saturating_sub(inner_x);
+                    // Calculate viewport-relative Y position
+                    let viewport_y = click_y.saturating_sub(inner_y);
+                    let viewport_x = click_x.saturating_sub(inner_x);
 
-                            // Hit-test using ConversationViewState
-                            match conv_view.hit_test(viewport_y, viewport_x, scroll_offset) {
-                                HitTestResult::Hit { entry_index, .. } => {
-                                    return EntryClickResult::SubagentPaneEntry(entry_index.get());
-                                }
-                                HitTestResult::Miss => {
-                                    return EntryClickResult::NoEntry;
-                                }
-                            }
+                    // Hit-test using ConversationViewState
+                    match conv_view.hit_test(viewport_y, viewport_x, scroll_offset) {
+                        HitTestResult::Hit { entry_index, .. } => {
+                            return EntryClickResult::SubagentPaneEntry(entry_index.get());
+                        }
+                        HitTestResult::Miss => {
+                            return EntryClickResult::NoEntry;
                         }
                     }
                 }
@@ -258,15 +252,9 @@ pub fn handle_entry_click(
         }
         EntryClickResult::SubagentPaneEntry(index) => {
             // Toggle expand via selected subagent's ConversationViewState
-            if let Some(tab_index) = state.selected_tab {
-                // Convert tab index to agent ID
-                let mut agent_ids: Vec<_> = state.session_view().subagent_ids().cloned().collect();
-                agent_ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-                let agent_id_opt = agent_ids.get(tab_index).cloned();
-
-                if let (Some(agent_id), Some(session_view)) =
-                    (agent_id_opt, state.log_view_mut().current_session_mut())
-                {
+            // Use central routing to get agent ID and conversation view
+            if let Some(agent_id) = state.selected_agent_id() {
+                if let Some(session_view) = state.log_view_mut().current_session_mut() {
                     let conv_view = session_view.subagent_mut(&agent_id);
                     conv_view.toggle_entry_expanded(index);
                 }

@@ -477,7 +477,7 @@ fn detect_entry_click_detects_subagent_pane_entry() {
 
     // Set focus and select the first subagent tab
     state.focus = crate::state::FocusPane::Subagent;
-    state.select_tab(1); // 1-indexed
+    state.select_tab(2); // 1-indexed: tab 1 = main, tab 2 = first subagent
     init_layout_for_state(&mut state);
 
     // Main pane area

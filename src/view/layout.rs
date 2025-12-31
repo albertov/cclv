@@ -262,41 +262,27 @@ fn render_conversation_pane(
         &tabs_with_matches,
     );
 
-    // Determine which conversation to display based on selected_tab
-    // Tab 0 = Main Agent, Tabs 1+ = Subagents
+    // Determine which conversation to display using central routing
     let selected_tab_index = state.selected_tab.unwrap_or(0);
+    let is_main_tab = selected_tab_index == 0;
 
-    if selected_tab_index == 0 {
-        // Tab 0: Show main agent conversation
-        if let Some(session) = state.log_view().current_session() {
-            let view_state = session.main();
-            let conversation_widget =
-                message::ConversationView::new(view_state, styles, state.focus == FocusPane::Main)
-                    .global_wrap(state.global_wrap)
-                    .max_context_tokens(state.max_context_tokens)
-                    .pricing(state.pricing.clone());
-            frame.render_widget(conversation_widget, content_area);
-        }
-        // If no session exists yet, render nothing (empty content area)
-    } else {
-        // Tabs 1+: Show subagent conversation (index - 1 in subagent list)
-        let subagent_index = selected_tab_index - 1;
-        if let Some(&agent_id) = subagent_ids.get(subagent_index) {
-            if let Some(view_state) = state.session_view().get_subagent(agent_id) {
-                let conversation_widget = message::ConversationView::new(
-                    view_state,
-                    styles,
-                    state.focus == FocusPane::Subagent,
-                )
-                .is_subagent_view(true)
-                .global_wrap(state.global_wrap)
-                .max_context_tokens(state.max_context_tokens)
-                .pricing(state.pricing.clone());
-                frame.render_widget(conversation_widget, content_area);
-            }
-        }
-        // If subagent not found, render nothing (empty content area)
+    if let Some(view_state) = state.selected_conversation_view() {
+        let conversation_widget = message::ConversationView::new(
+            view_state,
+            styles,
+            if is_main_tab {
+                state.focus == FocusPane::Main
+            } else {
+                state.focus == FocusPane::Subagent
+            },
+        )
+        .is_subagent_view(!is_main_tab)
+        .global_wrap(state.global_wrap)
+        .max_context_tokens(state.max_context_tokens)
+        .pricing(state.pricing.clone());
+        frame.render_widget(conversation_widget, content_area);
     }
+    // If no conversation selected, render nothing (empty content area)
 }
 
 /// Render the stats panel with session statistics.
