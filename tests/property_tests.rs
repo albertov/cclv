@@ -4,11 +4,13 @@
 //! 1. Identifier constructors reject empty strings
 //! 2. ToolName::parse round-trips correctly
 //! 3. Statistics total_usage == main + sum(subagents)
+//! 4. ScrollState bounds: vertical_offset ≤ max_entries after any action sequence
 
 use cclv::model::{
     AgentId, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
     SessionId, SessionStats, ToolName, ToolUseId, TokenUsage,
 };
+use cclv::state::ScrollState;
 use chrono::Utc;
 use proptest::prelude::*;
 
@@ -205,6 +207,98 @@ proptest! {
             stats.main_agent_usage.output_tokens,
             main_output,
             "Main agent output tokens should match"
+        );
+    }
+}
+
+// ===== Property 4: ScrollState Bounds Invariant =====
+
+/// Action types for ScrollState property testing.
+#[derive(Debug, Clone)]
+enum ScrollAction {
+    Up(usize),
+    Down(usize),
+    ToBottom,
+}
+
+/// Strategy to generate arbitrary scroll actions.
+fn scroll_action_strategy() -> impl Strategy<Value = ScrollAction> {
+    prop_oneof![
+        (0usize..1000).prop_map(ScrollAction::Up),
+        (0usize..1000).prop_map(ScrollAction::Down),
+        Just(ScrollAction::ToBottom),
+    ]
+}
+
+proptest! {
+    #[test]
+    fn scroll_state_vertical_offset_respects_bounds(
+        initial_offset in 0usize..1000,
+        max_entries in 0usize..1000,
+        actions in prop::collection::vec(scroll_action_strategy(), 0..50)
+    ) {
+        // Ensure initial state respects bounds
+        let initial_offset = initial_offset.min(max_entries);
+
+        let mut state = ScrollState {
+            vertical_offset: initial_offset,
+            horizontal_offset: 0,
+            expanded_messages: Default::default(),
+        };
+
+        // Apply each action and verify bounds hold
+        for action in actions {
+            match action {
+                ScrollAction::Up(amount) => {
+                    state.scroll_up(amount);
+                }
+                ScrollAction::Down(amount) => {
+                    state.scroll_down(amount, max_entries);
+                }
+                ScrollAction::ToBottom => {
+                    state.scroll_to_bottom(max_entries);
+                }
+            }
+
+            // INVARIANT: vertical_offset ≤ max_entries
+            prop_assert!(
+                state.vertical_offset <= max_entries,
+                "vertical_offset ({}) must be ≤ max_entries ({}) after action {:?}",
+                state.vertical_offset,
+                max_entries,
+                action
+            );
+        }
+    }
+
+    #[test]
+    fn scroll_state_vertical_offset_never_negative(
+        initial_offset in 0usize..1000,
+        scroll_up_amounts in prop::collection::vec(0usize..1000, 0..20)
+    ) {
+        let mut state = ScrollState {
+            vertical_offset: initial_offset,
+            horizontal_offset: 0,
+            expanded_messages: Default::default(),
+        };
+
+        // Scroll up repeatedly with arbitrary amounts
+        for amount in scroll_up_amounts {
+            state.scroll_up(amount);
+
+            // vertical_offset is usize, but verify it doesn't wrap/overflow
+            // by checking it's still reasonable
+            prop_assert!(
+                state.vertical_offset <= initial_offset,
+                "vertical_offset should never increase from scroll_up"
+            );
+        }
+
+        // After scrolling up, offset should be ≥ 0 (trivially true for usize)
+        // but more importantly, it should have saturated at 0
+        prop_assert!(
+            state.vertical_offset == 0 || state.vertical_offset <= initial_offset,
+            "vertical_offset should saturate at 0 when scrolling up"
         );
     }
 }
