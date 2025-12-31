@@ -8953,4 +8953,203 @@ fn test() { println!("Code blocks always NoWrap"); }
             );
         }
     }
+
+    // ===== Entry Index Rendering Tests (FR-061) =====
+
+    /// Helper to create a simple text entry for index tests
+    fn create_test_entry_for_index(uuid: &str, text: &str) -> ConversationEntry {
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role, SessionId};
+        use chrono::Utc;
+
+        let entry = LogEntry::new(
+            EntryUuid::new(uuid).unwrap(),
+            None,
+            SessionId::new("test-session").unwrap(),
+            None,
+            Utc::now(),
+            EntryType::User,
+            Message::new(Role::User, MessageContent::Text(text.to_string())),
+            EntryMetadata::default(),
+        );
+        ConversationEntry::Valid(Box::new(entry))
+    }
+
+    /// Helper to extract text content from rendered lines
+    fn extract_text_from_lines_for_index(lines: &[Line<'static>]) -> Vec<String> {
+        lines
+            .iter()
+            .map(|line| {
+                line.spans
+                    .iter()
+                    .map(|span| span.content.as_ref())
+                    .collect::<String>()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn render_entry_lines_includes_index_prefix_for_first_entry() {
+        // GIVEN: A conversation entry with index 1 (1-based for display)
+        let entry = create_test_entry_for_index("entry-1", "Hello world");
+        let scroll = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // WHEN: Rendering the entry with index 0 (0-based internal)
+        let lines = render_entry_lines(&entry, 0, false, &scroll, &styles, 10, 3);
+
+        // THEN: The rendered output should include " 1│" prefix
+        let text = extract_text_from_lines_for_index(&lines);
+        let has_index = text.iter().any(|line| line.contains(" 1│"));
+        assert!(
+            has_index,
+            "Expected index ' 1│' in rendered output. Got: {:#?}",
+            text
+        );
+    }
+
+    #[test]
+    fn render_entry_lines_includes_index_prefix_for_tenth_entry() {
+        // GIVEN: A conversation entry with index 10 (1-based for display)
+        let entry = create_test_entry_for_index("entry-10", "Tenth message");
+        let scroll = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // WHEN: Rendering the entry with index 9 (0-based internal)
+        let lines = render_entry_lines(&entry, 9, false, &scroll, &styles, 10, 3);
+
+        // THEN: The rendered output should include "10│" prefix (right-aligned)
+        let text = extract_text_from_lines_for_index(&lines);
+        let has_index = text.iter().any(|line| line.contains("10│"));
+        assert!(
+            has_index,
+            "Expected index '10│' in rendered output. Got: {:#?}",
+            text
+        );
+    }
+
+    #[test]
+    fn render_entry_lines_index_is_right_aligned_in_4_char_column() {
+        // GIVEN: Entries with different index widths
+        let entry1 = create_test_entry_for_index("entry-1", "First");
+        let entry42 = create_test_entry_for_index("entry-42", "Forty-two");
+        let entry999 = create_test_entry_for_index("entry-999", "Nine ninety-nine");
+        let scroll = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // WHEN: Rendering entries with indices 1, 42, 999
+        let lines1 = render_entry_lines(&entry1, 0, false, &scroll, &styles, 10, 3);
+        let lines42 = render_entry_lines(&entry42, 41, false, &scroll, &styles, 10, 3);
+        let lines999 = render_entry_lines(&entry999, 998, false, &scroll, &styles, 10, 3);
+
+        let text1 = extract_text_from_lines_for_index(&lines1);
+        let text42 = extract_text_from_lines_for_index(&lines42);
+        let text999 = extract_text_from_lines_for_index(&lines999);
+
+        // THEN: All indices should be right-aligned in a 4-character column
+        // "   1│", "  42│", " 999│"
+        assert!(
+            text1.iter().any(|line| line.contains("   1│")),
+            "Expected '   1│' (3 spaces + 1). Got: {:#?}",
+            text1
+        );
+        assert!(
+            text42.iter().any(|line| line.contains("  42│")),
+            "Expected '  42│' (2 spaces + 42). Got: {:#?}",
+            text42
+        );
+        assert!(
+            text999.iter().any(|line| line.contains(" 999│")),
+            "Expected ' 999│' (1 space + 999). Got: {:#?}",
+            text999
+        );
+    }
+
+    #[test]
+    fn render_entry_lines_index_uses_dim_gray_color() {
+        // GIVEN: A conversation entry
+        let entry = create_test_entry_for_index("entry-1", "Hello");
+        let scroll = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // WHEN: Rendering the entry
+        let lines = render_entry_lines(&entry, 0, false, &scroll, &styles, 10, 3);
+
+        // THEN: The index prefix should have dim gray styling
+        let index_span = lines
+            .iter()
+            .flat_map(|line| &line.spans)
+            .find(|span| span.content.contains("│"));
+
+        assert!(
+            index_span.is_some(),
+            "Expected to find index span with '│' character"
+        );
+
+        let span = index_span.unwrap();
+        assert_eq!(
+            span.style.fg,
+            Some(Color::DarkGray),
+            "Index should use DarkGray color"
+        );
+        assert!(
+            span.style.add_modifier.contains(Modifier::DIM),
+            "Index should have DIM modifier"
+        );
+    }
+
+    #[test]
+    fn render_entry_lines_index_appears_only_on_first_line_of_entry() {
+        // GIVEN: A multi-line conversation entry
+        let multiline_text = "First line\nSecond line\nThird line";
+        let entry = create_test_entry_for_index("entry-1", multiline_text);
+        let scroll = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // WHEN: Rendering the entry
+        let lines = render_entry_lines(&entry, 0, false, &scroll, &styles, 10, 3);
+
+        let text = extract_text_from_lines_for_index(&lines);
+
+        // THEN: Index "1│" should appear only on the first content line, not on subsequent lines
+        let index_count = text.iter().filter(|line| line.contains("│")).count();
+
+        assert_eq!(
+            index_count, 1,
+            "Index '│' should appear exactly once (on first line). Found {} occurrences in: {:#?}",
+            index_count, text
+        );
+    }
+
+    #[test]
+    fn render_entry_lines_index_increments_per_entry_in_conversation() {
+        // GIVEN: Multiple entries in a conversation
+        let entry1 = create_test_entry_for_index("entry-1", "First");
+        let entry2 = create_test_entry_for_index("entry-2", "Second");
+        let entry3 = create_test_entry_for_index("entry-3", "Third");
+        let scroll = create_test_scroll_state();
+        let styles = create_test_styles();
+
+        // WHEN: Rendering entries with indices 0, 1, 2 (0-based)
+        let lines1 = render_entry_lines(&entry1, 0, false, &scroll, &styles, 10, 3);
+        let lines2 = render_entry_lines(&entry2, 1, false, &scroll, &styles, 10, 3);
+        let lines3 = render_entry_lines(&entry3, 2, false, &scroll, &styles, 10, 3);
+
+        let text1 = extract_text_from_lines_for_index(&lines1);
+        let text2 = extract_text_from_lines_for_index(&lines2);
+        let text3 = extract_text_from_lines_for_index(&lines3);
+
+        // THEN: Indices should be 1, 2, 3 (1-based display)
+        assert!(
+            text1.iter().any(|line| line.contains(" 1│")),
+            "Expected ' 1│' in first entry"
+        );
+        assert!(
+            text2.iter().any(|line| line.contains(" 2│")),
+            "Expected ' 2│' in second entry"
+        );
+        assert!(
+            text3.iter().any(|line| line.contains(" 3│")),
+            "Expected ' 3│' in third entry"
+        );
+    }
 }
