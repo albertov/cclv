@@ -8,7 +8,7 @@ use cclv::model::{Session, SessionId};
 use cclv::source::{FileSource, StdinSource};
 use cclv::state::AppState;
 use cclv::view::{TuiApp, TuiError};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
 use std::path::PathBuf;
@@ -246,5 +246,30 @@ impl AcceptanceTestHarness {
     pub fn assert_snapshot(&mut self, snapshot_name: &str) {
         let output = self.render_to_string();
         insta::assert_snapshot!(snapshot_name, output);
+    }
+
+    /// Send a mouse click event at the specified coordinates
+    ///
+    /// # Arguments
+    /// * `column` - X coordinate (column) of the click
+    /// * `row` - Y coordinate (row) of the click
+    #[allow(dead_code)]
+    pub fn click_at(&mut self, column: u16, row: u16) {
+        if !self.running {
+            return; // Already quit
+        }
+
+        // Render first to ensure layout is calculated
+        let _ = self.app.render_test();
+
+        // Create left mouse button down event
+        let mouse_event = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        };
+
+        self.app.handle_mouse_test(mouse_event);
     }
 }

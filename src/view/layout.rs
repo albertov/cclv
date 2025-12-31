@@ -17,6 +17,85 @@ use ratatui::{
 };
 use std::collections::HashSet;
 
+/// Calculate the tab area for mouse click detection.
+///
+/// Returns None if there are no subagents or if the layout doesn't show tabs.
+/// This calculation must match the layout logic in render_layout().
+pub fn calculate_tab_area(frame_area: Rect, state: &AppState) -> Option<Rect> {
+    let has_subagents = !state.session().subagents().is_empty();
+    if !has_subagents {
+        return None;
+    }
+
+    // Determine if search input is visible (same logic as render_layout)
+    let search_visible = matches!(
+        state.search,
+        SearchState::Typing { .. } | SearchState::Active { .. }
+    );
+
+    // Calculate vertical chunks (same as render_layout)
+    let vertical_chunks = if search_visible {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Header
+                Constraint::Min(0),    // Content
+                Constraint::Length(3), // Search
+                Constraint::Length(1), // Status
+            ])
+            .split(frame_area)
+    } else {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Header
+                Constraint::Min(0),    // Content
+                Constraint::Length(1), // Status
+            ])
+            .split(frame_area)
+    };
+
+    let content_area = vertical_chunks[1];
+
+    // Calculate conversation area (accounting for stats panel)
+    let conversation_area = if state.stats_visible {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(10)])
+            .split(content_area);
+        chunks[0]
+    } else {
+        content_area
+    };
+
+    // Calculate main conversation area (accounting for log pane)
+    let main_conversation_area = if state.log_pane.is_visible() {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(8)])
+            .split(conversation_area);
+        chunks[0]
+    } else {
+        conversation_area
+    };
+
+    // Calculate horizontal split (main + subagent)
+    let horizontal_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(main_conversation_area);
+
+    let subagent_area = horizontal_chunks[1];
+
+    // Tab area is the top 3 lines of subagent pane
+    let subagent_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .split(subagent_area);
+
+    Some(subagent_chunks[0])
+}
+
 /// Render the split pane layout with main agent (left), subagent tabs (right),
 /// and status bar (bottom).
 ///

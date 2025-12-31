@@ -27,7 +27,7 @@ use crate::state::{
     search_input_handler, AppState, FocusPane,
 };
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
@@ -71,6 +71,8 @@ where
     pending_entries: Vec<crate::model::ConversationEntry>,
     /// Receiver for log entries from tracing subscriber
     log_receiver: std::sync::mpsc::Receiver<crate::state::log_pane::LogPaneEntry>,
+    /// Last rendered tab area (for mouse click detection)
+    last_tab_area: Option<ratatui::layout::Rect>,
 }
 
 impl TuiApp<CrosstermBackend<Stdout>> {
@@ -85,6 +87,7 @@ impl TuiApp<CrosstermBackend<Stdout>> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         stdout.execute(EnterAlternateScreen)?;
+        stdout.execute(crossterm::event::EnableMouseCapture)?;
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
 
@@ -121,6 +124,7 @@ impl TuiApp<CrosstermBackend<Stdout>> {
             last_render: std::time::Instant::now(),
             pending_entries: Vec::new(),
             log_receiver,
+            last_tab_area: None,
         })
     }
 
@@ -138,15 +142,20 @@ impl TuiApp<CrosstermBackend<Stdout>> {
             // Poll for log pane entries from tracing subscriber
             self.poll_log_entries();
 
-            // Poll for keyboard events (non-blocking with timeout)
-            let keyboard_event = if event::poll(FRAME_DURATION)? {
-                if let Event::Key(key) = event::read()? {
-                    if self.handle_key(key) {
-                        break;
+            // Poll for events (non-blocking with timeout)
+            let should_force_render = if event::poll(FRAME_DURATION)? {
+                match event::read()? {
+                    Event::Key(key) => {
+                        if self.handle_key(key) {
+                            break;
+                        }
+                        true // Keyboard event occurred - force render
                     }
-                    true // Keyboard event occurred - force render
-                } else {
-                    false
+                    Event::Mouse(mouse) => {
+                        self.handle_mouse(mouse);
+                        true // Mouse event occurred - force render
+                    }
+                    _ => false,
                 }
             } else {
                 false
@@ -155,8 +164,8 @@ impl TuiApp<CrosstermBackend<Stdout>> {
             // Check if frame budget elapsed AFTER poll (not before)
             let should_render = self.should_render_frame();
 
-            // Render frame if budget elapsed or keyboard event
-            if should_render || keyboard_event {
+            // Render frame if budget elapsed or event occurred
+            if should_render || should_force_render {
                 self.draw()?;
             }
         }
@@ -193,6 +202,7 @@ where
             last_render: std::time::Instant::now(),
             pending_entries: Vec::new(),
             log_receiver,
+            last_tab_area: None,
         }
     }
 
@@ -212,6 +222,16 @@ where
     #[doc(hidden)]
     pub fn handle_key_test(&mut self, key: KeyEvent) -> bool {
         self.handle_key(key)
+    }
+
+    /// Handle a single mouse event (test-only accessor)
+    ///
+    /// Processes mouse event and updates state accordingly.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn handle_mouse_test(&mut self, mouse: MouseEvent) {
+        self.handle_mouse(mouse)
     }
 
     /// Render a single frame (test-only accessor)
@@ -490,6 +510,31 @@ where
         false
     }
 
+    /// Handle a single mouse event
+    ///
+    /// Currently handles left-click on tab bar to switch tabs
+    fn handle_mouse(&mut self, mouse: MouseEvent) {
+        // Only handle left mouse button down events
+        if !matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
+            return;
+        }
+
+        // Only process clicks when we have a tab area
+        let tab_area = match self.last_tab_area {
+            Some(area) => area,
+            None => return,
+        };
+
+        // Use pure function to handle the click and update state
+        let new_state = crate::state::mouse_handler::handle_mouse_click(
+            self.app_state.clone(),
+            mouse.column,
+            mouse.row,
+            tab_area,
+        );
+        self.app_state = new_state;
+    }
+
     /// Render the current frame
     ///
     /// Flushes pending entries to session, applies auto-scroll, then renders.
@@ -505,6 +550,11 @@ where
                 .main_scroll
                 .scroll_to_bottom(entry_count.saturating_sub(1));
         }
+
+        // Calculate tab area before rendering (for mouse click detection)
+        let size = self.terminal.size()?;
+        let frame_area = ratatui::layout::Rect::new(0, 0, size.width, size.height);
+        self.last_tab_area = layout::calculate_tab_area(frame_area, &self.app_state);
 
         // Render the frame
         self.terminal.draw(|frame| {
@@ -663,9 +713,10 @@ pub fn run() -> Result<(), TuiError> {
 
 /// Restore terminal to normal state
 ///
-/// Disables raw mode and leaves alternate screen
+/// Disables raw mode, mouse capture, and leaves alternate screen
 fn restore_terminal() -> Result<(), TuiError> {
     disable_raw_mode()?;
+    io::stdout().execute(crossterm::event::DisableMouseCapture)?;
     io::stdout().execute(LeaveAlternateScreen)?;
     Ok(())
 }
@@ -710,6 +761,7 @@ mod tests {
             last_render: std::time::Instant::now(),
             pending_entries: Vec::new(),
             log_receiver: log_rx,
+            last_tab_area: None,
         }
     }
 
