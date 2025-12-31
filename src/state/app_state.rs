@@ -328,9 +328,16 @@ impl AppState {
             return;
         }
 
+        // Determine active session based on main pane scroll position (FR-080)
+        let scroll_line = self
+            .log_view
+            .current_session()
+            .map(|s| s.main().approximate_scroll_line())
+            .unwrap_or(0);
+
         let num_subagents = self
             .log_view
-            .get_session(0)
+            .active_session(scroll_line)
             .map(|s| s.subagent_ids().count())
             .unwrap_or(0);
 
@@ -360,9 +367,16 @@ impl AppState {
             return;
         }
 
+        // Determine active session based on main pane scroll position (FR-080)
+        let scroll_line = self
+            .log_view
+            .current_session()
+            .map(|s| s.main().approximate_scroll_line())
+            .unwrap_or(0);
+
         let num_subagents = self
             .log_view
-            .get_session(0)
+            .active_session(scroll_line)
             .map(|s| s.subagent_ids().count())
             .unwrap_or(0);
 
@@ -388,9 +402,16 @@ impl AppState {
             return;
         }
 
+        // Determine active session based on main pane scroll position (FR-080)
+        let scroll_line = self
+            .log_view
+            .current_session()
+            .map(|s| s.main().approximate_scroll_line())
+            .unwrap_or(0);
+
         let num_subagents = self
             .log_view
-            .get_session(0)
+            .active_session(scroll_line)
             .map(|s| s.subagent_ids().count())
             .unwrap_or(0);
 

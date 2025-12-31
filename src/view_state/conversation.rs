@@ -503,6 +503,18 @@ impl ConversationViewState {
             .map(|e| e.layout().cumulative_y())
     }
 
+    /// Get approximate scroll line for active session determination (FR-080).
+    ///
+    /// Uses heuristics to estimate line offset without requiring viewport dimensions.
+    /// This is "good enough" for determining which session contains the scroll position.
+    ///
+    /// # Returns
+    /// Approximate line offset from top of conversation.
+    pub fn approximate_scroll_line(&self) -> usize {
+        self.scroll
+            .approximate_line(self.total_height, |idx| self.entry_cumulative_y(idx))
+    }
+
     /// Check if entry with given UUID is expanded.
     ///
     /// This is a compatibility helper for the view layer which still works with UUIDs.
@@ -1781,5 +1793,95 @@ mod tests {
         // Back to using global
         assert_eq!(entry.effective_wrap(WrapMode::Wrap), WrapMode::Wrap);
         assert_eq!(entry.effective_wrap(WrapMode::NoWrap), WrapMode::NoWrap);
+    }
+
+    // === approximate_scroll_line Tests ===
+
+    #[test]
+    fn approximate_scroll_line_at_top() {
+        let entries = vec![make_valid_entry("uuid-1"), make_valid_entry("uuid-2")];
+        let mut state = ConversationViewState::new(None, None, entries);
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+        state.recompute_layout(params, fixed_height_calculator(10));
+
+        state.set_scroll(ScrollPosition::Top);
+
+        assert_eq!(
+            state.approximate_scroll_line(),
+            0,
+            "Top scroll should approximate to line 0"
+        );
+    }
+
+    #[test]
+    fn approximate_scroll_line_at_bottom() {
+        let entries = vec![make_valid_entry("uuid-1"), make_valid_entry("uuid-2")];
+        let mut state = ConversationViewState::new(None, None, entries);
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+        state.recompute_layout(params, fixed_height_calculator(10));
+
+        state.set_scroll(ScrollPosition::Bottom);
+
+        assert_eq!(
+            state.approximate_scroll_line(),
+            usize::MAX,
+            "Bottom scroll should approximate to usize::MAX"
+        );
+    }
+
+    #[test]
+    fn approximate_scroll_line_at_specific_line() {
+        let entries = vec![make_valid_entry("uuid-1"), make_valid_entry("uuid-2")];
+        let mut state = ConversationViewState::new(None, None, entries);
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+        state.recompute_layout(params, fixed_height_calculator(10));
+
+        state.set_scroll(ScrollPosition::at_line(15));
+
+        assert_eq!(
+            state.approximate_scroll_line(),
+            15,
+            "AtLine(15) should approximate to 15"
+        );
+    }
+
+    #[test]
+    fn approximate_scroll_line_at_entry() {
+        let entries = vec![
+            make_valid_entry("uuid-1"), // cumulative_y = 0
+            make_valid_entry("uuid-2"), // cumulative_y = 10
+            make_valid_entry("uuid-3"), // cumulative_y = 20
+        ];
+        let mut state = ConversationViewState::new(None, None, entries);
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+        state.recompute_layout(params, fixed_height_calculator(10));
+
+        state.set_scroll(ScrollPosition::at_entry(EntryIndex::new(1)));
+
+        assert_eq!(
+            state.approximate_scroll_line(),
+            10,
+            "AtEntry(1) should approximate to entry 1's cumulative_y (10)"
+        );
+    }
+
+    #[test]
+    fn approximate_scroll_line_with_fraction() {
+        let entries = vec![
+            make_valid_entry("uuid-1"),
+            make_valid_entry("uuid-2"),
+            make_valid_entry("uuid-3"),
+        ];
+        let mut state = ConversationViewState::new(None, None, entries);
+        let params = LayoutParams::new(80, WrapMode::Wrap);
+        state.recompute_layout(params, fixed_height_calculator(10)); // total_height = 30
+
+        state.set_scroll(ScrollPosition::Fraction(0.5));
+
+        assert_eq!(
+            state.approximate_scroll_line(),
+            15,
+            "Fraction(0.5) with total_height=30 should approximate to 15"
+        );
     }
 }

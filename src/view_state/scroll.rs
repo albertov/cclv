@@ -113,6 +113,47 @@ impl ScrollPosition {
     pub fn at_line(offset: usize) -> Self {
         Self::AtLine(LineOffset::new(offset))
     }
+
+    /// Approximate line offset for active session determination.
+    ///
+    /// Does not require viewport dimensions - uses heuristics for variants
+    /// that would normally need viewport context. This is "good enough" for
+    /// determining which session contains the scroll position (FR-080).
+    ///
+    /// # Heuristics
+    /// - `Top` → 0
+    /// - `AtLine(n)` → n (exact)
+    /// - `AtEntry` → uses entry lookup (same as resolve)
+    /// - `Bottom` → usize::MAX (matches last session)
+    /// - `Fraction(f)` → f * total_height (estimate without viewport)
+    ///
+    /// # Arguments
+    /// - `total_height`: Total content height in lines
+    /// - `entry_lookup`: Function to get entry's cumulative_y by index
+    pub fn approximate_line<F>(
+        &self,
+        total_height: usize,
+        entry_lookup: F,
+    ) -> usize
+    where
+        F: Fn(EntryIndex) -> Option<LineOffset>,
+    {
+        match self {
+            ScrollPosition::Top => 0,
+            ScrollPosition::Bottom => usize::MAX,
+            ScrollPosition::AtLine(offset) => offset.get(),
+            ScrollPosition::AtEntry {
+                entry_index,
+                line_in_entry,
+            } => entry_lookup(*entry_index)
+                .map(|y| y.get() + line_in_entry)
+                .unwrap_or(0),
+            ScrollPosition::Fraction(f) => {
+                let f = f.clamp(0.0, 1.0);
+                (f * total_height as f64).round() as usize
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -304,6 +345,139 @@ mod tests {
                     pos
                 );
             }
+        }
+    }
+
+    mod approximate_line {
+        use super::*;
+
+        // Helper: mock entry lookup (reuse from resolve tests)
+        fn mock_lookup(idx: EntryIndex) -> Option<LineOffset> {
+            match idx.get() {
+                0 => Some(LineOffset::new(0)),
+                1 => Some(LineOffset::new(10)),
+                2 => Some(LineOffset::new(25)),
+                _ => None,
+            }
+        }
+
+        // Helper: no-op entry lookup
+        fn no_entries(_idx: EntryIndex) -> Option<LineOffset> {
+            None
+        }
+
+        #[test]
+        fn top_approximates_to_zero() {
+            let pos = ScrollPosition::Top;
+            let result = pos.approximate_line(100, no_entries);
+            assert_eq!(result, 0);
+        }
+
+        #[test]
+        fn bottom_approximates_to_usize_max() {
+            let pos = ScrollPosition::Bottom;
+            let result = pos.approximate_line(100, no_entries);
+            assert_eq!(result, usize::MAX, "Bottom should return usize::MAX to match any session's end");
+        }
+
+        #[test]
+        fn at_line_returns_exact_offset() {
+            let pos = ScrollPosition::AtLine(LineOffset::new(42));
+            let result = pos.approximate_line(100, no_entries);
+            assert_eq!(result, 42);
+        }
+
+        #[test]
+        fn at_entry_uses_lookup() {
+            let pos = ScrollPosition::AtEntry {
+                entry_index: EntryIndex::new(1),
+                line_in_entry: 0,
+            };
+            let result = pos.approximate_line(100, mock_lookup);
+            assert_eq!(result, 10, "Entry 1 starts at line 10");
+        }
+
+        #[test]
+        fn at_entry_adds_line_in_entry_offset() {
+            let pos = ScrollPosition::AtEntry {
+                entry_index: EntryIndex::new(2),
+                line_in_entry: 5,
+            };
+            let result = pos.approximate_line(100, mock_lookup);
+            assert_eq!(result, 30, "Entry 2 at y=25, plus 5 lines in");
+        }
+
+        #[test]
+        fn at_entry_returns_zero_when_not_found() {
+            let pos = ScrollPosition::AtEntry {
+                entry_index: EntryIndex::new(999),
+                line_in_entry: 0,
+            };
+            let result = pos.approximate_line(100, mock_lookup);
+            assert_eq!(result, 0, "Missing entry should fallback to 0");
+        }
+
+        #[test]
+        fn fraction_zero_approximates_to_zero() {
+            let pos = ScrollPosition::Fraction(0.0);
+            let result = pos.approximate_line(100, no_entries);
+            assert_eq!(result, 0);
+        }
+
+        #[test]
+        fn fraction_one_approximates_to_total_height() {
+            let pos = ScrollPosition::Fraction(1.0);
+            let result = pos.approximate_line(100, no_entries);
+            assert_eq!(result, 100, "Fraction 1.0 should approximate to total_height");
+        }
+
+        #[test]
+        fn fraction_half_approximates_to_midpoint() {
+            let pos = ScrollPosition::Fraction(0.5);
+            let result = pos.approximate_line(100, no_entries);
+            assert_eq!(result, 50);
+        }
+
+        #[test]
+        fn fraction_clamps_negative() {
+            let pos = ScrollPosition::Fraction(-0.5);
+            let result = pos.approximate_line(100, no_entries);
+            assert_eq!(result, 0, "Negative fraction should clamp to 0");
+        }
+
+        #[test]
+        fn fraction_clamps_above_one() {
+            let pos = ScrollPosition::Fraction(1.5);
+            let result = pos.approximate_line(100, no_entries);
+            assert_eq!(result, 100, "Fraction > 1.0 should clamp to total_height");
+        }
+
+        #[test]
+        fn empty_document_top_and_fraction_approximate_to_zero() {
+            // AtLine returns exact offset (not clamped)
+            // AtEntry with missing entry returns 0 (fallback)
+            let positions_to_zero = vec![
+                ScrollPosition::Top,
+                ScrollPosition::at_entry(EntryIndex::new(5)),  // Missing entry → 0
+                ScrollPosition::Fraction(0.5),  // 0.5 * 0 = 0
+            ];
+
+            for pos in positions_to_zero {
+                let result = pos.approximate_line(0, no_entries);
+                assert_eq!(result, 0, "position {:?} should approximate to 0 in empty doc", pos);
+            }
+
+            // AtLine returns exact value even if beyond bounds - caller's job to interpret
+            let at_line = ScrollPosition::AtLine(LineOffset::new(100));
+            assert_eq!(at_line.approximate_line(0, no_entries), 100, "AtLine returns exact offset");
+        }
+
+        #[test]
+        fn bottom_is_always_max_regardless_of_document_size() {
+            let pos = ScrollPosition::Bottom;
+            assert_eq!(pos.approximate_line(0, no_entries), usize::MAX);
+            assert_eq!(pos.approximate_line(100, no_entries), usize::MAX);
+            assert_eq!(pos.approximate_line(10000, no_entries), usize::MAX);
         }
     }
 }

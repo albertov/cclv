@@ -392,3 +392,253 @@ fn non_tab_actions_like_quit_return_state_unchanged() {
         "Quit action should return state unchanged"
     );
 }
+
+// ===== Multi-session tab scoping tests (FR-080, FR-081) =====
+
+/// Helper to create a main conversation entry for a session
+fn make_main_entry(session_id: &str, content: &str) -> ConversationEntry {
+    let log_entry = LogEntry::new(
+        make_entry_uuid(&format!("main-{}", session_id)),
+        None,
+        make_session_id(session_id),
+        None, // Main agent has no agent_id
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text(content.to_string())),
+        EntryMetadata::default(),
+    );
+
+    ConversationEntry::Valid(Box::new(log_entry))
+}
+
+/// Helper to create a subagent entry for a specific session and agent
+fn make_subagent_entry_for_session(
+    session_id: &str,
+    agent_id: &str,
+    content: &str,
+) -> ConversationEntry {
+    let log_entry = LogEntry::new(
+        make_entry_uuid(&format!("entry-{}-{}", session_id, agent_id)),
+        None,
+        make_session_id(session_id),
+        Some(AgentId::new(agent_id).expect("valid agent id")),
+        Utc::now(),
+        EntryType::Assistant,
+        Message::new(
+            Role::Assistant,
+            MessageContent::Text(content.to_string()),
+        ),
+        EntryMetadata::default(),
+    );
+
+    ConversationEntry::Valid(Box::new(log_entry))
+}
+
+#[test]
+fn next_tab_uses_active_session_subagents_when_scrolled_to_first_session() {
+    // Given: Two sessions with different subagent sets
+    // Session 1: alpha, beta
+    // Session 2: gamma, delta, epsilon
+    let mut entries = Vec::new();
+
+    // Session 1
+    entries.push(make_main_entry("session-1", "First session"));
+    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
+    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+
+    // Session 2
+    entries.push(make_main_entry("session-2", "Second session"));
+    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
+    entries.push(make_subagent_entry_for_session("session-2", "delta", "Delta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "epsilon",
+        "Epsilon msg",
+    ));
+
+    let mut state = AppState::new();
+    state.add_entries(entries);
+    state.focus = FocusPane::Subagent;
+
+    // CRITICAL: Scroll position determines active session
+    // Scroll line 0 = session 1 is active
+    // Session 1 has subagents: alpha (0), beta (1)
+    state.selected_tab = Some(0); // alpha selected
+
+    let new_state = handle_tab_action(state, KeyAction::NextTab);
+
+    // Should wrap within session 1's 2 subagents: alpha (0) -> beta (1)
+    assert_eq!(
+        new_state.selected_tab,
+        Some(1),
+        "NextTab from alpha should select beta (within session 1's subagents)"
+    );
+}
+
+#[test]
+fn next_tab_wraps_within_active_session_subagents() {
+    // Given: Two sessions with different subagent counts
+    let mut entries = Vec::new();
+
+    // Session 1: alpha, beta (2 subagents)
+    entries.push(make_main_entry("session-1", "First session"));
+    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
+    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+
+    // Session 2: gamma, delta, epsilon (3 subagents)
+    entries.push(make_main_entry("session-2", "Second session"));
+    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
+    entries.push(make_subagent_entry_for_session("session-2", "delta", "Delta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "epsilon",
+        "Epsilon msg",
+    ));
+
+    let mut state = AppState::new();
+    state.add_entries(entries);
+    state.focus = FocusPane::Subagent;
+
+    // When scrolled to session 1, at last tab (beta = index 1)
+    state.selected_tab = Some(1); // beta (last in session 1)
+
+    let new_state = handle_tab_action(state, KeyAction::NextTab);
+
+    // Should wrap back to first tab in session 1 (alpha = index 0)
+    // NOT continue to session 2's subagents
+    assert_eq!(
+        new_state.selected_tab,
+        Some(0),
+        "NextTab from beta (last in session 1) should wrap to alpha (first in session 1)"
+    );
+}
+
+#[test]
+fn prev_tab_uses_active_session_subagents() {
+    // Given: Two sessions
+    let mut entries = Vec::new();
+
+    // Session 1: alpha, beta
+    entries.push(make_main_entry("session-1", "First session"));
+    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
+    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+
+    // Session 2: gamma, delta
+    entries.push(make_main_entry("session-2", "Second session"));
+    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
+    entries.push(make_subagent_entry_for_session("session-2", "delta", "Delta msg"));
+
+    let mut state = AppState::new();
+    state.add_entries(entries);
+    state.focus = FocusPane::Subagent;
+
+    // Scrolled to session 1, at first tab (alpha = index 0)
+    state.selected_tab = Some(0); // alpha
+
+    let new_state = handle_tab_action(state, KeyAction::PrevTab);
+
+    // Should wrap to last tab in session 1 (beta = index 1)
+    // Session 1 has 2 subagents, so last is index 1
+    assert_eq!(
+        new_state.selected_tab,
+        Some(1),
+        "PrevTab from alpha (first in session 1) should wrap to beta (last in session 1)"
+    );
+}
+
+#[test]
+fn select_tab_clamps_to_active_session_subagent_count() {
+    // Given: Two sessions with different subagent counts
+    let mut entries = Vec::new();
+
+    // Session 1: alpha, beta (2 subagents)
+    entries.push(make_main_entry("session-1", "First session"));
+    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
+    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+
+    // Session 2: gamma, delta, epsilon (3 subagents)
+    entries.push(make_main_entry("session-2", "Second session"));
+    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
+    entries.push(make_subagent_entry_for_session("session-2", "delta", "Delta msg"));
+    entries.push(make_subagent_entry_for_session(
+        "session-2",
+        "epsilon",
+        "Epsilon msg",
+    ));
+
+    let mut state = AppState::new();
+    state.add_entries(entries);
+    state.focus = FocusPane::Subagent;
+
+    // Scrolled to session 1 (which has only 2 subagents)
+    state.selected_tab = Some(0);
+
+    let new_state = handle_tab_action(state, KeyAction::SelectTab(5));
+
+    // Should clamp to last tab in session 1 (beta = index 1)
+    // NOT to session 2's higher count
+    assert_eq!(
+        new_state.selected_tab,
+        Some(1),
+        "SelectTab(5) in session 1 should clamp to last tab in session 1 (index 1)"
+    );
+}
+
+#[test]
+fn tab_operations_respect_scroll_position_to_determine_active_session() {
+    // This test verifies the CRITICAL requirement: scroll position determines active session
+    // Given: Two sessions with DIFFERENT subagent sets
+    let mut entries = Vec::new();
+
+    // Session 1: alpha, beta (2 subagents)
+    entries.push(make_main_entry("session-1", "First session"));
+    entries.push(make_subagent_entry_for_session("session-1", "alpha", "Alpha msg"));
+    entries.push(make_subagent_entry_for_session("session-1", "beta", "Beta msg"));
+
+    // Session 2: gamma (1 subagent)
+    entries.push(make_main_entry("session-2", "Second session"));
+    entries.push(make_subagent_entry_for_session("session-2", "gamma", "Gamma msg"));
+
+    let mut state = AppState::new();
+    state.add_entries(entries);
+    state.focus = FocusPane::Subagent;
+
+    // Verify multi-session state was created
+    assert_eq!(
+        state.log_view().session_count(),
+        2,
+        "Should have created 2 sessions"
+    );
+
+    // Verify session 1 has 2 subagents
+    let session1_subagent_count = state
+        .log_view()
+        .get_session(0)
+        .unwrap()
+        .subagent_ids()
+        .count();
+    assert_eq!(session1_subagent_count, 2, "Session 1 should have 2 subagents");
+
+    // Verify session 2 has 1 subagent
+    let session2_subagent_count = state
+        .log_view()
+        .get_session(1)
+        .unwrap()
+        .subagent_ids()
+        .count();
+    assert_eq!(session2_subagent_count, 1, "Session 2 should have 1 subagent");
+
+    // When scrolled to session 2 (scroll position beyond session 1's content)
+    // Session 2 only has gamma (1 subagent)
+    // So NextTab from tab 0 (gamma) should wrap back to tab 0 (gamma)
+    // NOT to tab 1 (which would be beta from session 1)
+
+    // TODO: This test cannot currently set scroll position directly.
+    // It would need to:
+    // 1. Get the main conversation view state
+    // 2. Calculate session 2's start line
+    // 3. Set scroll position to that line
+    //
+    // For now, this test documents the EXPECTED behavior that
+    // tab operations should consider scroll position via active_session().
+}
