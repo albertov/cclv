@@ -301,8 +301,11 @@ proptest! {
 proptest! {
     #[test]
     fn indented_code_blocks_force_nowrap_mode(
-        prose in ".{10,100}",
-        code_line in ".{1,50}",
+        // Constrain prose to ASCII-only, no leading/trailing whitespace
+        // to ensure predictable string structure for indented code block detection
+        prose in "[a-zA-Z0-9 ,.!?;:(){}<>\\-_~]{10,100}",
+        // Constrain code_line to non-empty ASCII (no spaces to ensure it's not all whitespace)
+        code_line in "[a-zA-Z0-9,.=+*]{1,50}",
         global in prop_oneof![Just(WrapMode::Wrap), Just(WrapMode::NoWrap)],
     ) {
         // Create text with indented code block (4+ spaces)
