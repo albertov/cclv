@@ -2,6 +2,7 @@
 
 mod help;
 mod layout;
+pub mod live_indicator;
 mod log_pane;
 mod message;
 mod search_input;
@@ -10,6 +11,7 @@ mod styles;
 pub mod tabs;
 
 pub use help::render_help_overlay;
+pub use live_indicator::LiveIndicator;
 pub use log_pane::LogPaneView;
 pub use message::{
     extract_entry_text, has_code_blocks, render_conversation_view_with_search, ConversationView,

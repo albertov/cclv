@@ -520,10 +520,10 @@ fn format_unread_badge(count: usize, max_level: Option<tracing::Level>) -> Strin
 fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     let mut spans = Vec::new();
 
-    // Live indicator (green when active)
-    if state.live_mode && state.auto_scroll {
-        spans.push(Span::styled("[LIVE] ", Style::default().fg(Color::Green)));
-    }
+    // LIVE indicator using LiveIndicator widget (FR-042b)
+    // Note: blink_on is hardcoded to false until timer is added to event loop
+    let live_indicator = crate::view::LiveIndicator::new(state.input_mode, false);
+    spans.push(live_indicator.render());
 
     // Unread badge (color-coded by severity - FR-057)
     let count = state.log_pane.unread_count();
