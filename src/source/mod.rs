@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn detect_returns_file_not_found_for_missing_file() {
         // Files are no longer supported through detect_input_source
-        // Use FileSource::new() directly for file input
+        // Use FileSource::read() directly for file input
         let temp_dir = std::env::temp_dir();
         let missing_file = temp_dir.join("nonexistent_detect_test_12345.jsonl");
 
