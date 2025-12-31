@@ -3101,7 +3101,6 @@ fn bug_help_popup_scroll_passthrough() {
 /// 3. Press Tab again - stays on same subagent (BUG)
 /// 4. Press ']' - correctly switches to next subagent
 #[test]
-#[ignore = "cclv-5ur.69: Tab key should cycle tabs continuously like ']'"]
 fn bug_tab_key_should_cycle_tabs_continuously() {
     use crate::config::keybindings::KeyBindings;
     use crate::source::{FileSource, InputSource, StdinSource};
@@ -3192,7 +3191,6 @@ fn bug_tab_key_should_cycle_tabs_continuously() {
 /// 3. Press '1' - should go back to Main (BUG: stays on subagent)
 /// 4. Press '2' - should go to first subagent (BUG: does nothing)
 #[test]
-#[ignore = "cclv-5ur.69: Number keys 1-9 should select specific tabs"]
 fn bug_number_keys_should_select_tabs() {
     use crate::config::keybindings::KeyBindings;
     use crate::source::{FileSource, InputSource, StdinSource};
