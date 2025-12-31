@@ -60,7 +60,6 @@ fn calculate_lines_to_skip(cumulative_y: usize, scroll_offset: usize) -> usize {
 ///
 /// This enables FR-053: code blocks never wrap while prose wraps within the same entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(dead_code)] // Used in future implementation
 pub enum ContentSection {
     /// Prose text (paragraphs, headings, lists, etc.)
     ///
@@ -71,6 +70,175 @@ pub enum ContentSection {
     ///
     /// Never wraps regardless of wrap settings; always uses horizontal scrolling.
     CodeBlock(Vec<Line<'static>>),
+}
+
+/// A rendered section with type information and styled lines.
+///
+/// Used to preserve section type (prose vs code) after markdown rendering.
+#[derive(Debug, Clone)]
+#[allow(dead_code)] // Used in render_conversation_view refactoring
+pub struct RenderedSection {
+    /// Type of section (determines wrap behavior)
+    pub section_type: SectionType,
+    /// Rendered lines with markdown styling applied
+    pub lines: Vec<Line<'static>>,
+}
+
+/// Section type classification for wrap behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // Used in render_conversation_view refactoring
+pub enum SectionType {
+    /// Prose content - respects wrap settings
+    Prose,
+    /// Code block - never wraps
+    Code,
+}
+
+/// Render markdown text as sections with styling applied.
+///
+/// Splits markdown into prose and code sections, renders each through the markdown
+/// renderer, and returns sections with type information preserved.
+///
+/// This enables FR-053: code blocks rendered as separate widgets with independent wrap settings.
+///
+/// # Arguments
+/// * `markdown_text` - Raw markdown to render
+/// * `base_style` - Base style to apply (typically role color)
+///
+/// # Returns
+/// Vector of rendered sections preserving section type and order
+#[allow(dead_code)] // Used in render_conversation_view refactoring
+pub fn render_markdown_as_sections(
+    markdown_text: &str,
+    base_style: Style,
+) -> Vec<RenderedSection> {
+    use ratatui::text::{Line, Span};
+
+    // Identify section boundaries in raw text
+    let raw_sections = parse_raw_sections(markdown_text);
+
+    // Render each section and tag with type
+    raw_sections
+        .into_iter()
+        .map(|(section_type, text)| {
+            let lines = match section_type {
+                SectionType::Prose => {
+                    // Prose: use markdown rendering with wrapping
+                    render_markdown_with_style(&text, base_style)
+                }
+                SectionType::Code => {
+                    // Code: render as plain text, never wrap
+                    // Each line becomes a styled Line
+                    text.lines()
+                        .map(|line| Line::from(Span::styled(line.to_string(), base_style)))
+                        .collect()
+                }
+            };
+            RenderedSection {
+                section_type,
+                lines,
+            }
+        })
+        .collect()
+}
+
+/// Parse raw markdown into (section_type, text) pairs.
+///
+/// Identifies code block boundaries without rendering.
+///
+/// # Arguments
+/// * `content` - Raw markdown text
+///
+/// # Returns
+/// Vector of (SectionType, String) pairs in original order
+#[allow(dead_code)] // Used by render_markdown_as_sections
+fn parse_raw_sections(content: &str) -> Vec<(SectionType, String)> {
+    let mut sections = Vec::new();
+    let mut current_prose = String::new();
+    let mut current_code = String::new();
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum State {
+        Prose,
+        FencedCode,
+        IndentedCode,
+    }
+
+    let mut state = State::Prose;
+    let mut prev_line_blank = false;
+
+    for line in content.lines() {
+        let is_blank = line.trim().is_empty();
+        let is_fence = line.trim_start().starts_with("```");
+        let is_indented = line.starts_with("    ") || line.starts_with('\t');
+
+        match state {
+            State::Prose => {
+                if is_fence {
+                    // Flush current prose section
+                    if !current_prose.is_empty() {
+                        sections.push((SectionType::Prose, current_prose.clone()));
+                        current_prose.clear();
+                    }
+                    // Include fence line in code block
+                    current_code.push_str(line);
+                    current_code.push('\n');
+                    state = State::FencedCode;
+                } else if is_indented && prev_line_blank && !is_blank {
+                    // Start indented code block
+                    if !current_prose.is_empty() {
+                        sections.push((SectionType::Prose, current_prose.clone()));
+                        current_prose.clear();
+                    }
+                    current_code.push_str(line);
+                    current_code.push('\n');
+                    state = State::IndentedCode;
+                } else {
+                    // Regular prose line
+                    current_prose.push_str(line);
+                    current_prose.push('\n');
+                }
+            }
+            State::FencedCode => {
+                current_code.push_str(line);
+                current_code.push('\n');
+                if is_fence {
+                    // End of fenced code block
+                    sections.push((SectionType::Code, current_code.clone()));
+                    current_code.clear();
+                    state = State::Prose;
+                }
+            }
+            State::IndentedCode => {
+                if is_indented && !is_blank {
+                    // Continue indented code block
+                    current_code.push_str(line);
+                    current_code.push('\n');
+                } else {
+                    // End of indented code block
+                    sections.push((SectionType::Code, current_code.clone()));
+                    current_code.clear();
+                    state = State::Prose;
+
+                    // Process current line as prose
+                    current_prose.push_str(line);
+                    current_prose.push('\n');
+                }
+            }
+        }
+
+        prev_line_blank = is_blank;
+    }
+
+    // Flush remaining content
+    if !current_prose.is_empty() {
+        sections.push((SectionType::Prose, current_prose));
+    }
+    if !current_code.is_empty() {
+        sections.push((SectionType::Code, current_code));
+    }
+
+    sections
 }
 
 /// Parse markdown content into sections (prose and code blocks).
@@ -86,7 +254,10 @@ pub enum ContentSection {
 ///
 /// # Returns
 /// Vector of content sections maintaining original order
-#[allow(dead_code)] // Used in future implementation
+///
+/// NOTE: This function is deprecated in favor of `render_markdown_as_sections()`
+/// which includes markdown rendering. Kept for backward compatibility with tests.
+#[allow(dead_code)]
 pub fn parse_entry_sections(content: &str) -> Vec<ContentSection> {
     let mut sections = Vec::new();
     let mut current_prose: Vec<Line<'static>> = Vec::new();
@@ -853,6 +1024,266 @@ fn render_entry_lines_with_search(
     lines
 }
 
+/// Render entry as sections for independent wrap control (FR-053).
+///
+/// Returns sections with type information preserved, enabling:
+/// - Prose sections to respect wrap settings
+/// - Code blocks to never wrap (always horizontal scroll)
+///
+/// # Arguments
+/// * `entry` - The conversation entry to render
+/// * `entry_index` - Index of this entry (for initial prompt label)
+/// * `is_subagent_view` - Whether in subagent pane (affects first entry labeling)
+/// * `scroll` - Scroll state (for expansion tracking)
+/// * `styles` - Message styling configuration
+/// * `collapse_threshold` - Number of lines before collapsing
+/// * `summary_lines` - Number of lines shown when collapsed
+///
+/// # Returns
+/// Vector of RenderedSection with type tags and styled lines
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)] // Used in render_conversation_view refactoring
+fn render_entry_as_sections(
+    entry: &ConversationEntry,
+    entry_index: usize,
+    is_subagent_view: bool,
+    scroll: &ScrollState,
+    styles: &MessageStyles,
+    collapse_threshold: usize,
+    summary_lines: usize,
+) -> Vec<RenderedSection> {
+    use ratatui::text::Span;
+
+    let mut sections = Vec::new();
+
+    match entry {
+        ConversationEntry::Valid(log_entry) => {
+            let role = log_entry.message().role();
+            let role_style = styles.style_for_role(role);
+
+            // Add "Initial Prompt" label for first message in subagent view as separate section
+            if is_subagent_view && entry_index == 0 {
+                sections.push(RenderedSection {
+                    section_type: SectionType::Prose,
+                    lines: vec![Line::from(vec![Span::styled(
+                        "🔷 Initial Prompt",
+                        Style::default()
+                            .fg(Color::Magenta)
+                            .add_modifier(Modifier::BOLD),
+                    )])],
+                });
+            }
+
+            match log_entry.message().content() {
+                MessageContent::Text(text) => {
+                    // Simple text - no section parsing needed, treat as single prose section
+                    let text_lines: Vec<_> = text.lines().collect();
+                    let total_lines = text_lines.len();
+
+                    let is_expanded = scroll.is_expanded(log_entry.uuid());
+                    let should_collapse = total_lines > collapse_threshold && !is_expanded;
+
+                    let mut lines = Vec::new();
+                    if should_collapse {
+                        for line in text_lines.iter().take(summary_lines) {
+                            lines.push(Line::from(vec![Span::styled(line.to_string(), role_style)]));
+                        }
+                        let remaining = total_lines.saturating_sub(summary_lines);
+                        lines.push(Line::from(vec![Span::styled(
+                            format!("(+{} more lines)", remaining),
+                            Style::default()
+                                .fg(Color::DarkGray)
+                                .add_modifier(Modifier::DIM),
+                        )]));
+                    } else {
+                        for line in text_lines {
+                            lines.push(Line::from(vec![Span::styled(line.to_string(), role_style)]));
+                        }
+                    }
+
+                    sections.push(RenderedSection {
+                        section_type: SectionType::Prose,
+                        lines,
+                    });
+                }
+                MessageContent::Blocks(blocks) => {
+                    // Structured content - render each block as sections
+                    for block in blocks {
+                        let block_sections = render_content_block_as_sections(
+                            block,
+                            log_entry.uuid(),
+                            scroll,
+                            styles,
+                            role_style,
+                            collapse_threshold,
+                            summary_lines,
+                        );
+                        sections.extend(block_sections);
+                    }
+                }
+            }
+        }
+        ConversationEntry::Malformed(malformed) => {
+            // Malformed entries are always prose (error messages)
+            let mut lines = Vec::new();
+            lines.push(Line::from(vec![Span::styled(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                Style::default().fg(Color::Red),
+            )]));
+            lines.push(Line::from(vec![Span::styled(
+                format!("⚠ Parse Error (line {})", malformed.line_number()),
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )]));
+            for error_line in malformed.error_message().lines() {
+                lines.push(Line::from(vec![Span::styled(
+                    error_line.to_string(),
+                    Style::default().fg(Color::Red),
+                )]));
+            }
+
+            sections.push(RenderedSection {
+                section_type: SectionType::Prose,
+                lines,
+            });
+        }
+    }
+
+    // Add spacing section at end
+    sections.push(RenderedSection {
+        section_type: SectionType::Prose,
+        lines: vec![Line::from("")],
+    });
+
+    sections
+}
+
+/// Render a content block as sections (FR-053).
+///
+/// For ContentBlock::Text with markdown, parses into prose/code sections.
+/// Other block types render as single prose sections.
+///
+/// # Returns
+/// Vector of RenderedSection preserving section types
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)] // Used by render_entry_as_sections
+fn render_content_block_as_sections(
+    block: &ContentBlock,
+    entry_uuid: &crate::model::EntryUuid,
+    scroll_state: &ScrollState,
+    styles: &MessageStyles,
+    role_style: Style,
+    collapse_threshold: usize,
+    summary_lines: usize,
+) -> Vec<RenderedSection> {
+    use ratatui::text::Span;
+
+    match block {
+        ContentBlock::Text { text } => {
+            // Parse and render as sections for independent wrap control
+            let rendered_sections = render_markdown_as_sections(text, role_style);
+
+            // Apply collapse logic if needed
+            let total_lines: usize = rendered_sections.iter().map(|s| s.lines.len()).sum();
+            let is_expanded = scroll_state.is_expanded(entry_uuid);
+            let should_collapse = total_lines > collapse_threshold && !is_expanded;
+
+            if should_collapse {
+                // Take first `summary_lines` worth of content
+                let mut collapsed_lines = Vec::new();
+                let mut lines_taken = 0;
+
+                for section in &rendered_sections {
+                    for line in &section.lines {
+                        if lines_taken < summary_lines {
+                            collapsed_lines.push(line.clone());
+                            lines_taken += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    if lines_taken >= summary_lines {
+                        break;
+                    }
+                }
+
+                // Add collapse indicator
+                collapsed_lines.push(Line::from(vec![Span::styled(
+                    format!("(+{} more lines)", total_lines.saturating_sub(summary_lines)),
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::DIM),
+                )]));
+
+                // Return as single prose section when collapsed
+                vec![RenderedSection {
+                    section_type: SectionType::Prose,
+                    lines: collapsed_lines,
+                }]
+            } else {
+                // Return all sections when expanded
+                rendered_sections
+            }
+        }
+        ContentBlock::ToolUse(tool_call) => {
+            // Tool calls are always prose (no code blocks in tool definitions)
+            let block_style = styles.style_for_content_block(block);
+            let tool_style = block_style.unwrap_or(role_style);
+            let lines = render_tool_use(
+                tool_call,
+                entry_uuid,
+                scroll_state,
+                tool_style,
+                collapse_threshold,
+                summary_lines,
+            );
+
+            vec![RenderedSection {
+                section_type: SectionType::Prose,
+                lines,
+            }]
+        }
+        ContentBlock::ToolResult {
+            tool_use_id: _,
+            content,
+            is_error,
+        } => {
+            // Tool results might contain code, parse as sections
+            let block_style = styles.style_for_content_block(block);
+            let result_style = block_style.unwrap_or(role_style);
+
+            // For error results, render as single prose section
+            // For normal results, parse markdown for sections
+            if *is_error {
+                let mut lines = Vec::new();
+                lines.push(Line::from(vec![Span::styled(
+                    "⚠ Tool Error",
+                    Style::default()
+                        .fg(Color::Red)
+                        .add_modifier(Modifier::BOLD),
+                )]));
+                for line in content.lines() {
+                    lines.push(Line::from(vec![Span::styled(
+                        line.to_string(),
+                        result_style,
+                    )]));
+                }
+
+                vec![RenderedSection {
+                    section_type: SectionType::Prose,
+                    lines,
+                }]
+            } else {
+                // Normal tool result - might contain code blocks
+                render_markdown_as_sections(content, result_style)
+            }
+        }
+        ContentBlock::Thinking { thinking } => {
+            // Thinking blocks might contain code, parse as sections
+            render_markdown_as_sections(thinking, role_style)
+        }
+    }
+}
+
 /// Render a single conversation entry as a Paragraph widget with individual wrap setting.
 ///
 /// This function builds on `render_entry_lines()` to create a ratatui Paragraph widget
@@ -1139,68 +1570,139 @@ pub fn render_conversation_view(
         let actual_entry_index = start_idx + layout_idx;
 
         // Get per-entry effective wrap mode
-        // FR-053: Code blocks never wrap, always use horizontal scroll
-        let effective_wrap = if has_code_blocks(&extract_entry_text(entry)) {
-            WrapMode::NoWrap
-        } else if let ConversationEntry::Valid(log_entry) = entry {
+        // FR-053: Per-entry wrap setting influences section-level rendering
+        let effective_wrap = if let ConversationEntry::Valid(log_entry) = entry {
             scroll.effective_wrap(log_entry.uuid(), global_wrap)
         } else {
             global_wrap
         };
 
-        // Get entry lines
-        let mut entry_lines = render_entry_lines(
-            entry,
-            actual_entry_index,
-            is_subagent_view,
-            scroll,
-            styles,
-            10, // Default collapse threshold
-            3,  // Default summary lines
-        );
-
-        // Apply horizontal offset if NoWrap mode and offset > 0 (FR-040)
-        if effective_wrap == WrapMode::NoWrap && horizontal_offset > 0 {
-            entry_lines = entry_lines
-                .into_iter()
-                .map(|line| apply_horizontal_offset(line, horizontal_offset))
-                .collect();
-        }
-
-        // Add wrap continuation indicators if Wrap mode (FR-052)
-        if effective_wrap == WrapMode::Wrap {
-            entry_lines = add_wrap_continuation_indicators(entry_lines, inner_area.width as usize);
-        }
-
-        // Clip lines that are scrolled off the top of the viewport
-        // When y_offset is 0, the entry might be partially above the viewport
+        // Calculate lines to skip for clipping
         let lines_to_skip = if layout.y_offset == 0 {
             calculate_lines_to_skip(cumulative_y, scroll.vertical_offset)
         } else {
             0
         };
-
-        // Skip the clipped lines and adjust height
-        if lines_to_skip > 0 {
-            entry_lines = entry_lines.into_iter().skip(lines_to_skip).collect();
-        }
         let visible_height = (layout.height as usize).saturating_sub(lines_to_skip) as u16;
 
-        // Create Paragraph with appropriate wrap setting
-        let entry_paragraph = match effective_wrap {
-            WrapMode::Wrap => Paragraph::new(entry_lines).wrap(Wrap { trim: false }),
-            WrapMode::NoWrap => Paragraph::new(entry_lines),
-        };
+        // FR-053: Section-aware rendering when wrap enabled
+        // Render each section (prose/code) as separate Paragraph with independent wrap
+        if effective_wrap == WrapMode::Wrap {
+            // Get entry as sections
+            let entry_sections = render_entry_as_sections(
+                entry,
+                actual_entry_index,
+                is_subagent_view,
+                scroll,
+                styles,
+                10, // Default collapse threshold
+                3,  // Default summary lines
+            );
 
-        // Calculate entry area within viewport
-        let entry_area = Rect {
-            x: inner_area.x,
-            y: inner_area.y + layout.y_offset,
-            width: inner_area.width,
-            height: visible_height,
-        };
+            // Stack sections vertically, applying wrap per section type
+            let mut section_y_offset = 0_u16;
+            let mut lines_skipped_so_far = 0_usize;
 
-        frame.render_widget(entry_paragraph, entry_area);
+            for section in entry_sections {
+                let mut section_lines = section.lines;
+
+                // Apply section-specific transformations
+                match section.section_type {
+                    SectionType::Prose => {
+                        // Prose: add wrap continuation indicators (FR-052)
+                        section_lines = add_wrap_continuation_indicators(section_lines, inner_area.width as usize);
+                    }
+                    SectionType::Code => {
+                        // Code: apply horizontal offset for scrolling (never wrap)
+                        if horizontal_offset > 0 {
+                            section_lines = section_lines
+                                .into_iter()
+                                .map(|line| apply_horizontal_offset(line, horizontal_offset))
+                                .collect();
+                        }
+                    }
+                }
+
+                // Handle clipping for sections scrolled off top
+                if lines_skipped_so_far < lines_to_skip {
+                    let to_skip_in_section = (lines_to_skip - lines_skipped_so_far).min(section_lines.len());
+                    lines_skipped_so_far += to_skip_in_section;
+                    section_lines = section_lines.into_iter().skip(to_skip_in_section).collect();
+                }
+
+                if section_lines.is_empty() {
+                    continue; // Section fully clipped
+                }
+
+                // Create Paragraph with section-specific wrap setting
+                let section_paragraph = match section.section_type {
+                    SectionType::Prose => Paragraph::new(section_lines.clone()).wrap(Wrap { trim: false }),
+                    SectionType::Code => {
+                        // Code blocks: render without wrapping
+                        // Each line is pre-formatted, shown as-is
+                        Paragraph::new(section_lines.clone())
+                    }
+                };
+
+                // Calculate section height (will be adjusted by Paragraph wrapping)
+                let section_height = section_lines.len() as u16;
+
+                // Calculate section area within entry
+                let section_area = Rect {
+                    x: inner_area.x,
+                    y: inner_area.y + layout.y_offset + section_y_offset,
+                    width: inner_area.width,
+                    height: section_height.min(visible_height.saturating_sub(section_y_offset)),
+                };
+
+                if section_area.height > 0 {
+                    frame.render_widget(section_paragraph, section_area);
+                }
+
+                section_y_offset += section_height;
+
+                // Stop if we've filled the entry area
+                if section_y_offset >= visible_height {
+                    break;
+                }
+            }
+        } else {
+            // NoWrap mode: use existing line-based rendering (FR-040)
+            let mut entry_lines = render_entry_lines(
+                entry,
+                actual_entry_index,
+                is_subagent_view,
+                scroll,
+                styles,
+                10,
+                3,
+            );
+
+            // Apply horizontal offset
+            if horizontal_offset > 0 {
+                entry_lines = entry_lines
+                    .into_iter()
+                    .map(|line| apply_horizontal_offset(line, horizontal_offset))
+                    .collect();
+            }
+
+            // Clip lines
+            if lines_to_skip > 0 {
+                entry_lines = entry_lines.into_iter().skip(lines_to_skip).collect();
+            }
+
+            // Create single Paragraph (no wrap)
+            let entry_paragraph = Paragraph::new(entry_lines);
+
+            let entry_area = Rect {
+                x: inner_area.x,
+                y: inner_area.y + layout.y_offset,
+                width: inner_area.width,
+                height: visible_height,
+            };
+
+            frame.render_widget(entry_paragraph, entry_area);
+        }
 
         // Update cumulative_y for next iteration
         cumulative_y += layout.height as usize;
@@ -7693,11 +8195,17 @@ fn test() { println!("Code blocks always NoWrap"); }
                 text.contains("This is regular") || text.contains("prose text")
             });
 
-        // Verify code block does NOT wrap by checking the long function name appears intact
-        let code_not_wrapped = buffer.content().iter().any(|cell| {
-            cell.symbol()
-                .contains("very_long_function_name_that_should_not_wrap")
-        });
+        // Verify code block does NOT wrap by checking it appears on single line (may be truncated)
+        // Find lines that contain parts of the function name
+        let lines_with_function: Vec<String> = buffer
+            .content()
+            .chunks(buffer.area.width as usize)
+            .map(|line_cells| line_cells.iter().map(|c| c.symbol()).collect::<String>())
+            .filter(|line| line.contains("fn very_long_function_name"))
+            .collect();
+
+        // Code should NOT wrap: function declaration should appear on exactly ONE line
+        let code_not_wrapped = lines_with_function.len() == 1;
 
         assert!(
             has_wrapped_prose,
@@ -7766,13 +8274,14 @@ fn test() { println!("Code blocks always NoWrap"); }
 
         let buffer_wrapped = terminal.backend().buffer().clone();
 
-        // Count lines containing prose text
+        // Count lines containing prose text or wrap indicator
         let wrapped_line_count = buffer_wrapped
             .content()
             .chunks(buffer_wrapped.area.width as usize)
             .filter(|line| {
                 let text: String = line.iter().map(|c| c.symbol()).collect();
-                text.contains("This is") || text.contains("long line") || text.contains("wrap mode")
+                // Check for content words OR wrap continuation indicator
+                text.contains("This is") || text.contains("that should") || text.contains("↩")
             })
             .count();
 

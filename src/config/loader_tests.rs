@@ -194,10 +194,26 @@ fn merge_config_uses_defaults_for_none_fields() {
     );
 }
 
+/// RAII guard to ensure environment variable cleanup even under test parallelism.
+/// Removes the var on drop, preventing test pollution in parallel execution.
+struct EnvGuard(&'static str);
+
+impl EnvGuard {
+    fn new(name: &'static str) -> Self {
+        env::remove_var(name);
+        EnvGuard(name)
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        env::remove_var(self.0);
+    }
+}
+
 #[test]
 fn apply_env_overrides_respects_cclv_theme() {
-    // Clean up any stale env var from other tests
-    env::remove_var("CCLV_THEME");
+    let _guard = EnvGuard::new("CCLV_THEME");
 
     let base = ResolvedConfig::default();
 
@@ -210,15 +226,11 @@ fn apply_env_overrides_respects_cclv_theme() {
         result.theme, "test-theme",
         "CCLV_THEME should override theme"
     );
-
-    // Clean up
-    env::remove_var("CCLV_THEME");
 }
 
 #[test]
 fn apply_env_overrides_leaves_other_fields_unchanged() {
-    // Clean up any stale env var from other tests
-    env::remove_var("CCLV_THEME");
+    let _guard = EnvGuard::new("CCLV_THEME");
 
     let base = ResolvedConfig {
         theme: "original".to_string(),
@@ -242,15 +254,11 @@ fn apply_env_overrides_leaves_other_fields_unchanged() {
     assert_eq!(result.summary_lines, base.summary_lines);
     assert_eq!(result.line_wrap, base.line_wrap);
     assert_eq!(result.log_buffer_capacity, base.log_buffer_capacity);
-
-    // Clean up
-    env::remove_var("CCLV_THEME");
 }
 
 #[test]
 fn apply_env_overrides_no_change_when_env_var_not_set() {
-    // Ensure CCLV_THEME is not set
-    env::remove_var("CCLV_THEME");
+    let _guard = EnvGuard::new("CCLV_THEME");
 
     let base = ResolvedConfig::default();
     let result = apply_env_overrides(base.clone());
