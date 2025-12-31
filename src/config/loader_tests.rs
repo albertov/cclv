@@ -196,6 +196,9 @@ fn merge_config_uses_defaults_for_none_fields() {
 
 #[test]
 fn apply_env_overrides_respects_cclv_theme() {
+    // Clean up any stale env var from other tests
+    env::remove_var("CCLV_THEME");
+
     let base = ResolvedConfig::default();
 
     // Set env var
@@ -214,6 +217,9 @@ fn apply_env_overrides_respects_cclv_theme() {
 
 #[test]
 fn apply_env_overrides_leaves_other_fields_unchanged() {
+    // Clean up any stale env var from other tests
+    env::remove_var("CCLV_THEME");
+
     let base = ResolvedConfig {
         theme: "original".to_string(),
         follow: false,
@@ -257,6 +263,9 @@ fn apply_env_overrides_no_change_when_env_var_not_set() {
 
 #[test]
 fn load_config_with_precedence_prefers_explicit_path() {
+    // Clean up any stale env vars from other tests
+    env::remove_var("CCLV_CONFIG");
+
     let temp_dir = env::temp_dir();
     let explicit_path = temp_dir.join("cclv_explicit.toml");
 
@@ -291,6 +300,9 @@ theme = "explicit-theme"
 
 #[test]
 fn load_config_with_precedence_uses_env_var_when_no_explicit_path() {
+    // Clean up any stale env vars from other tests
+    env::remove_var("CCLV_CONFIG");
+
     let temp_dir = env::temp_dir();
     let env_path = temp_dir.join("cclv_env_only.toml");
 
