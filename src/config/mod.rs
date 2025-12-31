@@ -53,4 +53,25 @@ mod tests {
         let config = AppConfig { line_wrap: true };
         assert!(config.line_wrap, "Should allow line_wrap=true");
     }
+
+    #[test]
+    fn default_config_has_log_buffer_capacity_1000() {
+        let config = AppConfig::default();
+        assert_eq!(
+            config.log_buffer_capacity, 1000,
+            "Default config should have log_buffer_capacity=1000 per FR-056"
+        );
+    }
+
+    #[test]
+    fn can_create_config_with_custom_log_buffer_capacity() {
+        let config = AppConfig {
+            line_wrap: true,
+            log_buffer_capacity: 500,
+        };
+        assert_eq!(
+            config.log_buffer_capacity, 500,
+            "Should allow custom log_buffer_capacity"
+        );
+    }
 }
