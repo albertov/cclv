@@ -165,37 +165,14 @@ fn render_stats_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     // Use default pricing configuration
     let pricing = PricingConfig::default();
 
-    // Create stats panel widget with focus highlighting
-    let panel = if state.focus == FocusPane::Stats {
-        // Create panel with highlighted border
-        use ratatui::widgets::{Block, Borders};
-
-        let focused_panel = StatsPanel::new(
-            &stats,
-            &state.stats_filter,
-            &pricing,
-            model_id,
-        );
-
-        // Render with a focused block wrapper for border highlighting
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow));
-
-        let inner_area = block.inner(area);
-        frame.render_widget(block, area);
-
-        // Render panel inside the focused border
-        frame.render_widget(focused_panel, inner_area);
-        return;
-    } else {
-        StatsPanel::new(
-            &stats,
-            &state.stats_filter,
-            &pricing,
-            model_id,
-        )
-    };
+    // Create stats panel widget - it handles focus styling internally
+    let panel = StatsPanel::new(
+        &stats,
+        &state.stats_filter,
+        &pricing,
+        model_id,
+        state.focus == FocusPane::Stats,
+    );
 
     frame.render_widget(panel, area);
 }
@@ -215,7 +192,7 @@ fn build_session_stats(session: &crate::model::Session) -> crate::model::Session
     }
 
     // Process subagent entries
-    for (_agent_id, conversation) in session.subagents() {
+    for conversation in session.subagents().values() {
         for entry in conversation.entries() {
             if let ConversationEntry::Valid(log_entry) = entry {
                 stats.record_entry(log_entry);

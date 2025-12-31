@@ -23,6 +23,7 @@ pub struct StatsPanel<'a> {
     filter: &'a StatsFilter,
     pricing: &'a PricingConfig,
     model_id: Option<&'a str>,
+    focused: bool,
 }
 
 impl<'a> StatsPanel<'a> {
@@ -33,17 +34,20 @@ impl<'a> StatsPanel<'a> {
     /// * `filter` - Current stats filter (Global, MainAgent, or Subagent)
     /// * `pricing` - Pricing configuration for cost estimation
     /// * `model_id` - Model ID for pricing lookup (defaults to "opus" if None)
+    /// * `focused` - Whether this panel currently has focus (affects border color)
     pub fn new(
         stats: &'a SessionStats,
         filter: &'a StatsFilter,
         pricing: &'a PricingConfig,
         model_id: Option<&'a str>,
+        focused: bool,
     ) -> Self {
         Self {
             stats,
             filter,
             pricing,
             model_id,
+            focused,
         }
     }
 }
@@ -57,10 +61,17 @@ impl<'a> Widget for StatsPanel<'a> {
             StatsFilter::Subagent(_) => " Statistics (Subagent) ",
         };
 
+        // Style based on focus
+        let border_color = if self.focused {
+            Color::Yellow
+        } else {
+            Color::White
+        };
+
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .style(Style::default().fg(Color::White));
+            .border_style(Style::default().fg(border_color));
 
         let inner = block.inner(area);
         block.render(area, buf);
@@ -353,7 +364,7 @@ mod tests {
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
 
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 40, 20));
         panel.render(Rect::new(0, 0, 40, 20), &mut buffer);
@@ -389,7 +400,7 @@ mod tests {
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
 
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("sonnet"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("sonnet"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 40, 20));
         panel.render(Rect::new(0, 0, 40, 20), &mut buffer);
@@ -420,7 +431,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -464,7 +475,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -505,7 +516,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -552,7 +563,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("sonnet"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("sonnet"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -591,7 +602,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("haiku"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("haiku"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -630,7 +641,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -674,6 +685,7 @@ mod tests {
             &filter,
             &pricing,
             Some("claude-sonnet-4-5-20250929"),
+            false,
         );
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
@@ -714,7 +726,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -932,7 +944,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -996,7 +1008,7 @@ mod tests {
 
         let filter = StatsFilter::MainAgent;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -1061,7 +1073,7 @@ mod tests {
 
         let filter = StatsFilter::Subagent(agent1);
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -1096,7 +1108,7 @@ mod tests {
         let stats = SessionStats::default();
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -1125,7 +1137,7 @@ mod tests {
         let stats = SessionStats::default();
         let filter = StatsFilter::MainAgent;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -1150,7 +1162,7 @@ mod tests {
         let agent_id = AgentId::new("agent-123").unwrap();
         let filter = StatsFilter::Subagent(agent_id);
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -1208,7 +1220,7 @@ mod tests {
 
         let filter = StatsFilter::MainAgent;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -1272,7 +1284,7 @@ mod tests {
 
         let filter = StatsFilter::Subagent(agent1);
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
@@ -1318,7 +1330,7 @@ mod tests {
 
         let filter = StatsFilter::Global;
         let pricing = PricingConfig::default();
-        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"));
+        let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
         let mut buffer = Buffer::empty(Rect::new(0, 0, 50, 25));
         panel.render(Rect::new(0, 0, 50, 25), &mut buffer);
