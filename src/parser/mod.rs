@@ -431,6 +431,41 @@ mod tests {
         );
     }
 
+    // ===== Bug Fix: FMT-004 - parent_tool_use_id field =====
+
+    #[test]
+    fn parse_entry_with_parent_tool_use_id() {
+        // RED TEST: Actual Claude Code format uses parent_tool_use_id, not parentUuid
+        // This test expects the actual field name used in Claude Code JSONL
+        let raw = r#"{"type":"assistant","message":{"role":"assistant","content":"Test"},"session_id":"s1","uuid":"u2","parent_tool_use_id":"tool-123","timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(
+            result.is_ok(),
+            "Should parse entry with parent_tool_use_id field (actual Claude Code format)"
+        );
+        let entry = result.unwrap();
+        assert_eq!(
+            entry.parent_uuid().unwrap().as_str(),
+            "tool-123",
+            "Should parse parent_tool_use_id into parent_uuid field"
+        );
+    }
+
+    #[test]
+    fn parse_entry_with_null_parent_tool_use_id() {
+        // parent_tool_use_id is null for top-level entries
+        let raw = r#"{"type":"user","message":{"role":"user","content":"Test"},"session_id":"s1","uuid":"u1","parent_tool_use_id":null,"timestamp":"2025-12-25T10:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse entry with null parent_tool_use_id");
+        let entry = result.unwrap();
+        assert!(
+            entry.parent_uuid().is_none(),
+            "Should have None for null parent_tool_use_id"
+        );
+    }
+
     #[test]
     fn parse_entry_summary_type() {
         let raw = r#"{"type":"summary","message":{"role":"assistant","content":"Summary"},"session_id":"s1","uuid":"u1","timestamp":"2025-12-25T10:00:00Z"}"#;
