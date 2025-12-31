@@ -72,108 +72,83 @@ pub fn render_conversation_view(
 
 // ===== Content Block Rendering =====
 
-#[allow(dead_code)] // Stub - tests will use this
-/// Render a ContentBlock::ToolUse as formatted lines.
+/// Render a ContentBlock::ToolUse as formatted lines with collapse/expand support.
 ///
 /// Displays:
-/// - Tool name as header
-/// - Tool input/parameters below header
+/// - Tool name as header (always visible)
+/// - Tool input/parameters (collapsible if exceeds threshold)
+/// - When collapsed: Shows first `summary_lines` + "(+N more lines)" indicator
+/// - When expanded: Shows all parameter lines
 ///
 /// # Arguments
 /// * `tool_call` - The tool call to render
+/// * `entry_uuid` - UUID of the entry (for expansion state lookup)
+/// * `scroll_state` - Scroll state containing expansion tracking
+/// * `collapse_threshold` - Number of lines before collapsing (default: 10)
+/// * `summary_lines` - Number of lines to show when collapsed (default: 3)
 ///
 /// # Returns
 /// Vector of ratatui `Line` objects representing the rendered tool use block
-pub fn render_tool_use(tool_call: &ToolCall) -> Vec<Line<'static>> {
-    use ratatui::text::Span;
-
-    let mut lines = Vec::new();
-
-    // Tool name header
-    let tool_name = tool_call.name().as_str();
-    let header = format!("🔧 Tool: {}", tool_name);
-    lines.push(Line::from(vec![Span::styled(
-        header,
-        Style::default()
-            .fg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    )]));
-
-    // Tool input/parameters
-    let input_json = serde_json::to_string_pretty(tool_call.input()).unwrap_or_default();
-    for line in input_json.lines() {
-        lines.push(Line::from(format!("  {}", line)));
-    }
-
-    lines
+pub fn render_tool_use(
+    tool_call: &ToolCall,
+    entry_uuid: &crate::model::EntryUuid,
+    scroll_state: &ScrollState,
+    collapse_threshold: usize,
+    summary_lines: usize,
+) -> Vec<Line<'static>> {
+    todo!("render_tool_use with collapse/expand")
 }
 
-#[allow(dead_code)] // Stub - tests will use this
-/// Render a ContentBlock::ToolResult as formatted lines.
+/// Render a ContentBlock::ToolResult as formatted lines with collapse/expand support.
 ///
 /// Displays:
-/// - Output content
+/// - Output content (collapsible if exceeds threshold)
 /// - Error styling (red) when is_error=true
+/// - When collapsed: Shows first `summary_lines` + "(+N more lines)" indicator
+/// - When expanded: Shows all output lines
 ///
 /// # Arguments
 /// * `content` - The tool result content string
 /// * `is_error` - Whether this result represents an error
+/// * `entry_uuid` - UUID of the entry (for expansion state lookup)
+/// * `scroll_state` - Scroll state containing expansion tracking
+/// * `collapse_threshold` - Number of lines before collapsing (default: 10)
+/// * `summary_lines` - Number of lines to show when collapsed (default: 3)
 ///
 /// # Returns
 /// Vector of ratatui `Line` objects representing the rendered tool result
-pub fn render_tool_result(content: &str, is_error: bool) -> Vec<Line<'static>> {
-    use ratatui::text::Span;
-
-    let mut lines = Vec::new();
-
-    for line in content.lines() {
-        let rendered_line = if is_error {
-            Line::from(vec![Span::styled(line.to_string(), Style::default().fg(Color::Red))])
-        } else {
-            Line::from(line.to_string())
-        };
-        lines.push(rendered_line);
-    }
-
-    lines
+pub fn render_tool_result(
+    content: &str,
+    is_error: bool,
+    entry_uuid: &crate::model::EntryUuid,
+    scroll_state: &ScrollState,
+    collapse_threshold: usize,
+    summary_lines: usize,
+) -> Vec<Line<'static>> {
+    todo!("render_tool_result with collapse/expand")
 }
 
-#[allow(dead_code)] // Stub - tests will use this
-/// Render any ContentBlock variant as formatted lines.
+/// Render any ContentBlock variant as formatted lines with collapse/expand support.
 ///
 /// Delegates to specific rendering functions based on block type.
 ///
 /// # Arguments
 /// * `block` - The content block to render
+/// * `entry_uuid` - UUID of the entry (for expansion state lookup)
+/// * `scroll_state` - Scroll state containing expansion tracking
+/// * `collapse_threshold` - Number of lines before collapsing (default: 10)
+/// * `summary_lines` - Number of lines to show when collapsed (default: 3)
 ///
 /// # Returns
 /// Vector of ratatui `Line` objects representing the rendered block
-pub fn render_content_block(block: &ContentBlock) -> Vec<Line<'static>> {
-    use ratatui::text::Span;
-
-    match block {
-        ContentBlock::Text { text } => text
-            .lines()
-            .map(|line| Line::from(line.to_string()))
-            .collect(),
-        ContentBlock::ToolUse(tool_call) => render_tool_use(tool_call),
-        ContentBlock::ToolResult {
-            tool_use_id: _,
-            content,
-            is_error,
-        } => render_tool_result(content, *is_error),
-        ContentBlock::Thinking { thinking } => thinking
-            .lines()
-            .map(|line| {
-                Line::from(vec![Span::styled(
-                    line.to_string(),
-                    Style::default()
-                        .add_modifier(Modifier::ITALIC)
-                        .add_modifier(Modifier::DIM),
-                )])
-            })
-            .collect(),
-    }
+pub fn render_content_block(
+    block: &ContentBlock,
+    entry_uuid: &crate::model::EntryUuid,
+    scroll_state: &ScrollState,
+    collapse_threshold: usize,
+    summary_lines: usize,
+) -> Vec<Line<'static>> {
+    todo!("render_content_block with collapse/expand")
 }
 
 // ===== Tests =====
@@ -183,18 +158,32 @@ mod tests {
     use super::*;
     use crate::model::{ToolName, ToolUseId};
 
+    // ===== Helper: Create test scroll state =====
+
+    fn create_test_scroll_state() -> ScrollState {
+        ScrollState::default()
+    }
+
+    fn create_expanded_scroll_state(uuid: &crate::model::EntryUuid) -> ScrollState {
+        let mut state = ScrollState::default();
+        state.toggle_expand(uuid);
+        state
+    }
+
     // ===== render_tool_use Tests =====
 
     #[test]
-    fn render_tool_use_displays_tool_name() {
+    fn render_tool_use_with_short_input_shows_all_lines() {
         let id = ToolUseId::new("tool-123").expect("valid id");
         let tool_call = ToolCall::new(
             id,
             ToolName::Read,
             serde_json::json!({"file_path": "/test.txt"}),
         );
+        let uuid = crate::model::EntryUuid::new("entry-1").expect("valid uuid");
+        let scroll_state = create_test_scroll_state();
 
-        let lines = render_tool_use(&tool_call);
+        let lines = render_tool_use(&tool_call, &uuid, &scroll_state, 10, 3);
 
         // Tool name should be visible in the output
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -202,58 +191,91 @@ mod tests {
             text.contains("Read"),
             "Tool name 'Read' should be visible in rendered output"
         );
+        // Should not show collapse indicator for short content
+        assert!(
+            !text.contains("more lines"),
+            "Should not show collapse indicator for short content"
+        );
     }
 
     #[test]
-    fn render_tool_use_displays_input_parameters() {
+    fn render_tool_use_with_long_input_collapsed_shows_summary() {
         let id = ToolUseId::new("tool-456").expect("valid id");
-        let tool_call = ToolCall::new(
-            id,
-            ToolName::Bash,
-            serde_json::json!({"command": "ls -la"}),
-        );
+        // Create long JSON input with many fields
+        let long_input = serde_json::json!({
+            "field1": "value1",
+            "field2": "value2",
+            "field3": "value3",
+            "field4": "value4",
+            "field5": "value5",
+            "field6": "value6",
+            "field7": "value7",
+            "field8": "value8",
+        });
+        let tool_call = ToolCall::new(id, ToolName::Bash, long_input);
+        let uuid = crate::model::EntryUuid::new("entry-2").expect("valid uuid");
+        let scroll_state = create_test_scroll_state(); // NOT expanded
 
-        let lines = render_tool_use(&tool_call);
+        let lines = render_tool_use(&tool_call, &uuid, &scroll_state, 10, 3);
 
-        // Parameters should be visible
+        // Should show collapse indicator
         let text: String = lines.iter().map(|l| l.to_string()).collect();
         assert!(
-            text.contains("command") || text.contains("ls -la"),
-            "Tool parameters should be visible in rendered output"
+            text.contains("more lines") || text.contains("+"),
+            "Should show collapse indicator for long content: {}",
+            text
+        );
+        // Should have limited lines (header + 3 summary + 1 indicator)
+        assert!(
+            lines.len() <= 5,
+            "Collapsed content should have at most 5 lines, got {}",
+            lines.len()
         );
     }
 
     #[test]
-    fn render_tool_use_handles_different_tool_types() {
-        let tools = vec![
-            (ToolName::Read, serde_json::json!({"file": "a.txt"})),
-            (ToolName::Write, serde_json::json!({"file": "b.txt"})),
-            (ToolName::Grep, serde_json::json!({"pattern": "TODO"})),
-            (ToolName::Bash, serde_json::json!({"command": "pwd"})),
-        ];
+    fn render_tool_use_with_long_input_expanded_shows_all() {
+        let id = ToolUseId::new("tool-789").expect("valid id");
+        // Create long JSON input with many fields
+        let long_input = serde_json::json!({
+            "field1": "value1",
+            "field2": "value2",
+            "field3": "value3",
+            "field4": "value4",
+            "field5": "value5",
+            "field6": "value6",
+            "field7": "value7",
+            "field8": "value8",
+        });
+        let tool_call = ToolCall::new(id, ToolName::Bash, long_input);
+        let uuid = crate::model::EntryUuid::new("entry-3").expect("valid uuid");
+        let scroll_state = create_expanded_scroll_state(&uuid); // IS expanded
 
-        for (name, input) in tools {
-            let id = ToolUseId::new("test-id").expect("valid id");
-            let tool_call = ToolCall::new(id, name.clone(), input);
+        let lines = render_tool_use(&tool_call, &uuid, &scroll_state, 10, 3);
 
-            let lines = render_tool_use(&tool_call);
-
-            // Should produce output for each tool type
-            assert!(
-                !lines.is_empty(),
-                "Should render output for tool: {:?}",
-                name
-            );
-        }
+        // Should NOT show collapse indicator when expanded
+        let text: String = lines.iter().map(|l| l.to_string()).collect();
+        assert!(
+            !text.contains("more lines"),
+            "Should not show collapse indicator when expanded"
+        );
+        // Should have more than 5 lines (header + all JSON lines)
+        assert!(
+            lines.len() > 5,
+            "Expanded content should have more than 5 lines, got {}",
+            lines.len()
+        );
     }
 
     // ===== render_tool_result Tests =====
 
     #[test]
-    fn render_tool_result_displays_output_content() {
+    fn render_tool_result_with_short_content_shows_all_lines() {
         let content = "File contents:\nLine 1\nLine 2";
+        let uuid = crate::model::EntryUuid::new("entry-4").expect("valid uuid");
+        let scroll_state = create_test_scroll_state();
 
-        let lines = render_tool_result(content, false);
+        let lines = render_tool_result(content, false, &uuid, &scroll_state, 10, 3);
 
         // Output content should be visible
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -261,13 +283,76 @@ mod tests {
             text.contains("Line 1") || text.contains("File contents"),
             "Tool result content should be visible"
         );
+        // Should not show collapse indicator for short content
+        assert!(
+            !text.contains("more lines"),
+            "Should not show collapse indicator for short content"
+        );
+    }
+
+    #[test]
+    fn render_tool_result_with_long_content_collapsed_shows_summary() {
+        // Create content with more than 10 lines
+        let content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n\
+                       Line 6\nLine 7\nLine 8\nLine 9\nLine 10\n\
+                       Line 11\nLine 12\nLine 13";
+        let uuid = crate::model::EntryUuid::new("entry-5").expect("valid uuid");
+        let scroll_state = create_test_scroll_state(); // NOT expanded
+
+        let lines = render_tool_result(content, false, &uuid, &scroll_state, 10, 3);
+
+        // Should show first 3 lines + collapse indicator
+        let text: String = lines.iter().map(|l| l.to_string()).collect();
+        assert!(
+            text.contains("Line 1"),
+            "Should show first line of content"
+        );
+        assert!(
+            text.contains("more lines") || text.contains("+"),
+            "Should show collapse indicator for long content"
+        );
+        // Should have exactly 4 lines (3 summary + 1 indicator)
+        assert_eq!(
+            lines.len(),
+            4,
+            "Collapsed content should have 4 lines (3 summary + indicator), got {}",
+            lines.len()
+        );
+    }
+
+    #[test]
+    fn render_tool_result_with_long_content_expanded_shows_all() {
+        // Create content with more than 10 lines
+        let content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n\
+                       Line 6\nLine 7\nLine 8\nLine 9\nLine 10\n\
+                       Line 11\nLine 12\nLine 13";
+        let uuid = crate::model::EntryUuid::new("entry-6").expect("valid uuid");
+        let scroll_state = create_expanded_scroll_state(&uuid); // IS expanded
+
+        let lines = render_tool_result(content, false, &uuid, &scroll_state, 10, 3);
+
+        // Should NOT show collapse indicator when expanded
+        let text: String = lines.iter().map(|l| l.to_string()).collect();
+        assert!(
+            !text.contains("more lines"),
+            "Should not show collapse indicator when expanded"
+        );
+        // Should have all 13 lines
+        assert_eq!(
+            lines.len(),
+            13,
+            "Expanded content should have all 13 lines, got {}",
+            lines.len()
+        );
     }
 
     #[test]
     fn render_tool_result_applies_error_style_when_is_error_true() {
         let content = "Error: file not found";
+        let uuid = crate::model::EntryUuid::new("entry-7").expect("valid uuid");
+        let scroll_state = create_test_scroll_state();
 
-        let lines = render_tool_result(content, true);
+        let lines = render_tool_result(content, true, &uuid, &scroll_state, 10, 3);
 
         // Error results should have red styling
         let has_red_style = lines.iter().any(|line| {
@@ -285,8 +370,10 @@ mod tests {
     #[test]
     fn render_tool_result_does_not_apply_error_style_when_is_error_false() {
         let content = "Success output";
+        let uuid = crate::model::EntryUuid::new("entry-8").expect("valid uuid");
+        let scroll_state = create_test_scroll_state();
 
-        let lines = render_tool_result(content, false);
+        let lines = render_tool_result(content, false, &uuid, &scroll_state, 10, 3);
 
         // Non-error results should not have red styling
         let has_red_style = lines.iter().any(|line| {
@@ -308,8 +395,10 @@ mod tests {
         let id = ToolUseId::new("test-tool").expect("valid id");
         let tool_call = ToolCall::new(id, ToolName::Read, serde_json::json!({"file": "x.txt"}));
         let block = ContentBlock::ToolUse(tool_call);
+        let uuid = crate::model::EntryUuid::new("entry-9").expect("valid uuid");
+        let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block);
+        let lines = render_content_block(&block, &uuid, &scroll_state, 10, 3);
 
         // Should render tool name
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -327,8 +416,10 @@ mod tests {
             content: "Output data".to_string(),
             is_error: false,
         };
+        let uuid = crate::model::EntryUuid::new("entry-10").expect("valid uuid");
+        let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block);
+        let lines = render_content_block(&block, &uuid, &scroll_state, 10, 3);
 
         // Should render result content
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -343,8 +434,10 @@ mod tests {
         let block = ContentBlock::Text {
             text: "Plain text message".to_string(),
         };
+        let uuid = crate::model::EntryUuid::new("entry-11").expect("valid uuid");
+        let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block);
+        let lines = render_content_block(&block, &uuid, &scroll_state, 10, 3);
 
         // Should render text content
         let text: String = lines.iter().map(|l| l.to_string()).collect();
@@ -359,8 +452,10 @@ mod tests {
         let block = ContentBlock::Thinking {
             thinking: "Analyzing the problem...".to_string(),
         };
+        let uuid = crate::model::EntryUuid::new("entry-12").expect("valid uuid");
+        let scroll_state = create_test_scroll_state();
 
-        let lines = render_content_block(&block);
+        let lines = render_content_block(&block, &uuid, &scroll_state, 10, 3);
 
         // Should render thinking content
         let text: String = lines.iter().map(|l| l.to_string()).collect();
