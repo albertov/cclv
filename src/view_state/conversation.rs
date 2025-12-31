@@ -483,7 +483,7 @@ impl ConversationViewState {
         screen_x: u16,
         scroll_offset: LineOffset,
     ) -> HitTestResult {
-        if self.entries.is_empty() {
+        if self.entries.is_empty() || self.height_index.is_empty() {
             return HitTestResult::miss();
         }
 
@@ -1251,6 +1251,25 @@ mod tests {
         let result = state.hit_test(10, 10, LineOffset::new(0));
 
         assert_eq!(result, HitTestResult::Miss);
+    }
+
+    #[test]
+    fn hit_test_before_layout_returns_miss() {
+        // Reproduces bug: hit_test called before recompute_layout
+        // HeightIndex is empty (len=0) even though entries exist
+        let entries = vec![
+            make_valid_entry("uuid-1"),
+            make_valid_entry("uuid-2"),
+        ];
+        let state = ConversationViewState::new(None, None, entries);
+
+        // NO layout computation - height_index.len() == 0
+
+        // This should return Miss, not panic
+        let result = state.hit_test(0, 10, LineOffset::new(0));
+
+        assert_eq!(result, HitTestResult::Miss,
+            "hit_test before layout should return Miss, not panic");
     }
 
     #[test]
