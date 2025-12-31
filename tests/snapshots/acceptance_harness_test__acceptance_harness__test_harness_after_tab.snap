@@ -5,15 +5,15 @@ expression: output
 Model: claude-opus-4-5-20251101 | Main Agent | /workspace/project | 3 tools, 0 a
 ┌Main Agent (6 entries)────────────────────────────────────────────────────────┐
 │                                                                              │
-│Hello                                                                         │
+│   2│Hello                                                                    │
 │                                                                              │
-│Hi there!                                                                     │
+│   3│Hi there!                                                                │
 │                                                                              │
-│Can you help?                                                                 │
+│   4│Can you help?                                                            │
 │                                                                              │
-│Of course, I'd be happy to help.                                              │
+│   5│Of course, I'd be happy to help.                                         │
 │                                                                              │
-│Thanks                                                                        │
+│   6│Thanks                                                                   │
 │                                                                              │
 │                                                                              │
 │                                                                              │

@@ -3,26 +3,26 @@ source: tests/acceptance_scroll.rs
 expression: paged_up_output
 ---
 Model: Unknown | Main Agent | ? | 0 tools, 0 agents, 0 skills
-┌Main Agent (20 entries)───────────────────────────────────────────────────────┐
+┌Main Agent (20 entries) ▶─────────────────────────────────────────────────────┐
 │                                                                              │
-│Launching skill: efficient-subagent-orchestration                             │
+│   7│Launching skill: efficient-subagent-orchestration                        │
 │                                                                              │
-│Base directory for this skill: /home/claude/.claude/skills/efficient-subagent-│
-│orchestration                                                                 │
+│   8│Base directory for this skill: /home/claude/.claude/skills/efficient-suba│
+│   8│orchestration                                                            │
+│   8│                                                                         │
+│   8│(+189 more lines)                                                        │
 │                                                                              │
-│(+189 more lines)                                                             │
+│   9│Launching skill: beads-project-tracking                                  │
 │                                                                              │
-│Launching skill: beads-project-tracking                                       │
+│  10│Base directory for this skill: /home/claude/.claude/skills/beads-project-│
+│  10│ing                                                                      │
+│  10│                                                                         │
+│  10│(+224 more lines)                                                        │
 │                                                                              │
-│Base directory for this skill: /home/claude/.claude/skills/beads-project-track│
-│ing                                                                           │
-│                                                                              │
-│(+224 more lines)                                                             │
-│                                                                              │
-│Now let me follow the coordinator protocol:                                   │
-│                                                                              │
-│1. **Setup**: Run the prerequisites check                                     │
-│2. **Get feature branch and epic**: Get current branch and find epic          │
-│3. **Check checklists**: Check if there are any checklists                    │
+│  11│Now let me follow the coordinator protocol:                              │
+│  11│                                                                         │
+│  11│1. **Setup**: Run the prerequisites check                                │
+│  11│2. **Get feature branch and epic**: Get current branch and find epic     │
+│  11│3. **Check checklists**: Check if there are any checklists               │
 └──────────────────────────────────────────────────────────────────────────────┘
 [LIVE] Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes

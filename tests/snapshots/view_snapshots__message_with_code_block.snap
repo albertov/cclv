@@ -3,15 +3,15 @@ source: tests/view_snapshots.rs
 expression: output
 ---
 ┌Main Agent (1 entries)──────────────────────────────────────────────┐
-│Here's some code:                                                   │
-│                                                                    │
-│```rust                                                             │
-│fn main() {                                                         │
-│    println!("Hello, world!");                                      │
-│}                                                                   │
-│```                                                                 │
-│                                                                    │
-│That's the code.                                                    │
+│   1│Here's some code:                                              │
+│   1│                                                               │
+│   1│```rust                                                        │
+│   1│fn main() {                                                    │
+│   1│    println!("Hello, world!");                                 │
+│   1│}                                                              │
+│   1│```                                                            │
+│   1│                                                               │
+│   1│That's the code.                                               │
 │                                                                    │
 │                                                                    │
 │                                                                    │
