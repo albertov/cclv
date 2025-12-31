@@ -8,16 +8,27 @@ pub struct ModelInfo {
 
 impl ModelInfo {
     pub fn new(model_id: impl Into<String>) -> Self {
-        todo!("ModelInfo::new")
+        Self {
+            model_id: ModelId(model_id.into()),
+        }
     }
 
     pub fn id(&self) -> &str {
-        todo!("ModelInfo::id")
+        &self.model_id.0
     }
 
     /// Human-readable short name.
     pub fn display_name(&self) -> &str {
-        todo!("ModelInfo::display_name")
+        let id = &self.model_id.0;
+        if id.contains("opus") {
+            "Opus"
+        } else if id.contains("sonnet") {
+            "Sonnet"
+        } else if id.contains("haiku") {
+            "Haiku"
+        } else {
+            id
+        }
     }
 }
 
@@ -35,11 +46,11 @@ pub struct TokenUsage {
 
 impl TokenUsage {
     pub fn total_input(&self) -> u64 {
-        todo!("TokenUsage::total_input")
+        self.input_tokens + self.cache_creation_input_tokens + self.cache_read_input_tokens
     }
 
     pub fn total(&self) -> u64 {
-        todo!("TokenUsage::total")
+        self.total_input() + self.output_tokens
     }
 }
 
