@@ -6,7 +6,13 @@
 //! 3. Global totals (all sessions - future multi-session support)
 
 use crate::model::{PricingConfig, SessionStats, StatsFilter};
-use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
+use ratatui::{
+    buffer::Buffer,
+    layout::{Constraint, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::Line,
+    widgets::{Block, Borders, Paragraph, Widget},
+};
 
 // ===== MultiScopeStatsPanel Widget =====
 
@@ -35,20 +41,20 @@ use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
 /// ```
 pub struct MultiScopeStatsPanel<'a> {
     /// Session statistics (source of truth for all scopes).
-    _stats: &'a SessionStats,
+    stats: &'a SessionStats,
 
     /// Filter for the currently focused conversation.
     /// Determines what appears in the "Focused" column.
-    _focused_filter: &'a StatsFilter,
+    focused_filter: &'a StatsFilter,
 
     /// Pricing configuration for cost estimation.
-    _pricing: &'a PricingConfig,
+    pricing: &'a PricingConfig,
 
     /// Model ID for pricing lookup (defaults to "opus" if None).
-    _model_id: Option<&'a str>,
+    model_id: Option<&'a str>,
 
     /// Whether this panel currently has focus (affects border color).
-    _focused: bool,
+    focused: bool,
 }
 
 impl<'a> MultiScopeStatsPanel<'a> {
@@ -64,13 +70,19 @@ impl<'a> MultiScopeStatsPanel<'a> {
     /// # Returns
     /// New `MultiScopeStatsPanel` widget ready to render.
     pub fn new(
-        _stats: &'a SessionStats,
-        _focused_filter: &'a StatsFilter,
-        _pricing: &'a PricingConfig,
-        _model_id: Option<&'a str>,
-        _focused: bool,
+        stats: &'a SessionStats,
+        focused_filter: &'a StatsFilter,
+        pricing: &'a PricingConfig,
+        model_id: Option<&'a str>,
+        focused: bool,
     ) -> Self {
-        todo!("MultiScopeStatsPanel::new")
+        Self {
+            stats,
+            focused_filter,
+            pricing,
+            model_id,
+            focused,
+        }
     }
 }
 
@@ -85,15 +97,110 @@ impl<'a> Widget for MultiScopeStatsPanel<'a> {
     /// Layout adapts to available width:
     /// - Wide: three columns side-by-side
     /// - Narrow: three rows stacked vertically
-    fn render(self, _area: Rect, _buf: &mut Buffer) {
-        todo!("MultiScopeStatsPanel::render")
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        // Border style based on focus
+        let border_color = if self.focused {
+            Color::Yellow
+        } else {
+            Color::White
+        };
+
+        let block = Block::default()
+            .title(" Multi-Scope Statistics ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color));
+
+        let inner = block.inner(area);
+        block.render(area, buf);
+
+        // Split into three columns if width permits, otherwise stack vertically
+        // Minimum width for side-by-side: ~90 chars (30 per scope)
+        let use_columns = inner.width >= 90;
+
+        if use_columns {
+            // Three columns side-by-side
+            let columns = Layout::horizontal([
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+                Constraint::Percentage(34),
+            ])
+            .split(inner);
+
+            // Render each scope
+            render_stat_scope(
+                columns[0],
+                buf,
+                self.stats,
+                self.focused_filter,
+                self.pricing,
+                self.model_id,
+                scope_title(self.focused_filter),
+            );
+
+            render_stat_scope(
+                columns[1],
+                buf,
+                self.stats,
+                &StatsFilter::Global,
+                self.pricing,
+                self.model_id,
+                "Session",
+            );
+
+            render_stat_scope(
+                columns[2],
+                buf,
+                self.stats,
+                &StatsFilter::Global,
+                self.pricing,
+                self.model_id,
+                "Global",
+            );
+        } else {
+            // Three rows stacked vertically
+            let rows = Layout::vertical([
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+                Constraint::Percentage(34),
+            ])
+            .split(inner);
+
+            render_stat_scope(
+                rows[0],
+                buf,
+                self.stats,
+                self.focused_filter,
+                self.pricing,
+                self.model_id,
+                scope_title(self.focused_filter),
+            );
+
+            render_stat_scope(
+                rows[1],
+                buf,
+                self.stats,
+                &StatsFilter::Global,
+                self.pricing,
+                self.model_id,
+                "Session",
+            );
+
+            render_stat_scope(
+                rows[2],
+                buf,
+                self.stats,
+                &StatsFilter::Global,
+                self.pricing,
+                self.model_id,
+                "Global",
+            );
+        }
     }
 }
 
 // ===== Helper Functions =====
 
 /// Render a single stat scope within a bounded area.
-#[allow(dead_code)]
 ///
 /// # Arguments
 /// * `area` - Rectangle to render within
@@ -109,15 +216,76 @@ impl<'a> Widget for MultiScopeStatsPanel<'a> {
 /// This is extracted from the original `StatsPanel` rendering logic.
 /// Renders a compact summary of tokens, cost, and top tools.
 fn render_stat_scope(
-    _area: Rect,
-    _buf: &mut Buffer,
-    _stats: &SessionStats,
-    _filter: &StatsFilter,
-    _pricing: &PricingConfig,
-    _model_id: Option<&str>,
-    _title: &str,
+    area: Rect,
+    buf: &mut Buffer,
+    stats: &SessionStats,
+    filter: &StatsFilter,
+    pricing: &PricingConfig,
+    model_id: Option<&str>,
+    title: &str,
 ) {
-    todo!("render_stat_scope")
+    // Create block for this scope
+    let block = Block::default()
+        .title(format!(" {} ", title))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::DarkGray));
+
+    let inner = block.inner(area);
+    block.render(area, buf);
+
+    // Build content lines
+    let mut lines = Vec::new();
+
+    // Get filtered usage
+    let usage = stats.filtered_usage(filter);
+
+    // Token section (compact)
+    lines.push(
+        Line::from("Tokens:").style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+    );
+    lines.push(Line::from(format!(
+        "  In:  {}",
+        format_tokens(usage.total_input())
+    )));
+    lines.push(Line::from(format!(
+        "  Out: {}",
+        format_tokens(usage.output_tokens)
+    )));
+    lines.push(Line::from(""));
+
+    // Cost section
+    let cost = calculate_cost(&usage, pricing, model_id);
+    lines.push(
+        Line::from("Cost:").style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+    );
+    lines.push(Line::from(format!("  {}", format_cost(cost))));
+    lines.push(Line::from(""));
+
+    // Top 5 tools (compact)
+    let tool_counts = stats.filtered_tool_counts(filter);
+    if !tool_counts.is_empty() {
+        lines.push(
+            Line::from("Tools:").style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
+        let tool_lines = format_tool_breakdown(tool_counts, 5);
+        lines.extend(tool_lines);
+    }
+
+    // Render paragraph
+    let paragraph = Paragraph::new(lines);
+    paragraph.render(inner, buf);
 }
 
 /// Format a scope title based on the filter.
@@ -126,7 +294,87 @@ fn render_stat_scope(
 /// - `StatsFilter::Global` → "Session"
 /// - `StatsFilter::MainAgent` → "Main Agent"
 /// - `StatsFilter::Subagent(_)` → "Subagent"
-#[allow(dead_code)]
-fn scope_title(_filter: &StatsFilter) -> &'static str {
-    todo!("scope_title")
+fn scope_title(filter: &StatsFilter) -> &'static str {
+    match filter {
+        StatsFilter::Global => "Session",
+        StatsFilter::MainAgent => "Main Agent",
+        StatsFilter::Subagent(_) => "Subagent",
+    }
+}
+
+/// Calculate estimated cost in USD for the given token usage.
+fn calculate_cost(
+    usage: &crate::model::TokenUsage,
+    pricing: &PricingConfig,
+    model_id: Option<&str>,
+) -> f64 {
+    let model_pricing = pricing.get(model_id.unwrap_or("opus"));
+
+    let input_cost =
+        (usage.input_tokens as f64 / 1_000_000.0) * model_pricing.input_cost_per_million;
+
+    let output_cost =
+        (usage.output_tokens as f64 / 1_000_000.0) * model_pricing.output_cost_per_million;
+
+    let cache_rate = model_pricing
+        .cached_input_cost_per_million
+        .unwrap_or(model_pricing.input_cost_per_million);
+
+    let cache_cost = ((usage.cache_creation_input_tokens + usage.cache_read_input_tokens) as f64
+        / 1_000_000.0)
+        * cache_rate;
+
+    input_cost + output_cost + cache_cost
+}
+
+/// Format tool usage breakdown with top N limiting.
+fn format_tool_breakdown(
+    tool_counts: &std::collections::HashMap<crate::model::ToolName, u32>,
+    max_display: usize,
+) -> Vec<Line<'static>> {
+    if tool_counts.is_empty() {
+        return vec![];
+    }
+
+    let mut tools: Vec<_> = tool_counts.iter().collect();
+    tools.sort_by(|a, b| b.1.cmp(a.1));
+
+    let mut lines = Vec::new();
+    let total_tools = tools.len();
+
+    for (tool_name, count) in tools.iter().take(max_display) {
+        lines.push(Line::from(format!("  {}: {}", tool_name.as_str(), count)));
+    }
+
+    if total_tools > max_display {
+        let remaining = total_tools - max_display;
+        lines.push(Line::from(format!("  ... and {} more", remaining)));
+    }
+
+    lines
+}
+
+/// Format a token count with thousands separators.
+fn format_tokens(tokens: u64) -> String {
+    let s = tokens.to_string();
+    let mut result = String::new();
+    let chars: Vec<char> = s.chars().collect();
+
+    for (i, c) in chars.iter().enumerate() {
+        if i > 0 && (chars.len() - i) % 3 == 0 {
+            result.push(',');
+        }
+        result.push(*c);
+    }
+
+    result
+}
+
+/// Format a cost value in USD.
+fn format_cost(cost: f64) -> String {
+    let rounded = (cost * 100.0).round() / 100.0;
+    let dollars = rounded.floor() as u64;
+    let cents = ((rounded - dollars as f64) * 100.0).round() as u64;
+    let dollars_str = format_tokens(dollars);
+    format!("${}.{:02}", dollars_str, cents)
 }
