@@ -87,8 +87,98 @@ pub enum ContentSection {
 /// # Returns
 /// Vector of content sections maintaining original order
 #[allow(dead_code)] // Used in future implementation
-pub fn parse_entry_sections(_content: &str) -> Vec<ContentSection> {
-    todo!("parse_entry_sections")
+pub fn parse_entry_sections(content: &str) -> Vec<ContentSection> {
+    let mut sections = Vec::new();
+    let mut current_prose: Vec<Line<'static>> = Vec::new();
+    let mut current_code: Vec<Line<'static>> = Vec::new();
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum State {
+        Prose,
+        FencedCode,
+        IndentedCode,
+    }
+
+    let mut state = State::Prose;
+    let mut prev_line_blank = false;
+
+    for line in content.lines() {
+        let is_blank = line.trim().is_empty();
+        let is_fence = line.trim_start().starts_with("```");
+        let is_indented = line.starts_with("    ") || line.starts_with('\t');
+
+        match state {
+            State::Prose => {
+                if is_fence {
+                    // Flush current prose section
+                    if !current_prose.is_empty() {
+                        sections.push(ContentSection::Prose(current_prose.clone()));
+                        current_prose.clear();
+                    }
+                    state = State::FencedCode;
+                } else if is_indented && prev_line_blank && !is_blank {
+                    // Start indented code block (requires previous blank line)
+                    if !current_prose.is_empty() {
+                        sections.push(ContentSection::Prose(current_prose.clone()));
+                        current_prose.clear();
+                    }
+                    // Strip leading indentation (4 spaces or 1 tab)
+                    let stripped = if line.starts_with('\t') {
+                        &line[1..]
+                    } else {
+                        &line[4..]
+                    };
+                    current_code.push(Line::from(stripped.to_string()));
+                    state = State::IndentedCode;
+                } else {
+                    // Regular prose line
+                    current_prose.push(Line::from(line.to_string()));
+                }
+            }
+            State::FencedCode => {
+                if is_fence {
+                    // End of fenced code block
+                    sections.push(ContentSection::CodeBlock(current_code.clone()));
+                    current_code.clear();
+                    state = State::Prose;
+                } else {
+                    // Inside fenced code block
+                    current_code.push(Line::from(line.to_string()));
+                }
+            }
+            State::IndentedCode => {
+                if is_indented && !is_blank {
+                    // Continue indented code block
+                    let stripped = if line.starts_with('\t') {
+                        &line[1..]
+                    } else {
+                        &line[4..]
+                    };
+                    current_code.push(Line::from(stripped.to_string()));
+                } else {
+                    // End of indented code block
+                    sections.push(ContentSection::CodeBlock(current_code.clone()));
+                    current_code.clear();
+                    state = State::Prose;
+
+                    // Process current line as prose
+                    current_prose.push(Line::from(line.to_string()));
+                }
+            }
+        }
+
+        prev_line_blank = is_blank;
+    }
+
+    // Flush remaining content
+    if !current_prose.is_empty() {
+        sections.push(ContentSection::Prose(current_prose));
+    }
+    if !current_code.is_empty() {
+        sections.push(ContentSection::CodeBlock(current_code));
+    }
+
+    sections
 }
 
 // ===== ConversationView Widget =====
