@@ -32,12 +32,13 @@ impl Session {
     /// Add an entry to the appropriate agent conversation.
     /// Routes to main_agent if entry.agent_id() is None,
     /// otherwise routes to the corresponding subagent (creating if needed).
+    /// If a subagent doesn't exist, creates an incomplete placeholder conversation.
     pub fn add_entry(&mut self, entry: LogEntry) {
         if let Some(agent_id) = entry.agent_id() {
-            // Route to subagent (create if doesn't exist)
+            // Route to subagent (create incomplete if doesn't exist)
             self.subagents
                 .entry(agent_id.clone())
-                .or_insert_with(|| AgentConversation::new(Some(agent_id.clone())))
+                .or_insert_with(|| AgentConversation::new_incomplete(agent_id.clone()))
                 .add_entry(entry);
         } else {
             // Route to main agent
@@ -50,6 +51,7 @@ impl Session {
     /// Routes based on session_id() in the entry:
     /// - If session_id matches and has agent_id -> route to subagent
     /// - Otherwise -> route to main agent
+    /// If a subagent doesn't exist, creates an incomplete placeholder conversation.
     pub fn add_conversation_entry(&mut self, conv_entry: ConversationEntry) {
         // Extract agent_id from the entry (if it's valid)
         let agent_id = match &conv_entry {
@@ -58,10 +60,10 @@ impl Session {
         };
 
         if let Some(agent_id) = agent_id {
-            // Route to subagent (create if doesn't exist)
+            // Route to subagent (create incomplete if doesn't exist)
             self.subagents
                 .entry(agent_id.clone())
-                .or_insert_with(|| AgentConversation::new(Some(agent_id.clone())))
+                .or_insert_with(|| AgentConversation::new_incomplete(agent_id.clone()))
                 .add_conversation_entry(conv_entry);
         } else {
             // Route to main agent
@@ -99,6 +101,7 @@ pub struct AgentConversation {
     agent_id: Option<AgentId>,
     entries: Vec<ConversationEntry>,
     model: Option<ModelInfo>,
+    is_incomplete: bool,
 }
 
 impl AgentConversation {
@@ -109,7 +112,20 @@ impl AgentConversation {
             agent_id,
             entries: Vec::new(),
             model: None,
+            is_incomplete: false,
         }
+    }
+
+    /// Create an incomplete conversation for a subagent with missing spawn event.
+    /// Used when entries reference an unknown agent_id.
+    pub fn new_incomplete(agent_id: AgentId) -> Self {
+        todo!("AgentConversation::new_incomplete")
+    }
+
+    /// Check if this conversation is missing its spawn event.
+    /// Returns true for placeholder conversations created on-the-fly.
+    pub fn is_incomplete(&self) -> bool {
+        todo!("AgentConversation::is_incomplete")
     }
 
     /// Add a valid log entry to this conversation.
@@ -528,6 +544,107 @@ mod tests {
         assert_eq!(ids.len(), 2);
         assert_eq!(ids[0].as_str(), "agent-2"); // t=5
         assert_eq!(ids[1].as_str(), "agent-1"); // t=10
+    }
+
+    // ===== AgentConversation::new_incomplete Tests =====
+
+    #[test]
+    fn agent_conversation_new_incomplete_creates_incomplete_conversation() {
+        let agent_id = make_agent_id("agent-missing");
+        let conv = AgentConversation::new_incomplete(agent_id.clone());
+
+        assert_eq!(conv.agent_id(), Some(&agent_id));
+        assert!(conv.is_incomplete(), "Should be marked as incomplete");
+        assert!(conv.entries().is_empty());
+        assert!(conv.model().is_none());
+    }
+
+    #[test]
+    fn agent_conversation_new_incomplete_has_agent_id() {
+        let agent_id = make_agent_id("agent-123");
+        let conv = AgentConversation::new_incomplete(agent_id.clone());
+
+        assert_eq!(
+            conv.agent_id(),
+            Some(&agent_id),
+            "Incomplete conversations must have agent_id"
+        );
+    }
+
+    // ===== AgentConversation::is_incomplete Tests =====
+
+    #[test]
+    fn agent_conversation_new_creates_complete_conversation() {
+        let conv = AgentConversation::new(Some(make_agent_id("agent-1")));
+        assert!(
+            !conv.is_incomplete(),
+            "new() should create complete conversation"
+        );
+    }
+
+    #[test]
+    fn agent_conversation_main_agent_is_always_complete() {
+        let conv = AgentConversation::new(None);
+        assert!(
+            !conv.is_incomplete(),
+            "Main agent is always complete (no spawn event needed)"
+        );
+    }
+
+    // ===== Session::add_entry with incomplete conversations =====
+
+    #[test]
+    fn session_add_entry_creates_incomplete_subagent_when_not_exists() {
+        let mut session = Session::new(make_session_id("session-1"));
+        let entry = make_subagent_entry("unknown-agent", "entry-1", 0);
+
+        session.add_entry(entry);
+
+        let agent_id = make_agent_id("unknown-agent");
+        let subagent = &session.subagents()[&agent_id];
+
+        assert!(
+            subagent.is_incomplete(),
+            "Subagent created on-the-fly should be marked incomplete"
+        );
+        assert_eq!(subagent.len(), 1, "Entry should be added despite incomplete");
+    }
+
+    #[test]
+    fn session_add_entry_preserves_incomplete_flag_on_existing_subagent() {
+        let mut session = Session::new(make_session_id("session-1"));
+
+        // First entry creates incomplete conversation
+        session.add_entry(make_subagent_entry("agent-abc", "entry-1", 0));
+
+        // Second entry to same agent
+        session.add_entry(make_subagent_entry("agent-abc", "entry-2", 5));
+
+        let agent_id = make_agent_id("agent-abc");
+        let subagent = &session.subagents()[&agent_id];
+
+        assert!(
+            subagent.is_incomplete(),
+            "Incomplete flag should persist across multiple entries"
+        );
+        assert_eq!(subagent.len(), 2);
+    }
+
+    #[test]
+    fn session_add_conversation_entry_creates_incomplete_when_not_exists() {
+        let mut session = Session::new(make_session_id("session-1"));
+        let entry = make_subagent_entry("unknown-agent", "entry-1", 0);
+        let conv_entry = ConversationEntry::Valid(Box::new(entry));
+
+        session.add_conversation_entry(conv_entry);
+
+        let agent_id = make_agent_id("unknown-agent");
+        let subagent = &session.subagents()[&agent_id];
+
+        assert!(
+            subagent.is_incomplete(),
+            "add_conversation_entry should also create incomplete placeholders"
+        );
     }
 
     // ===== AgentConversation::add_malformed Tests =====
