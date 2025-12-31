@@ -355,3 +355,251 @@ fn detect_tab_click_returns_no_tab_when_tab_width_rounds_to_zero() {
         "Tab width rounding to zero should return NoTab (not panic)"
     );
 }
+
+// ===== detect_entry_click Tests =====
+
+#[test]
+fn detect_entry_click_returns_no_entry_when_click_outside_bounds() {
+    let state = create_app_state_with_tabs(vec![]);
+
+    // Main pane at (0, 0) with width 40, height 20
+    let main_area = Rect::new(0, 0, 40, 20);
+
+    // Click outside the area (x=50, y=25)
+    let result = detect_entry_click(50, 25, main_area, None, &state);
+
+    assert_eq!(
+        result,
+        EntryClickResult::NoEntry,
+        "Click outside pane area should return NoEntry"
+    );
+}
+
+#[test]
+fn detect_entry_click_detects_main_pane_first_entry() {
+    let mut session = Session::new(make_session_id("test-session"));
+
+    // Add entries to main agent
+    let uuid1 = make_entry_uuid("entry-1");
+    let log_entry = LogEntry::new(
+        uuid1.clone(),
+        None,
+        make_session_id("test-session"),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("First message".to_string())),
+        EntryMetadata::default(),
+    );
+    session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
+
+    let state = AppState::new(session);
+
+    // Main pane at (0, 0) with width 40, height 20
+    // Click on first entry (inside border: y=1)
+    let main_area = Rect::new(0, 0, 40, 20);
+    let result = detect_entry_click(5, 1, main_area, None, &state);
+
+    assert_eq!(
+        result,
+        EntryClickResult::MainPaneEntry(0),
+        "Click on first entry should return MainPaneEntry(0)"
+    );
+}
+
+#[test]
+fn detect_entry_click_detects_subagent_pane_entry() {
+    let state = create_app_state_with_tabs(vec!["agent-1"]);
+
+    // Main pane area
+    let main_area = Rect::new(0, 0, 40, 20);
+
+    // Subagent pane area
+    let subagent_area = Rect::new(41, 0, 40, 20);
+
+    // Click in subagent pane (inside border: y=1)
+    let result = detect_entry_click(45, 1, main_area, Some(subagent_area), &state);
+
+    assert_eq!(
+        result,
+        EntryClickResult::SubagentPaneEntry(0),
+        "Click in subagent pane should return SubagentPaneEntry"
+    );
+}
+
+#[test]
+fn detect_entry_click_accounts_for_border() {
+    let mut session = Session::new(make_session_id("test-session"));
+
+    // Add entry
+    let uuid1 = make_entry_uuid("entry-1");
+    let log_entry = LogEntry::new(
+        uuid1.clone(),
+        None,
+        make_session_id("test-session"),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Test".to_string())),
+        EntryMetadata::default(),
+    );
+    session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
+
+    let state = AppState::new(session);
+    let main_area = Rect::new(0, 0, 40, 20);
+
+    // Click on border (y=0) should return NoEntry
+    let result = detect_entry_click(5, 0, main_area, None, &state);
+    assert_eq!(
+        result,
+        EntryClickResult::NoEntry,
+        "Click on border should return NoEntry"
+    );
+}
+
+#[test]
+fn detect_entry_click_handles_empty_conversation() {
+    let state = create_app_state_with_tabs(vec![]);
+
+    let main_area = Rect::new(0, 0, 40, 20);
+
+    // Click anywhere in empty pane
+    let result = detect_entry_click(5, 5, main_area, None, &state);
+
+    assert_eq!(
+        result,
+        EntryClickResult::NoEntry,
+        "Click in empty pane should return NoEntry"
+    );
+}
+
+// ===== handle_entry_click Tests =====
+
+#[test]
+fn handle_entry_click_toggles_main_pane_entry_expansion() {
+    let mut session = Session::new(make_session_id("test-session"));
+
+    // Add entry
+    let uuid1 = make_entry_uuid("entry-1");
+    let log_entry = LogEntry::new(
+        uuid1.clone(),
+        None,
+        make_session_id("test-session"),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Test".to_string())),
+        EntryMetadata::default(),
+    );
+    session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
+
+    let state = AppState::new(session);
+
+    // Initially not expanded
+    assert!(!state.main_scroll.is_expanded(&uuid1));
+
+    // Handle click on first entry
+    let click_result = EntryClickResult::MainPaneEntry(0);
+    let updated_state = handle_entry_click(state, click_result);
+
+    // Should now be expanded
+    assert!(
+        updated_state.main_scroll.is_expanded(&uuid1),
+        "Clicking entry should toggle it to expanded"
+    );
+}
+
+#[test]
+fn handle_entry_click_toggles_expanded_entry_to_collapsed() {
+    let mut session = Session::new(make_session_id("test-session"));
+
+    // Add entry
+    let uuid1 = make_entry_uuid("entry-1");
+    let log_entry = LogEntry::new(
+        uuid1.clone(),
+        None,
+        make_session_id("test-session"),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Test".to_string())),
+        EntryMetadata::default(),
+    );
+    session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
+
+    let mut state = AppState::new(session);
+
+    // Expand the entry first
+    state.main_scroll.toggle_expand(&uuid1);
+    assert!(state.main_scroll.is_expanded(&uuid1));
+
+    // Handle click on same entry
+    let click_result = EntryClickResult::MainPaneEntry(0);
+    let updated_state = handle_entry_click(state, click_result);
+
+    // Should now be collapsed
+    assert!(
+        !updated_state.main_scroll.is_expanded(&uuid1),
+        "Clicking expanded entry should collapse it"
+    );
+}
+
+#[test]
+fn handle_entry_click_toggles_subagent_pane_entry() {
+    let state = create_app_state_with_tabs(vec!["agent-1"]);
+
+    // Get the UUID of the subagent entry (created by create_app_state_with_tabs)
+    let agent_id_ref = agent_id("agent-1");
+    let conversation = state.session().subagents().get(&agent_id_ref).unwrap();
+    let entry = &conversation.entries()[0];
+    let uuid = entry.uuid().unwrap().clone();
+
+    // Initially not expanded
+    assert!(!state.subagent_scroll.is_expanded(&uuid));
+
+    // Handle click on first subagent entry
+    let click_result = EntryClickResult::SubagentPaneEntry(0);
+    let updated_state = handle_entry_click(state, click_result);
+
+    // Should now be expanded
+    assert!(
+        updated_state.subagent_scroll.is_expanded(&uuid),
+        "Clicking subagent entry should toggle it to expanded"
+    );
+}
+
+#[test]
+fn handle_entry_click_preserves_state_when_no_entry() {
+    let mut session = Session::new(make_session_id("test-session"));
+
+    // Add entry
+    let uuid1 = make_entry_uuid("entry-1");
+    let log_entry = LogEntry::new(
+        uuid1.clone(),
+        None,
+        make_session_id("test-session"),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Test".to_string())),
+        EntryMetadata::default(),
+    );
+    session.add_conversation_entry(ConversationEntry::Valid(Box::new(log_entry)));
+
+    let mut state = AppState::new(session);
+
+    // Expand the entry
+    state.main_scroll.toggle_expand(&uuid1);
+    let was_expanded = state.main_scroll.is_expanded(&uuid1);
+
+    // Handle click outside entries
+    let click_result = EntryClickResult::NoEntry;
+    let updated_state = handle_entry_click(state, click_result);
+
+    // State should be unchanged
+    assert_eq!(
+        updated_state.main_scroll.is_expanded(&uuid1),
+        was_expanded,
+        "NoEntry click should preserve expansion state"
+    );
+}

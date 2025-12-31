@@ -17,6 +17,19 @@ pub enum TabClickResult {
     NoTab,
 }
 
+/// Result of detecting which entry was clicked.
+///
+/// Maps click coordinates to conversation entry indices for expand/collapse.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EntryClickResult {
+    /// Click was on a main pane entry at index
+    MainPaneEntry(usize),
+    /// Click was on a subagent pane entry at index
+    SubagentPaneEntry(usize),
+    /// Click was outside any entry
+    NoEntry,
+}
+
 /// Detect which tab (if any) was clicked based on mouse position.
 ///
 /// # Arguments
@@ -80,6 +93,53 @@ pub fn detect_tab_click(
     } else {
         TabClickResult::TabClicked(tab_index)
     }
+}
+
+/// Detect which entry (if any) was clicked based on mouse position.
+///
+/// # Arguments
+/// * `click_x` - Mouse click column position (0-based)
+/// * `click_y` - Mouse click row position (0-based)
+/// * `main_pane_area` - The rectangular area for the main conversation pane
+/// * `subagent_pane_area` - Optional rectangular area for the subagent pane
+/// * `state` - Current application state (for entry layout calculation)
+///
+/// # Returns
+/// * `EntryClickResult::MainPaneEntry(index)` - Click on main pane entry at index
+/// * `EntryClickResult::SubagentPaneEntry(index)` - Click on subagent pane entry at index
+/// * `EntryClickResult::NoEntry` - Click outside any entry
+///
+/// # Behavior
+/// - Determines which pane was clicked
+/// - Calculates entry layouts to map Y position to entry index
+/// - Accounts for scroll offset and entry heights
+/// - Inner area has 1px border on each side
+pub fn detect_entry_click(
+    _click_x: u16,
+    _click_y: u16,
+    _main_pane_area: ratatui::layout::Rect,
+    _subagent_pane_area: Option<ratatui::layout::Rect>,
+    _state: &AppState,
+) -> EntryClickResult {
+    todo!("detect_entry_click")
+}
+
+/// Handle an entry click event and toggle expand/collapse.
+///
+/// # Arguments
+/// * `state` - Current application state
+/// * `entry_click` - Result from detect_entry_click indicating which entry was clicked
+///
+/// # Returns
+/// Updated AppState with entry expansion toggled if an entry was clicked.
+///
+/// # Behavior
+/// - If entry was clicked, looks up its EntryUuid and toggles expansion state
+/// - Main pane entries toggle in main_scroll.expanded_messages
+/// - Subagent pane entries toggle in subagent_scroll.expanded_messages
+/// - If click was outside entries, state is unchanged
+pub fn handle_entry_click(_state: AppState, _entry_click: EntryClickResult) -> AppState {
+    todo!("handle_entry_click")
 }
 
 /// Handle a mouse click event and update AppState accordingly.
