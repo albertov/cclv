@@ -4,7 +4,7 @@
 //! both streaming (live) and complete (EOF reached) modes.
 
 use crate::model::error::InputError;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader, IsTerminal, Read};
 
 /// Stdin source for piped JSONL input.
 ///
@@ -30,14 +30,21 @@ impl StdinSource<std::io::Stdin> {
     /// This prevents the TUI from blocking waiting for user input when the
     /// user forgot to pipe data.
     pub fn new() -> Result<Self, InputError> {
-        todo!("StdinSource::new")
+        if Self::is_tty() {
+            return Err(InputError::NoInput);
+        }
+
+        Ok(Self {
+            reader: BufReader::new(std::io::stdin()),
+            complete: false,
+        })
     }
 
     /// Check if stdin is a TTY (interactive terminal).
     ///
     /// Used internally to detect piped vs interactive stdin.
     fn is_tty() -> bool {
-        todo!("StdinSource::is_tty")
+        std::io::stdin().is_terminal()
     }
 }
 
@@ -64,7 +71,24 @@ impl<R: Read> StdinSource<R> {
     ///
     /// Returns `InputError::Io` for I/O errors.
     pub fn poll(&mut self) -> Result<Option<String>, InputError> {
-        todo!("StdinSource::poll")
+        let mut buffer = String::new();
+        let bytes_read = self.reader.read_line(&mut buffer)?;
+
+        if bytes_read == 0 {
+            // EOF reached
+            self.complete = true;
+            return Ok(None);
+        }
+
+        // Only return complete lines (ending with newline)
+        if buffer.ends_with('\n') {
+            // Remove trailing newline
+            buffer.truncate(buffer.trim_end().len());
+            Ok(Some(buffer))
+        } else {
+            // Partial line - return None but don't mark complete
+            Ok(None)
+        }
     }
 
     /// Check if EOF has been reached (no more data will arrive).
