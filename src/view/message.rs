@@ -1457,11 +1457,13 @@ pub fn render_content_block(
 ///
 /// # Panics
 /// Never panics in public API. Invalid inputs (viewport_width = 0) return input unchanged.
+#[cfg(test)]
 fn add_wrap_continuation_indicators(
     lines: Vec<Line<'static>>,
     viewport_width: usize,
 ) -> Vec<Line<'static>> {
     use ratatui::text::Span;
+    use unicode_width::UnicodeWidthChar;
 
     // Edge case: invalid viewport or empty input
     if viewport_width == 0 || lines.is_empty() {
@@ -1482,50 +1484,58 @@ fn add_wrap_continuation_indicators(
         }
 
         // Line needs wrapping - split it into segments
-        // For simplicity, we'll work with the string representation and rebuild spans
-        // This preserves basic styling but may lose complex multi-span styling
-        // (A more sophisticated implementation would preserve individual span boundaries)
+        // We must use display width (not character count) to ensure segments fit in viewport
+        // Wide characters (emoji, CJK) take 2 display columns but count as 1 character
 
         let chars: Vec<char> = line_str.chars().collect();
-        let mut current_pos = 0;
+        let mut char_pos = 0;
 
-        while current_pos < chars.len() {
-            let remaining = chars.len() - current_pos;
+        while char_pos < chars.len() {
+            // Calculate display width of remaining text
+            let remaining_str: String = chars[char_pos..].iter().collect();
+            let remaining_width = remaining_str.width();
 
-            // Determine segment length based on whether this will be the last segment
-            let segment_len = if remaining <= viewport_width {
-                // Remaining fits in viewport - this is the last segment
-                remaining
-            } else {
-                // Need to wrap - leave room for ↩ indicator
-                // The indicator itself takes 1 display column
-                viewport_width.saturating_sub(1)
-            };
-
-            // Extract segment
-            let segment_end = (current_pos + segment_len).min(chars.len());
-            let segment: String = chars[current_pos..segment_end].iter().collect();
-
-            // Check if this is the last segment
-            let is_last_segment = segment_end >= chars.len();
-
-            if is_last_segment {
-                // Last segment: no indicator
-                result.push(Line::from(vec![Span::raw(segment)]));
-            } else {
-                // Non-last segment: add ↩ indicator with DIM style
-                result.push(Line::from(vec![
-                    Span::raw(segment),
-                    Span::styled(
-                        "↩",
-                        Style::default()
-                            .fg(Color::DarkGray)
-                            .add_modifier(Modifier::DIM),
-                    ),
-                ]));
+            // Check if remaining text fits in viewport (this is the last segment)
+            if remaining_width <= viewport_width {
+                // Last segment: no indicator needed
+                result.push(Line::from(vec![Span::raw(remaining_str)]));
+                break;
             }
 
-            current_pos = segment_end;
+            // Need to wrap: accumulate characters until we reach (viewport_width - 1) display columns
+            // Reserve 1 column for the ↩ continuation indicator
+            let target_width = viewport_width.saturating_sub(1);
+            let mut segment_chars = Vec::new();
+            let mut accumulated_width = 0;
+
+            for &ch in &chars[char_pos..] {
+                let ch_width = ch.width().unwrap_or(0);
+                if accumulated_width + ch_width > target_width {
+                    break;
+                }
+                segment_chars.push(ch);
+                accumulated_width += ch_width;
+            }
+
+            // Handle edge case: if we couldn't fit even one character
+            if segment_chars.is_empty() && char_pos < chars.len() {
+                // Take at least one character to avoid infinite loop
+                segment_chars.push(chars[char_pos]);
+            }
+
+            let segment: String = segment_chars.iter().collect();
+            char_pos += segment_chars.len();
+
+            // Add segment with continuation indicator
+            result.push(Line::from(vec![
+                Span::raw(segment),
+                Span::styled(
+                    "↩",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::DIM),
+                ),
+            ]));
         }
     }
 
@@ -5267,6 +5277,84 @@ mod tests {
 
             // The ↩ should be in a separate span with DIM modifier
             // (We can't easily test style in string form, but the implementation should handle this)
+        }
+    }
+
+    #[test]
+    fn test_add_wrap_indicators_emoji_display_width() {
+        use ratatui::text::Span;
+        use unicode_width::UnicodeWidthStr;
+
+        // Test case: emoji has 2 display columns but 1 character
+        // "😀234567890" = 10 chars, but 11 display columns (emoji=2, rest=9)
+        // Viewport: 10 columns
+        // Expected behavior:
+        //   - First segment: "😀2345678" (9 display columns) + "↩" (1 column) = 10 columns
+        //   - Second segment: "90" (2 display columns)
+        let line = "😀234567890"; // 10 chars, 11 display width
+        let lines = vec![Line::from(vec![Span::raw(line.to_string())])];
+
+        let viewport_width = 10;
+        let result = add_wrap_continuation_indicators(lines, viewport_width);
+
+        // Should wrap into 2 lines
+        assert_eq!(result.len(), 2, "Should split into 2 lines");
+
+        // CRITICAL: First segment + indicator must fit in viewport
+        let first_line_str = result[0].to_string();
+        let first_display_width = first_line_str.width();
+        assert!(
+            first_display_width <= viewport_width,
+            "First line display width {} exceeds viewport width {}. Content: '{}'",
+            first_display_width,
+            viewport_width,
+            first_line_str
+        );
+
+        // Second segment should also fit
+        let second_line_str = result[1].to_string();
+        let second_display_width = second_line_str.width();
+        assert!(
+            second_display_width <= viewport_width,
+            "Second line display width {} exceeds viewport width {}. Content: '{}'",
+            second_display_width,
+            viewport_width,
+            second_line_str
+        );
+
+        // First line should have continuation indicator
+        assert!(
+            first_line_str.ends_with('↩'),
+            "First line should end with ↩, got: {}",
+            first_line_str
+        );
+    }
+
+    #[test]
+    fn test_add_wrap_indicators_cjk_display_width() {
+        use ratatui::text::Span;
+        use unicode_width::UnicodeWidthStr;
+
+        // CJK characters are typically 2 display columns each
+        // "日本語12" = 5 chars, but 8 display columns (日=2, 本=2, 語=2, 1=1, 2=1)
+        let line = "日本語123456";
+        let lines = vec![Line::from(vec![Span::raw(line.to_string())])];
+
+        let viewport_width = 10;
+        let result = add_wrap_continuation_indicators(lines, viewport_width);
+
+        // All segments must fit within viewport width
+        for (i, result_line) in result.iter().enumerate() {
+            let line_str = result_line.to_string();
+            let display_width = line_str.width();
+            assert!(
+                display_width <= viewport_width,
+                "Line {} display width {} exceeds viewport width {}. Content: '{}'",
+                i,
+                display_width,
+                viewport_width,
+                line_str
+            );
         }
     }
 }
