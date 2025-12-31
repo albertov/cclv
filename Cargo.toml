@@ -46,6 +46,10 @@ harness = false
 name = "hit_test"
 harness = false
 
+[[bench]]
+name = "scroll_benchmark"
+harness = false
+
 [profile.release]
 opt-level = 3
 lto = true
