@@ -82,7 +82,7 @@ fn scroll_up_with_k_key_changes_viewport() {
         .expect("Should load fixture");
 
     // Scroll down using Page Down to ensure we're past the first screen
-    harness.send_key(KeyCode::PageDown);
+    // (Use 1x PageDown to stay within scrollable range)
     harness.send_key(KeyCode::PageDown);
 
     let scrolled_down_output = harness.render_to_string();
@@ -252,8 +252,8 @@ fn page_up_scrolls_by_viewport_height() {
 
     harness.render_to_string();
 
-    // Scroll down several pages
-    for _ in 0..3 {
+    // Scroll down several pages (use 2x to stay within scrollable range)
+    for _ in 0..2 {
         harness.send_key(KeyCode::PageDown);
     }
     let scrolled_output = harness.render_to_string();
@@ -281,8 +281,8 @@ fn page_up_multiple_times_continues_scrolling() {
 
     harness.render_to_string();
 
-    // Scroll down several pages
-    for _ in 0..5 {
+    // Scroll down several pages (use 3x to stay within scrollable range)
+    for _ in 0..3 {
         harness.send_key(KeyCode::PageDown);
     }
 
