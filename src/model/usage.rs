@@ -82,6 +82,13 @@ struct ModelId(String);
 /// - **Cache creation tokens**: Input tokens written to the prompt cache (first occurrence)
 /// - **Cache read tokens**: Input tokens retrieved from the prompt cache (subsequent uses)
 ///
+/// # Ephemeral Cache Breakdown
+///
+/// The `cache_creation` nested object provides a breakdown of cached tokens by TTL:
+///
+/// - **Ephemeral 5m tokens**: Cached with 5-minute time-to-live
+/// - **Ephemeral 1h tokens**: Cached with 1-hour time-to-live
+///
 /// # Cost Calculation
 ///
 /// Cost estimation requires multiplying each token category by its per-token price
@@ -102,6 +109,8 @@ struct ModelId(String);
 ///     output_tokens: 500,
 ///     cache_creation_input_tokens: 200,
 ///     cache_read_input_tokens: 300,
+///     ephemeral_5m_cache_tokens: 150,
+///     ephemeral_1h_cache_tokens: 50,
 /// };
 ///
 /// // Total input includes all input categories
@@ -134,6 +143,12 @@ pub struct TokenUsage {
     /// standard input tokens). This occurs when prompt caching is enabled and
     /// cached content is reused.
     pub cache_read_input_tokens: u64,
+
+    /// Ephemeral 5-minute cache tokens (from cache_creation breakdown).
+    pub ephemeral_5m_cache_tokens: u64,
+
+    /// Ephemeral 1-hour cache tokens (from cache_creation breakdown).
+    pub ephemeral_1h_cache_tokens: u64,
 }
 
 impl TokenUsage {
@@ -195,6 +210,8 @@ mod tests {
             output_tokens: 50,
             cache_creation_input_tokens: 20,
             cache_read_input_tokens: 30,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
         };
         assert_eq!(usage.total_input(), 150);
     }
@@ -206,6 +223,8 @@ mod tests {
             output_tokens: 50,
             cache_creation_input_tokens: 20,
             cache_read_input_tokens: 30,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
         };
         assert_eq!(usage.total(), 200);
     }

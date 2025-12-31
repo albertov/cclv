@@ -462,6 +462,8 @@ mod tests {
             output_tokens: 50,
             cache_creation_input_tokens: 20,
             cache_read_input_tokens: 10,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
         };
         let message = make_message_with_usage(usage);
         let entry = make_log_entry("e1", "s1", None, message);
@@ -482,6 +484,8 @@ mod tests {
             output_tokens: 100,
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
         };
         let message = make_message_with_usage(usage);
         let entry = make_log_entry("e1", "s1", None, message); // None = main agent
@@ -500,6 +504,8 @@ mod tests {
             output_tokens: 150,
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
         };
         let message = make_message_with_usage(usage);
         let entry = make_log_entry("e1", "s1", Some("agent-123"), message);
@@ -520,12 +526,16 @@ mod tests {
             output_tokens: 50,
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
         };
         let usage2 = TokenUsage {
             input_tokens: 200,
             output_tokens: 75,
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
         };
         let entry1 = make_log_entry(
             "e1",
@@ -631,6 +641,8 @@ mod tests {
                 output_tokens: 0,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -652,6 +664,8 @@ mod tests {
                 output_tokens: 1_000_000, // 1 million
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -673,6 +687,8 @@ mod tests {
                 output_tokens: 0,
                 cache_creation_input_tokens: 500_000,
                 cache_read_input_tokens: 500_000,
+                ephemeral_5m_cache_tokens: 0,
+                ephemeral_1h_cache_tokens: 0,
             },
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -694,6 +710,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 500_000,
                 cache_read_input_tokens: 500_000,
+                ephemeral_5m_cache_tokens: 0,
+                ephemeral_1h_cache_tokens: 0,
             },
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -715,6 +733,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -736,6 +756,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -757,6 +779,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -778,6 +802,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -920,12 +946,16 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 100,
                 cache_read_input_tokens: 50,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 600,
                 output_tokens: 300,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             subagent_usage: HashMap::new(),
             tool_counts: HashMap::new(),
@@ -952,12 +982,16 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 100,
                 cache_read_input_tokens: 50,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 600,
                 output_tokens: 300,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             subagent_usage: HashMap::new(),
             tool_counts: HashMap::new(),
@@ -989,6 +1023,8 @@ mod tests {
                 output_tokens: 200,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
         );
         subagent_usage.insert(
@@ -998,6 +1034,8 @@ mod tests {
                 output_tokens: 150,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
         );
 
@@ -1007,12 +1045,16 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 300,
                 output_tokens: 150,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             subagent_usage,
             tool_counts: HashMap::new(),
@@ -1044,6 +1086,8 @@ mod tests {
                 output_tokens: 200,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
         );
 
@@ -1053,12 +1097,16 @@ mod tests {
                 output_tokens: 350,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 300,
                 output_tokens: 150,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
             },
             subagent_usage,
             tool_counts: HashMap::new(),

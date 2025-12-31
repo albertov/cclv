@@ -76,6 +76,16 @@ enum RawContentBlock {
     },
 }
 
+/// Nested cache_creation object from usage field.
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)] // STUB: fields will be used after implementation
+struct RawCacheCreation {
+    #[serde(default)]
+    ephemeral_5m_input_tokens: u64,
+    #[serde(default)]
+    ephemeral_1h_input_tokens: u64,
+}
+
 #[derive(Debug, Deserialize)]
 struct RawTokenUsage {
     input_tokens: u64,
@@ -84,6 +94,9 @@ struct RawTokenUsage {
     cache_creation_input_tokens: u64,
     #[serde(default)]
     cache_read_input_tokens: u64,
+    #[serde(default)]
+    #[allow(dead_code)] // STUB: will be used after implementation
+    cache_creation: Option<RawCacheCreation>,
 }
 
 /// Result of parsing a JSONL line with graceful error handling.
@@ -291,6 +304,9 @@ fn parse_message(raw: RawMessage) -> Result<Message, ParseError> {
             output_tokens: raw_usage.output_tokens,
             cache_creation_input_tokens: raw_usage.cache_creation_input_tokens,
             cache_read_input_tokens: raw_usage.cache_read_input_tokens,
+            // STUB: extract from raw_usage.cache_creation
+            ephemeral_5m_cache_tokens: 0,
+            ephemeral_1h_cache_tokens: 0,
         };
         message = message.with_usage(usage);
     }
@@ -1049,6 +1065,77 @@ mod tests {
             "my-session",
             "Should preserve valid sessionId"
         );
+    }
+
+    // ===== Bug Fix: FMT-005 - Nested cache_creation structure =====
+
+    #[test]
+    fn parse_entry_with_nested_cache_creation() {
+        // RED TEST: Parse usage with nested cache_creation object containing ephemeral breakdowns
+        let raw = r#"{"type":"assistant","message":{"role":"assistant","content":"Test","usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":24337,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":24337,"ephemeral_1h_input_tokens":0}}},"session_id":"s1","uuid":"u1","timestamp":"2025-12-26T00:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(
+            result.is_ok(),
+            "Should parse entry with nested cache_creation structure"
+        );
+        let entry = result.unwrap();
+        let usage = entry.message().usage().expect("Should have usage");
+
+        // Verify flat fields still work
+        assert_eq!(usage.input_tokens, 100);
+        assert_eq!(usage.output_tokens, 50);
+        assert_eq!(usage.cache_creation_input_tokens, 24337);
+        assert_eq!(usage.cache_read_input_tokens, 0);
+
+        // Verify ephemeral breakdown extracted from nested object
+        assert_eq!(
+            usage.ephemeral_5m_cache_tokens, 24337,
+            "Should extract ephemeral_5m_input_tokens from cache_creation"
+        );
+        assert_eq!(
+            usage.ephemeral_1h_cache_tokens, 0,
+            "Should extract ephemeral_1h_input_tokens from cache_creation"
+        );
+    }
+
+    #[test]
+    fn parse_entry_with_missing_cache_creation_defaults_to_zero() {
+        // Entry without cache_creation nested object should default ephemeral fields to 0
+        let raw = r#"{"type":"assistant","message":{"role":"assistant","content":"Test","usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":20,"cache_read_input_tokens":10}},"session_id":"s1","uuid":"u1","timestamp":"2025-12-26T00:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse entry without cache_creation");
+        let entry = result.unwrap();
+        let usage = entry.message().usage().expect("Should have usage");
+
+        // Flat fields should still parse
+        assert_eq!(usage.input_tokens, 100);
+        assert_eq!(usage.cache_creation_input_tokens, 20);
+
+        // Ephemeral fields should default to 0 when cache_creation is missing
+        assert_eq!(
+            usage.ephemeral_5m_cache_tokens, 0,
+            "Should default to 0 when cache_creation is missing"
+        );
+        assert_eq!(
+            usage.ephemeral_1h_cache_tokens, 0,
+            "Should default to 0 when cache_creation is missing"
+        );
+    }
+
+    #[test]
+    fn parse_entry_with_both_ephemeral_fields() {
+        // Entry with both 5m and 1h ephemeral tokens
+        let raw = r#"{"type":"assistant","message":{"role":"assistant","content":"Test","usage":{"input_tokens":50,"output_tokens":25,"cache_creation_input_tokens":10000,"cache_read_input_tokens":5000,"cache_creation":{"ephemeral_5m_input_tokens":6000,"ephemeral_1h_input_tokens":4000}}},"session_id":"s1","uuid":"u1","timestamp":"2025-12-26T00:00:00Z"}"#;
+        let result = parse_entry(raw, 1);
+
+        assert!(result.is_ok(), "Should parse entry with both ephemeral fields");
+        let entry = result.unwrap();
+        let usage = entry.message().usage().expect("Should have usage");
+
+        assert_eq!(usage.ephemeral_5m_cache_tokens, 6000);
+        assert_eq!(usage.ephemeral_1h_cache_tokens, 4000);
     }
 
     // ===== Bug Fix: cclv-07v.11.1 - session_id snake_case format =====
