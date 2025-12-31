@@ -1,0 +1,28 @@
+---
+source: src/tests/acceptance_scroll.rs
+expression: after_k_second
+---
+┌Conversations─────────────────────────────────────────────────────────────────┐
+│ Main                                                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+┌Main [Opus] (100 entries)─────────────────────────────────────────────────────┐
+││ 95 Entry 94: entry content line 94 - This is a line of content that takes up│
+││    space in the scroll viewport for testing.                                │
+│                                                                              │
+││ 96 Entry 95: entry content line 95 - This is a line of content that takes up│
+││    space in the scroll viewport for testing.                                │
+│                                                                              │
+││ 97 Entry 96: entry content line 96 - This is a line of content that takes up│
+││    space in the scroll viewport for testing.                                │
+│                                                                              │
+││ 98 Entry 97: entry content line 97 - This is a line of content that takes up│
+││    space in the scroll viewport for testing.                                │
+│                                                                              │
+││ 99 Entry 98: entry content line 98 - This is a line of content that takes up│
+││    space in the scroll viewport for testing.                                │
+│                                                                              │
+││100 Entry 99: MARKER_ENTRY_LAST - This is a line of content that takes up spa│
+││    ce in the scroll viewport for testing.                                   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+[LIVE] Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes

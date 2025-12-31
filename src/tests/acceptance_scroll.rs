@@ -303,6 +303,89 @@ fn page_up_multiple_times_continues_scrolling() {
     insta::assert_snapshot!("page_up_2x", second_page_up_output);
 }
 
+// ===== Scroll Overshoot Bug Reproduction =====
+
+/// Bug reproduction: cclv-5ur.77 - Scroll offset overshoot causes k to be absorbed
+///
+/// EXPECTED: After scrolling to bottom and overshooting with j, k should scroll up.
+/// After scrolling back down with j, k should STILL scroll up immediately.
+///
+/// ACTUAL (bug): After G → j×5 → k (works) → j×5, pressing k is ABSORBED.
+/// The internal scroll offset gets corrupted when scrolling up from overshoot
+/// then scrolling back down past bottom. Multiple k presses needed before
+/// the display changes.
+///
+/// Steps to reproduce manually:
+/// 1. cargo run -- tests/fixtures/scroll_overshoot_repro.jsonl
+/// 2. G (go to bottom) - shows Entry 80+
+/// 3. j×5 (overshoot at bottom) - still shows Entry 80+
+/// 4. k (works! scrolls up) - shows Entry 79+
+/// 5. j×5 (back to bottom + overshoot) - shows Entry 80+
+/// 6. k (BUG: absorbed!) - STILL shows Entry 80+, k had no effect
+#[test]
+#[ignore = "cclv-5ur.77: scroll k absorbed after G→j→k→j overshoot sequence"]
+fn bug_scroll_overshoot_k_absorbed() {
+    const FIXTURE: &str = "tests/fixtures/scroll_overshoot_repro.jsonl";
+
+    let mut harness =
+        AcceptanceTestHarness::from_fixture_with_size(FIXTURE, 80, 24).expect("Should load fixture");
+
+    // Step 1: G (go to bottom)
+    harness.send_key_with_mods(KeyCode::Char('G'), crossterm::event::KeyModifiers::SHIFT);
+    let at_bottom = harness.render_to_string();
+    assert!(
+        at_bottom.contains("MARKER_ENTRY_LAST"),
+        "After G, should be at bottom showing MARKER_ENTRY_LAST"
+    );
+
+    // Step 2: j×5 (overshoot at bottom - display clamped)
+    for _ in 0..5 {
+        harness.send_key(KeyCode::Char('j'));
+    }
+    let after_j5_first = harness.render_to_string();
+    assert_eq!(
+        at_bottom, after_j5_first,
+        "j×5 at bottom should be no-op (display clamped)"
+    );
+
+    // Step 3: k (should work - scroll up from overshoot)
+    harness.send_key(KeyCode::Char('k'));
+    let after_k_first = harness.render_to_string();
+    assert_ne!(
+        after_j5_first, after_k_first,
+        "First k after overshoot should scroll up (screen should change)"
+    );
+
+    // Step 4: j×5 (scroll back to bottom + overshoot again)
+    for _ in 0..5 {
+        harness.send_key(KeyCode::Char('j'));
+    }
+    let after_j5_second = harness.render_to_string();
+    // Should be back at bottom
+    assert!(
+        after_j5_second.contains("MARKER_ENTRY_LAST"),
+        "After j×5, should be back at bottom"
+    );
+
+    // Step 5: k (BUG - this k is absorbed!)
+    harness.send_key(KeyCode::Char('k'));
+    let after_k_second = harness.render_to_string();
+
+    // Capture states for debugging (before assertion so they're always created)
+    insta::assert_snapshot!("scroll_overshoot_step4_back_at_bottom", after_j5_second);
+    insta::assert_snapshot!("scroll_overshoot_step5_after_second_k", after_k_second);
+
+    // KEY ASSERTION: screen must have changed after k
+    // If bug exists: after_k_second == after_j5_second (k was absorbed)
+    // If bug fixed: after_k_second != after_j5_second (scrolled up)
+    assert_ne!(
+        after_j5_second, after_k_second,
+        "BUG cclv-5ur.77: k was absorbed after G→j×5→k→j×5 sequence.\n\
+         Expected: k should scroll up (screen changes).\n\
+         Actual: k absorbed, screen unchanged."
+    );
+}
+
 // ===== Scroll Roundtrip Tests =====
 
 #[test]
