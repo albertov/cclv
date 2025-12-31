@@ -13,7 +13,7 @@ pub mod tab_handler;
 pub mod wrap_handler;
 
 // Re-export for convenience
-pub use app_state::{AppState, FocusPane, ScrollState, WrapMode};
+pub use app_state::{AppState, FocusPane, InputMode, ScrollState, WrapMode};
 pub use expand_handler::handle_expand_action;
 pub use log_pane::{LogPaneEntry, LogPaneState};
 pub use match_navigation_handler::{next_match, prev_match};
