@@ -2517,7 +2517,6 @@ fn bug_subagent_scroll_does_not_work() {
 /// Fixture: tests/fixtures/cc-session-log.jsonl
 /// Bead: cclv-5ur.48
 #[test]
-#[ignore = "cclv-5ur.48: vertical text rendering + mouse events broken on subagent panes"]
 fn bug_subagent_entry_expand_collapse_not_working() {
     use cclv::config::keybindings::KeyBindings;
     use cclv::source::{FileSource, InputSource, StdinSource};

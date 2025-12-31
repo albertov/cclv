@@ -2,6 +2,7 @@
 
 use super::conversation::ConversationViewState;
 use crate::model::{AgentId, ConversationEntry, SessionId};
+use crate::state::WrapMode;
 use std::collections::HashMap;
 
 /// View-state for a single session.
@@ -28,6 +29,10 @@ pub struct SessionViewState {
     max_context_tokens: usize,
     /// Pricing configuration (from config).
     pricing: crate::model::PricingConfig,
+    /// Current viewport width (for propagating to newly created subagents).
+    viewport_width: u16,
+    /// Global wrap mode (for propagating to newly created subagents).
+    global_wrap: WrapMode,
 }
 
 impl SessionViewState {
@@ -40,6 +45,8 @@ impl SessionViewState {
             start_line: 0,
             max_context_tokens: 200_000, // Default
             pricing: crate::model::PricingConfig::default(),
+            viewport_width: 0,
+            global_wrap: WrapMode::default(),
         }
     }
 
@@ -80,6 +87,9 @@ impl SessionViewState {
     }
 
     /// Mutable reference to subagent view-state, creating empty state if needed.
+    ///
+    /// When creating a new subagent, propagates current viewport dimensions
+    /// by calling relayout() with stored viewport_width and global_wrap.
     pub fn subagent_mut(&mut self, id: &AgentId) -> &mut ConversationViewState {
         if !self.subagents.contains_key(id) {
             // Create empty view-state
@@ -91,6 +101,12 @@ impl SessionViewState {
                 self.pricing.clone(),
             );
             self.subagents.insert(id.clone(), view_state);
+
+            // Propagate viewport dimensions to newly created subagent
+            if self.viewport_width > 0 {
+                self.subagents.get_mut(id).unwrap()
+                    .relayout(self.viewport_width, self.global_wrap);
+            }
         }
         self.subagents.get_mut(id).unwrap()
     }
@@ -174,6 +190,27 @@ impl SessionViewState {
     #[allow(dead_code)] // Used by LogViewState in same module
     pub(crate) fn set_start_line(&mut self, offset: usize) {
         self.start_line = offset;
+    }
+
+    /// Set viewport dimensions and relayout all conversations.
+    ///
+    /// When viewport dimensions change (e.g., terminal resize), call this
+    /// to store the new width and wrap mode. These will be propagated to
+    /// any newly created subagents via subagent_mut().
+    ///
+    /// Also relayouts main and all existing subagent conversations with
+    /// the new dimensions.
+    pub fn set_viewport(&mut self, width: u16, wrap: WrapMode) {
+        self.viewport_width = width;
+        self.global_wrap = wrap;
+
+        // Relayout main conversation
+        self.main.relayout(width, wrap);
+
+        // Relayout all existing subagents
+        for subagent in self.subagents.values_mut() {
+            subagent.relayout(width, wrap);
+        }
     }
 
     /// Height of main conversation only.

@@ -116,18 +116,8 @@ impl TuiApp<CrosstermBackend<Stdout>> {
         let width = terminal.size().map(|r| r.width).unwrap_or(80);
         let wrap = app_state.global_wrap;
 
-        // Recompute layout for main conversation
-        if let Some(main_view) = app_state.main_conversation_view_mut() {
-            main_view.relayout(width, wrap);
-        }
-
-        // Recompute layout for all subagent conversations
-        let subagent_count = app_state.session_view().subagent_ids().count();
-        for idx in 0..subagent_count {
-            if let Some(sub_view) = app_state.subagent_conversation_view_mut(idx) {
-                sub_view.relayout(width, wrap);
-            }
-        }
+        // Store viewport dimensions and relayout all conversations
+        app_state.session_view_mut().set_viewport(width, wrap);
 
         let key_bindings = KeyBindings::default();
 
@@ -239,18 +229,8 @@ where
         let width = terminal.size().map(|r| r.width).unwrap_or(80);
         let wrap = app_state.global_wrap;
 
-        // Recompute layout for main conversation
-        if let Some(main_view) = app_state.main_conversation_view_mut() {
-            main_view.relayout(width, wrap);
-        }
-
-        // Recompute layout for all subagent conversations
-        let subagent_count = app_state.session_view().subagent_ids().count();
-        for idx in 0..subagent_count {
-            if let Some(sub_view) = app_state.subagent_conversation_view_mut(idx) {
-                sub_view.relayout(width, wrap);
-            }
-        }
+        // Store viewport dimensions and relayout all conversations
+        app_state.session_view_mut().set_viewport(width, wrap);
 
         Self {
             terminal,
@@ -810,18 +790,8 @@ where
         debug!("Handling resize to {}x{}", width, _height);
         let wrap = self.app_state.global_wrap;
 
-        // Relayout main conversation with new width
-        if let Some(main_view) = self.app_state.main_conversation_view_mut() {
-            main_view.relayout(width, wrap);
-        }
-
-        // Relayout all subagent conversations with new width
-        let subagent_count = self.app_state.session_view().subagent_ids().count();
-        for idx in 0..subagent_count {
-            if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
-                sub_view.relayout(width, wrap);
-            }
-        }
+        // Store viewport dimensions and relayout all conversations
+        self.app_state.session_view_mut().set_viewport(width, wrap);
     }
 
     /// Render the current frame
