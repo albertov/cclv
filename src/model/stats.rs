@@ -87,6 +87,17 @@ pub struct SessionStats {
     /// Incremented once per `record_entry` call. Useful for sanity checking
     /// and debugging statistics calculations.
     pub entry_count: usize,
+
+    /// Actual session cost extracted from result entry (FMT-010).
+    ///
+    /// When a type:result entry is processed, this field is populated with
+    /// the `total_cost_usd` value from the ResultMetadata. This is the ground
+    /// truth for session cost, as opposed to `estimated_cost()` which calculates
+    /// from token counts.
+    ///
+    /// `None` until a result entry is encountered. Updated to the latest result
+    /// entry's cost if multiple result entries are seen.
+    pub actual_cost_usd: Option<f64>,
 }
 
 impl SessionStats {
@@ -641,11 +652,9 @@ mod tests {
                 output_tokens: 0,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -667,8 +676,8 @@ mod tests {
             ephemeral_5m_input_tokens: 0,
             ephemeral_1h_input_tokens: 0,
             },
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
+            
+            
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -690,8 +699,8 @@ mod tests {
                 ephemeral_5m_input_tokens: 0,
                 ephemeral_1h_input_tokens: 0,
             },
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
+            
+            
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -713,8 +722,8 @@ mod tests {
                 ephemeral_5m_input_tokens: 0,
                 ephemeral_1h_input_tokens: 0,
             },
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
+            
+            
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -736,8 +745,8 @@ mod tests {
             ephemeral_5m_input_tokens: 0,
             ephemeral_1h_input_tokens: 0,
             },
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
+            
+            
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -759,8 +768,8 @@ mod tests {
             ephemeral_5m_input_tokens: 0,
             ephemeral_1h_input_tokens: 0,
             },
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
+            
+            
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -782,8 +791,8 @@ mod tests {
             ephemeral_5m_input_tokens: 0,
             ephemeral_1h_input_tokens: 0,
             },
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
+            
+            
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -805,8 +814,8 @@ mod tests {
             ephemeral_5m_input_tokens: 0,
             ephemeral_1h_input_tokens: 0,
             },
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
+            
+            
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -946,23 +955,19 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 100,
                 cache_read_input_tokens: 50,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 600,
                 output_tokens: 300,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
-            subagent_usage: HashMap::new(),
-            tool_counts: HashMap::new(),
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
-            subagent_count: 0,
             entry_count: 10,
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -990,15 +995,11 @@ mod tests {
                 output_tokens: 300,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
-            subagent_usage: HashMap::new(),
-            tool_counts: HashMap::new(),
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
-            subagent_count: 0,
             entry_count: 10,
+            ..Default::default()
         };
 
         let filter = StatsFilter::MainAgent;
@@ -1045,23 +1046,21 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 300,
                 output_tokens: 150,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
-            tool_counts: HashMap::new(),
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
             subagent_count: 2,
             entry_count: 20,
+            ..Default::default()
         };
 
         let filter = StatsFilter::Subagent(agent1);
@@ -1097,23 +1096,21 @@ mod tests {
                 output_tokens: 350,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 300,
                 output_tokens: 150,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
-            tool_counts: HashMap::new(),
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 15,
+            ..Default::default()
         };
 
         let filter = StatsFilter::Subagent(agent_missing);
@@ -1235,8 +1232,8 @@ mod tests {
 
         let stats = SessionStats {
             tool_counts: tool_counts.clone(),
-            main_agent_tool_counts: HashMap::new(),
-            subagent_tool_counts: HashMap::new(),
+            
+            
             ..Default::default()
         };
 
@@ -1260,7 +1257,7 @@ mod tests {
         let stats = SessionStats {
             tool_counts: global_counts,
             main_agent_tool_counts: main_counts,
-            subagent_tool_counts: HashMap::new(),
+            
             ..Default::default()
         };
 
@@ -1290,7 +1287,7 @@ mod tests {
 
         let stats = SessionStats {
             tool_counts: HashMap::new(),
-            main_agent_tool_counts: HashMap::new(),
+            
             subagent_tool_counts: subagent_counts,
             ..Default::default()
         };
@@ -1317,7 +1314,7 @@ mod tests {
 
         let stats = SessionStats {
             tool_counts: HashMap::new(),
-            main_agent_tool_counts: HashMap::new(),
+            
             subagent_tool_counts: subagent_counts,
             ..Default::default()
         };
@@ -1327,5 +1324,132 @@ mod tests {
 
         // Should return empty HashMap for missing agent
         assert!(result.is_empty());
+    }
+
+    // ===== FMT-010: Result Entry Cost Tracking Tests =====
+
+    #[test]
+    fn record_entry_extracts_cost_from_result_entry() {
+        // RED TEST: SessionStats should extract total_cost_usd from Result entry's ResultMetadata
+        use crate::model::{EntryType, ResultMetadata};
+
+        let mut stats = SessionStats::default();
+
+        // Create a Result entry with total_cost_usd = 1.5
+        let result_metadata = ResultMetadata {
+            is_error: false,
+            duration_ms: 100000,
+            num_turns: 10,
+            total_cost_usd: 1.5,
+            result_text: "Session complete".to_string(),
+        };
+
+        let message = Message::new(Role::Assistant, MessageContent::Text("Done".to_string()));
+        let entry = LogEntry::new_with_result_metadata(
+            make_uuid("result-1"),
+            None,
+            make_session_id("s1"),
+            None,
+            Utc::now(),
+            EntryType::Result,
+            message,
+            EntryMetadata::default(),
+            Some(result_metadata),
+        );
+
+        stats.record_entry(&entry);
+
+        // Should extract total_cost_usd from result entry
+        assert_eq!(
+            stats.actual_cost_usd,
+            Some(1.5),
+            "Should extract total_cost_usd from Result entry"
+        );
+    }
+
+    #[test]
+    fn record_entry_does_not_extract_cost_from_non_result_entry() {
+        // Non-result entries should not set actual_cost_usd
+        let mut stats = SessionStats::default();
+
+        let message = Message::new(Role::User, MessageContent::Text("Hello".to_string()));
+        let entry = LogEntry::new(
+            make_uuid("user-1"),
+            None,
+            make_session_id("s1"),
+            None,
+            Utc::now(),
+            EntryType::User,
+            message,
+            EntryMetadata::default(),
+        );
+
+        stats.record_entry(&entry);
+
+        // actual_cost_usd should remain None for non-result entries
+        assert_eq!(
+            stats.actual_cost_usd, None,
+            "Non-result entries should not set actual_cost_usd"
+        );
+    }
+
+    #[test]
+    fn record_entry_overwrites_cost_with_latest_result_entry() {
+        // If multiple result entries are seen (unusual but possible), use the latest
+        use crate::model::{EntryType, ResultMetadata};
+
+        let mut stats = SessionStats::default();
+
+        // First result entry with cost = 1.0
+        let result1 = ResultMetadata {
+            is_error: false,
+            duration_ms: 50000,
+            num_turns: 5,
+            total_cost_usd: 1.0,
+            result_text: "First".to_string(),
+        };
+        let entry1 = LogEntry::new_with_result_metadata(
+            make_uuid("result-1"),
+            None,
+            make_session_id("s1"),
+            None,
+            Utc::now(),
+            EntryType::Result,
+            Message::new(Role::Assistant, MessageContent::Text("".to_string())),
+            EntryMetadata::default(),
+            Some(result1),
+        );
+
+        stats.record_entry(&entry1);
+        assert_eq!(stats.actual_cost_usd, Some(1.0));
+
+        // Second result entry with cost = 2.5
+        let result2 = ResultMetadata {
+            is_error: false,
+            duration_ms: 100000,
+            num_turns: 10,
+            total_cost_usd: 2.5,
+            result_text: "Second".to_string(),
+        };
+        let entry2 = LogEntry::new_with_result_metadata(
+            make_uuid("result-2"),
+            None,
+            make_session_id("s1"),
+            None,
+            Utc::now(),
+            EntryType::Result,
+            Message::new(Role::Assistant, MessageContent::Text("".to_string())),
+            EntryMetadata::default(),
+            Some(result2),
+        );
+
+        stats.record_entry(&entry2);
+
+        // Should update to latest cost
+        assert_eq!(
+            stats.actual_cost_usd,
+            Some(2.5),
+            "Should update to latest result entry cost"
+        );
     }
 }

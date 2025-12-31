@@ -397,6 +397,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 2,
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -433,6 +434,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -481,6 +483,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -526,6 +529,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -577,6 +581,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -620,6 +625,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -663,6 +669,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -706,6 +713,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -756,6 +764,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -982,6 +991,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -1054,6 +1064,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::MainAgent;
@@ -1127,6 +1138,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Subagent(agent1);
@@ -1282,6 +1294,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::MainAgent;
@@ -1354,6 +1367,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Subagent(agent1);
@@ -1402,6 +1416,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 3,
             entry_count: 42,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -1442,6 +1457,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 7, // Test value - distinct from other tests
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -1503,6 +1519,7 @@ mod tests {
             subagent_tool_counts: subagent_counts,
             subagent_count: 1,
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::MainAgent;
@@ -1572,6 +1589,7 @@ mod tests {
             subagent_tool_counts: subagent_counts,
             subagent_count: 1,
             entry_count: 10,
+        ..Default::default()
         };
 
         let filter = StatsFilter::Subagent(agent1);
