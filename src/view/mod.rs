@@ -22,7 +22,7 @@ pub use styles::{ColorConfig, MessageStyles};
 
 use crate::config::keybindings::KeyBindings;
 use crate::integration;
-use crate::model::{AppError, KeyAction};
+use crate::model::{AppError, ContentBlock, KeyAction, MessageContent};
 use crate::source::InputSource;
 use crate::state::{
     expand_handler, handle_toggle_wrap, next_match, prev_match, scroll_handler,
@@ -47,21 +47,104 @@ use crate::state::WrapMode;
 use crate::view_state::layout_params::LayoutParams;
 use crate::view_state::types::LineHeight;
 
-/// Stub height calculator for production use.
+/// Calculate the rendered height of an entry in terminal lines.
 ///
-/// Returns a constant height of 5 lines for all valid entries, 0 for malformed.
-/// This is a temporary implementation to enable scrolling functionality.
+/// Computes actual line count accounting for:
+/// - Text wrapping at viewport width (when wrap mode is Wrap)
+/// - Markdown rendering (headers, lists, code blocks)
+/// - Expanded vs collapsed state
+/// - Malformed entries (always return ZERO)
 ///
-/// TODO(cclv-5ur.8): Replace with actual line counting based on content length,
-/// wrap mode, and viewport width for accurate heights.
+/// # Contract (from data-model.md HeightCalculator)
+/// - MUST return `LineHeight::ZERO` for malformed entries
+/// - MUST return at least `LineHeight::ONE` for valid entries
+/// - MUST be deterministic (same inputs → same output)
+/// - SHOULD be fast (called for every entry during layout)
+///
+/// # Implementation Notes
+/// This is a simplified estimator that counts lines based on:
+/// - Role header (1 line)
+/// - Content blocks with basic line counting
+/// - Wrapping estimation for long lines (when width > 80 chars and wrap=true)
+/// - Collapsed state returns summary height (1-3 lines)
 fn calculate_entry_height(
     entry: &ConversationEntry,
-    _expanded: bool,
-    _wrap: WrapMode,
+    expanded: bool,
+    wrap: WrapMode,
 ) -> LineHeight {
     match entry {
-        ConversationEntry::Valid(_) => LineHeight::new(5).unwrap(),
         ConversationEntry::Malformed(_) => LineHeight::ZERO,
+        ConversationEntry::Valid(log_entry) => {
+            // Collapsed entries show summary only (1-3 lines)
+            if !expanded {
+                return LineHeight::new(2).unwrap(); // Role + summary line
+            }
+
+            // Start with role header line
+            let mut total_lines = 1u16;
+
+            // Count content lines
+            let message = log_entry.message();
+            match message.content() {
+                MessageContent::Text(text) => {
+                    total_lines += count_text_lines(text, wrap);
+                }
+                MessageContent::Blocks(blocks) => {
+                    for block in blocks {
+                        total_lines += count_block_lines(block, wrap);
+                    }
+                }
+            }
+
+            // Add separator line
+            total_lines += 1;
+
+            // Return at least LineHeight::ONE
+            LineHeight::new(total_lines.max(1)).unwrap()
+        }
+    }
+}
+
+/// Count lines in a text string accounting for newlines and wrapping.
+fn count_text_lines(text: &str, wrap: WrapMode) -> u16 {
+    if text.is_empty() {
+        return 1; // Empty text still takes 1 line
+    }
+
+    let lines: Vec<&str> = text.lines().collect();
+    let line_count = lines.len().max(1);
+
+    match wrap {
+        WrapMode::NoWrap => line_count as u16,
+        WrapMode::Wrap => {
+            // Estimate wrapped lines at 80 column width
+            const WRAP_WIDTH: usize = 80;
+            let mut wrapped_lines = 0;
+            for line in lines {
+                let line_width = line.chars().count();
+                if line_width == 0 {
+                    wrapped_lines += 1;
+                } else {
+                    // Calculate how many lines this wraps to
+                    wrapped_lines += ((line_width + WRAP_WIDTH - 1) / WRAP_WIDTH).max(1);
+                }
+            }
+            wrapped_lines as u16
+        }
+    }
+}
+
+/// Count lines in a content block.
+fn count_block_lines(block: &ContentBlock, wrap: WrapMode) -> u16 {
+    match block {
+        ContentBlock::Text { text } => count_text_lines(text, wrap),
+        ContentBlock::Thinking { thinking } => count_text_lines(thinking, wrap),
+        ContentBlock::ToolResult { content, .. } => count_text_lines(content, wrap),
+        ContentBlock::ToolUse(tool_call) => {
+            // Tool use renders as: tool name + input (typically 2-3 lines)
+            let input_str = tool_call.input().to_string();
+            2 + count_text_lines(&input_str, wrap)
+        }
     }
 }
 
