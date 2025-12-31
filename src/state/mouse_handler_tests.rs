@@ -89,12 +89,16 @@ fn init_layout_for_state(state: &mut AppState, height_per_entry: u16) {
 
     // Initialize main conversation layout
     if let Some(session_view) = state.log_view_mut().current_session_mut() {
-        session_view.main_mut().recompute_layout(params, height_calc);
+        session_view
+            .main_mut()
+            .recompute_layout(params, height_calc);
 
         // Initialize subagent layouts
         let agent_ids: Vec<_> = session_view.subagent_ids().cloned().collect();
         for agent_id in agent_ids {
-            session_view.subagent_mut(&agent_id).recompute_layout(params, height_calc);
+            session_view
+                .subagent_mut(&agent_id)
+                .recompute_layout(params, height_calc);
         }
     }
 }
@@ -702,7 +706,9 @@ fn detect_entry_click_uses_actual_entry_heights_from_layout() {
 
     // Trigger layout computation
     if let Some(session_view) = state.log_view_mut().current_session_mut() {
-        session_view.main_mut().recompute_layout(params, height_calc);
+        session_view
+            .main_mut()
+            .recompute_layout(params, height_calc);
     }
 
     // Layout: Entry 0 at y=0..10, Entry 1 at y=10..15, Entry 2 at y=15..23
@@ -762,12 +768,16 @@ fn detect_entry_click_accounts_for_scroll_offset() {
 
     // Layout with fixed height: each entry is 10 lines
     let params = LayoutParams::new(80, WrapMode::Wrap);
-    let height_calc =
-        |_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16| LineHeight::new(10).unwrap();
+    let height_calc = |_entry: &ConversationEntry,
+                       _expanded: bool,
+                       _wrap: WrapMode,
+                       _width: u16| LineHeight::new(10).unwrap();
 
     // Trigger layout and set scroll position
     if let Some(session_view) = state.log_view_mut().current_session_mut() {
-        session_view.main_mut().recompute_layout(params, height_calc);
+        session_view
+            .main_mut()
+            .recompute_layout(params, height_calc);
         // Scroll to line 20 (skipping entries 0 and 1)
         session_view
             .main_mut()
@@ -819,11 +829,15 @@ fn detect_entry_click_returns_no_entry_when_clicking_beyond_content() {
 
     // Layout with height 5
     let params = LayoutParams::new(80, WrapMode::Wrap);
-    let height_calc =
-        |_entry: &ConversationEntry, _expanded: bool, _wrap: WrapMode, _width: u16| LineHeight::new(5).unwrap();
+    let height_calc = |_entry: &ConversationEntry,
+                       _expanded: bool,
+                       _wrap: WrapMode,
+                       _width: u16| LineHeight::new(5).unwrap();
 
     if let Some(session_view) = state.log_view_mut().current_session_mut() {
-        session_view.main_mut().recompute_layout(params, height_calc);
+        session_view
+            .main_mut()
+            .recompute_layout(params, height_calc);
     }
 
     let main_area = Rect::new(0, 0, 40, 30);
@@ -841,3 +855,56 @@ fn detect_entry_click_returns_no_entry_when_clicking_beyond_content() {
 // NOTE: Tests that verified vertical_offset behavior have been deleted.
 // Vertical scrolling is now managed by ConversationViewState via ScrollPosition.
 // Mouse scroll functionality will be verified by integration tests once migration is complete.
+
+// ===== HeightIndex Integration Tests =====
+
+/// Test that mouse expand maintains HeightIndex invariant.
+///
+/// Verifies that height_index[i] == entries[i].rendered_lines.len() after mouse click toggle.
+/// Pattern from expand_handler_tests.rs::test_toggle_maintains_height_index_invariant
+#[test]
+fn test_mouse_expand_maintains_height_index_invariant() {
+    let entries = vec![
+        make_main_entry(),
+        make_main_entry(),
+    ];
+
+    let mut state = AppState::new();
+    state.add_entries(entries);
+    state.focus = crate::state::FocusPane::Main;
+
+    // Initialize HeightIndex via relayout
+    if let Some(view) = state.main_conversation_view_mut() {
+        view.relayout(80, crate::state::WrapMode::Wrap);
+    }
+
+    // Simulate mouse click on entry 0 to toggle expand
+    let entry_click = EntryClickResult::MainPaneEntry(0);
+    let result = handle_entry_click(state, entry_click, 80);
+
+    // Verify HeightIndex invariant holds
+    if let Some(view) = result.main_conversation_view() {
+        for i in 0..view.len() {
+            let entry = view.get(crate::view_state::types::EntryIndex::new(i)).expect("entry exists");
+            let entry_height = entry.height().get() as usize;
+
+            // Extract height from HeightIndex
+            let index_height = if i == 0 {
+                view.height_index.prefix_sum(0)
+            } else {
+                view.height_index.prefix_sum(i) - view.height_index.prefix_sum(i - 1)
+            };
+
+            assert_eq!(
+                index_height,
+                entry_height,
+                "HeightIndex invariant violated at entry {}: index={}, entry={}",
+                i,
+                index_height,
+                entry_height
+            );
+        }
+    } else {
+        panic!("Expected main conversation view");
+    }
+}
