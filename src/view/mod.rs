@@ -5,6 +5,8 @@ mod layout;
 pub mod live_indicator;
 mod message;
 mod search_input;
+#[cfg(test)]
+mod session_separator_tests;
 mod stats;
 mod styles;
 pub mod tabs;
