@@ -158,6 +158,11 @@ impl SessionStats {
 
         // Update subagent count (unique count)
         self.subagent_count = self.subagent_usage.len();
+
+        // Extract actual cost from result entry metadata (FMT-010)
+        if let Some(result_meta) = entry.result_metadata() {
+            self.actual_cost_usd = Some(result_meta.total_cost_usd);
+        }
     }
 
     /// Calculate estimated cost in USD using the provided pricing configuration.

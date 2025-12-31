@@ -76,6 +76,7 @@ fn create_sample_stats() -> SessionStats {
         subagent_tool_counts: HashMap::new(),
         subagent_count: 2,
         entry_count: 10,
+        ..Default::default()
     }
 }
 
@@ -171,6 +172,7 @@ fn snapshot_stats_panel_with_cache_tokens() {
         subagent_tool_counts: HashMap::new(),
         subagent_count: 0,
         entry_count: 5,
+        ..Default::default()
     };
     let filter = StatsFilter::Global;
     let pricing = PricingConfig::default();
