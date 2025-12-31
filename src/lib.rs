@@ -6,6 +6,7 @@
 //! in later phases following the Pure Core / Impure Shell architecture.
 
 pub mod config;
+pub mod logging;
 pub mod model;
 pub mod parser;
 pub mod source;
