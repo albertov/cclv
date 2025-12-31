@@ -5,6 +5,7 @@
 use super::{
     cache::{RenderCache, RenderCacheConfig},
     entry_view::EntryView,
+    height_index::HeightIndex,
     hit_test::HitTestResult,
     layout_params::LayoutParams,
     scroll::ScrollPosition,
@@ -48,7 +49,18 @@ pub struct ConversationViewState {
     entries: Vec<EntryView>,
     /// Current scroll position.
     scroll: ScrollPosition,
+    /// Fenwick tree for O(log n) cumulative height queries.
+    /// Invariant: height_index[i] == entries[i].rendered_lines.len()
+    pub(crate) height_index: HeightIndex,
+    /// Viewport width used for last layout.
+    /// Needed for recomputing rendered_lines when entries change.
+    viewport_width: u16,
+    /// Global wrap mode used for last layout.
+    /// Needed for recomputing rendered_lines when entries change.
+    global_wrap: WrapMode,
     /// Cached total height in lines (sum of all entry heights).
+    /// DEPRECATED: Use height_index.total() instead.
+    /// Kept temporarily for compatibility during migration.
     total_height: usize,
     /// Index of currently focused entry (for keyboard navigation).
     /// `None` means no specific entry is focused.
@@ -63,6 +75,8 @@ pub struct ConversationViewState {
     /// Keyed by (uuid, width, expanded, wrap_mode).
     /// Bounded capacity with automatic eviction.
     /// Wrapped in RefCell to allow interior mutability during rendering.
+    /// DEPRECATED: Will be removed in future task.
+    /// Kept temporarily for compatibility during migration.
     render_cache: RefCell<RenderCache>,
 }
 
@@ -89,11 +103,15 @@ impl ConversationViewState {
             .enumerate()
             .map(|(idx, entry)| EntryView::new(entry, EntryIndex::new(idx)))
             .collect();
+        let capacity = entry_views.len().max(100);
         Self {
             agent_id,
             model,
             entries: entry_views,
             scroll: ScrollPosition::Top,
+            height_index: HeightIndex::new(capacity),
+            viewport_width: 0,
+            global_wrap: WrapMode::Wrap, // Default to Wrap
             total_height: 0,
             focused_message: None,
             last_layout_params: None,
@@ -552,6 +570,38 @@ impl ConversationViewState {
     pub fn clear_render_cache(&mut self) {
         self.render_cache.borrow_mut().clear();
     }
+
+    // === NEW HEIGHT INDEX INTEGRATION METHODS ===
+
+    /// Full relayout when width or global wrap changes. O(n log n).
+    ///
+    /// This replaces `recompute_layout` with a simpler API that doesn't require
+    /// an external height_calculator function. Heights are computed from
+    /// entry.rendered_lines after recomputing them.
+    pub fn relayout(&mut self, _width: u16, _wrap: WrapMode) {
+        todo!("relayout: Implement full relayout with HeightIndex update")
+    }
+
+    /// Toggle expanded state for entry. O(log n).
+    ///
+    /// Atomically updates both the entry state and HeightIndex to maintain invariant.
+    pub fn toggle_entry_expanded(&mut self, _index: usize) {
+        todo!("toggle_entry_expanded: Implement with HeightIndex update")
+    }
+
+    /// Set wrap override for entry. O(log n).
+    ///
+    /// Atomically updates both the entry state and HeightIndex to maintain invariant.
+    pub fn set_entry_wrap_override(&mut self, _index: usize, _mode: Option<WrapMode>) {
+        todo!("set_entry_wrap_override: Implement with HeightIndex update")
+    }
+
+    /// Append new entries (streaming mode). O(n log n) where n is new entries.
+    ///
+    /// Updates HeightIndex for all new entries.
+    pub fn append_entries(&mut self, _entries: Vec<ConversationEntry>) {
+        todo!("append_entries: Implement with HeightIndex update")
+    }
 }
 
 #[cfg(test)]
@@ -882,13 +932,14 @@ mod tests {
         // Change entry 1 to height 20
         state.entries[1].set_expanded(true); // Simulate expansion
 
-        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
-            if expanded {
-                LineHeight::new(20).unwrap()
-            } else {
-                LineHeight::new(10).unwrap()
-            }
-        };
+        let variable_height =
+            |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
+                if expanded {
+                    LineHeight::new(20).unwrap()
+                } else {
+                    LineHeight::new(10).unwrap()
+                }
+            };
 
         state.relayout_from(EntryIndex::new(1), params, variable_height);
 
@@ -994,13 +1045,14 @@ mod tests {
         let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
-        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
-            if expanded {
-                LineHeight::new(20).unwrap()
-            } else {
-                LineHeight::new(10).unwrap()
-            }
-        };
+        let variable_height =
+            |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
+                if expanded {
+                    LineHeight::new(20).unwrap()
+                } else {
+                    LineHeight::new(10).unwrap()
+                }
+            };
 
         state.recompute_layout(params, variable_height);
         // Initial: [0, 10], total=20
@@ -1039,13 +1091,14 @@ mod tests {
         let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
-        let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
-            if expanded {
-                LineHeight::new(5).unwrap()
-            } else {
-                LineHeight::new(2).unwrap()
-            }
-        };
+        let variable_height =
+            |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode, _width: u16| {
+                if expanded {
+                    LineHeight::new(5).unwrap()
+                } else {
+                    LineHeight::new(2).unwrap()
+                }
+            };
 
         state.recompute_layout(params, variable_height);
         // All collapsed: heights [2, 2, 2, ...], cumulative_y [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
@@ -1319,13 +1372,18 @@ mod tests {
                     line_in_entry: line,
                     column: 0
                 },
-                "Line {} should be hit", line
+                "Line {} should be hit",
+                line
             );
         }
 
         // Test position beyond entry
         let result = state.hit_test(5, 0, LineOffset::new(0));
-        assert_eq!(result, HitTestResult::Miss, "Line 5 should miss (beyond entry)");
+        assert_eq!(
+            result,
+            HitTestResult::Miss,
+            "Line 5 should miss (beyond entry)"
+        );
     }
 
     #[test]
@@ -1346,11 +1404,11 @@ mod tests {
 
         // Test hit-testing at various positions
         let test_cases = vec![
-            (0, 0),           // First entry
-            (500_000, 25),    // Middle (entry 50,000)
-            (999_999, 50),    // Last entry, last line
-            (250_000, 10),    // Quarter
-            (750_000, 30),    // Three quarters
+            (0, 0),        // First entry
+            (500_000, 25), // Middle (entry 50,000)
+            (999_999, 50), // Last entry, last line
+            (250_000, 10), // Quarter
+            (750_000, 30), // Three quarters
         ];
 
         let mut total_duration = std::time::Duration::ZERO;
@@ -1360,9 +1418,9 @@ mod tests {
             for _ in 0..iterations {
                 let start = Instant::now();
                 let _result = state.hit_test(
-                    (absolute_y % 1000) as u16,  // screen_y
+                    (absolute_y % 1000) as u16, // screen_y
                     column,
-                    LineOffset::new(absolute_y - (absolute_y % 1000))  // scroll_offset
+                    LineOffset::new(absolute_y - (absolute_y % 1000)), // scroll_offset
                 );
                 total_duration += start.elapsed();
             }
@@ -1370,13 +1428,17 @@ mod tests {
 
         let avg_duration = total_duration / (test_cases.len() as u32 * iterations);
 
-        println!("Average hit_test duration for 100k entries: {:?}", avg_duration);
+        println!(
+            "Average hit_test duration for 100k entries: {:?}",
+            avg_duration
+        );
         println!("Total test duration: {:?}", total_duration);
 
         // Verify <1ms requirement
         assert!(
             avg_duration.as_millis() < 1,
-            "Hit test should complete in <1ms, got {:?}", avg_duration
+            "Hit test should complete in <1ms, got {:?}",
+            avg_duration
         );
     }
 
@@ -1885,3 +1947,8 @@ mod tests {
         );
     }
 }
+
+// HeightIndex integration tests
+#[cfg(test)]
+#[path = "conversation_height_index_tests.rs"]
+mod height_index_tests;
