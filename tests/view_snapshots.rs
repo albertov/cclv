@@ -1518,7 +1518,7 @@ fn bug_jerky_scroll_line_by_line() {
 /// Root cause: Height calculator returns full content height for collapsed entries,
 /// but renderer only shows 3 summary lines + collapse indicator (~4 lines total).
 #[test]
-#[ignore = "cclv-5ur.13: collapsed entries still cause jerky scroll in TUI"]
+#[ignore = "REPRODUCER: fails until cclv-5ur.13 is fixed (run with --ignored to verify)"]
 fn bug_collapsed_entry_height_mismatch() {
     use cclv::source::FileSource;
     use cclv::view::calculate_entry_height;
@@ -1592,13 +1592,15 @@ fn bug_collapsed_entry_height_mismatch() {
         prev_lines = current_lines;
     }
 
-    // If we get stuck for more than 2 consecutive scrolls, the bug exists
-    // (1 stuck is acceptable due to entry boundaries)
-    assert!(
-        max_stuck_run <= 2,
-        "BUG: Scroll got stuck for {} consecutive steps (max allowed: 2).\n\
+    // REPRODUCER: This test should FAIL until the jerky scroll bug is fixed.
+    // When fixed, every scroll step should produce different rendered output.
+    // See bead cclv-5ur.13 for details.
+    assert_eq!(
+        max_stuck_run, 0,
+        "BUG NOT FIXED: Scroll got stuck for {} consecutive steps.\n\
          Height calculation doesn't match rendered output.\n\
-         Tested {} scroll positions.",
+         Tested {} scroll positions.\n\
+         This reproducer should fail until cclv-5ur.13 is resolved.",
         max_stuck_run, test_range
     );
 }
