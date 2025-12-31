@@ -320,6 +320,125 @@ impl<'a> Widget for ConversationView<'a> {
     }
 }
 
+/// Render lines for a single conversation entry.
+///
+/// This helper extracts the per-entry line building logic to support
+/// the view architecture refactor for per-item wrap toggle (FR-048).
+///
+/// # Arguments
+/// * `entry` - The conversation entry to render (Valid or Malformed)
+/// * `entry_index` - Index of this entry in the conversation (0-based)
+/// * `is_subagent_view` - Whether this is a subagent conversation (affects first entry labeling)
+/// * `scroll` - Scroll state (for expansion tracking)
+/// * `styles` - Message styling configuration
+/// * `collapse_threshold` - Number of lines before a message is collapsed
+/// * `summary_lines` - Number of lines shown when collapsed
+///
+/// # Returns
+/// Vector of Lines representing this entry, including spacing line at end
+fn render_entry_lines(
+    entry: &ConversationEntry,
+    entry_index: usize,
+    is_subagent_view: bool,
+    scroll: &ScrollState,
+    styles: &MessageStyles,
+    collapse_threshold: usize,
+    summary_lines: usize,
+) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+
+    match entry {
+        ConversationEntry::Valid(log_entry) => {
+            let role = log_entry.message().role();
+            let role_style = styles.style_for_role(role);
+
+            // Add "Initial Prompt" label for first message in subagent view
+            if is_subagent_view && entry_index == 0 {
+                lines.push(Line::from(vec![ratatui::text::Span::styled(
+                    "🔷 Initial Prompt",
+                    Style::default()
+                        .fg(Color::Magenta)
+                        .add_modifier(Modifier::BOLD),
+                )]));
+            }
+
+            match log_entry.message().content() {
+                MessageContent::Text(text) => {
+                    // Simple text message - apply collapse/expand logic with role-based styling
+                    let text_lines: Vec<_> = text.lines().collect();
+                    let total_lines = text_lines.len();
+
+                    let is_expanded = scroll.is_expanded(log_entry.uuid());
+                    let should_collapse = total_lines > collapse_threshold && !is_expanded;
+
+                    if should_collapse {
+                        // Show summary lines with role styling
+                        for line in text_lines.iter().take(summary_lines) {
+                            lines.push(Line::from(vec![ratatui::text::Span::styled(
+                                line.to_string(),
+                                role_style,
+                            )]));
+                        }
+                        // Add collapse indicator
+                        let remaining = total_lines.saturating_sub(summary_lines);
+                        lines.push(Line::from(vec![ratatui::text::Span::styled(
+                            format!("(+{} more lines)", remaining),
+                            Style::default()
+                                .fg(Color::DarkGray)
+                                .add_modifier(Modifier::DIM),
+                        )]));
+                    } else {
+                        // Show all lines with role styling
+                        for line in text_lines {
+                            lines.push(Line::from(vec![ratatui::text::Span::styled(
+                                line.to_string(),
+                                role_style,
+                            )]));
+                        }
+                    }
+                }
+                MessageContent::Blocks(blocks) => {
+                    // Structured content - render each block
+                    for block in blocks {
+                        let block_lines = render_content_block(
+                            block,
+                            log_entry.uuid(),
+                            scroll,
+                            styles,
+                            role_style,
+                            collapse_threshold,
+                            summary_lines,
+                        );
+                        lines.extend(block_lines);
+                    }
+                }
+            }
+        }
+        ConversationEntry::Malformed(malformed) => {
+            // Render malformed entry with error styling
+            lines.push(Line::from(vec![ratatui::text::Span::styled(
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+                Style::default().fg(Color::Red),
+            )]));
+            lines.push(Line::from(vec![ratatui::text::Span::styled(
+                format!("⚠ Parse Error (line {})", malformed.line_number()),
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )]));
+            for error_line in malformed.error_message().lines() {
+                lines.push(Line::from(vec![ratatui::text::Span::styled(
+                    error_line.to_string(),
+                    Style::default().fg(Color::Red),
+                )]));
+            }
+        }
+    }
+
+    // Add spacing between entries
+    lines.push(Line::from(""));
+
+    lines
+}
+
 /// Render a conversation view for either main agent or subagent.
 ///
 /// This is the shared widget used by both panes. It takes an AgentConversation
@@ -383,95 +502,16 @@ pub fn render_conversation_view(
 
         // Iterate through all entries and render their content blocks
         for (entry_index, entry) in conversation.entries().iter().enumerate() {
-            match entry {
-                ConversationEntry::Valid(log_entry) => {
-                    let role = log_entry.message().role();
-                    let role_style = styles.style_for_role(role);
-
-                    // Add "Initial Prompt" label for first message in subagent view
-                    if is_subagent_view && entry_index == 0 {
-                        lines.push(Line::from(vec![ratatui::text::Span::styled(
-                            "🔷 Initial Prompt",
-                            Style::default()
-                                .fg(Color::Magenta)
-                                .add_modifier(Modifier::BOLD),
-                        )]));
-                    }
-
-                    match log_entry.message().content() {
-                        MessageContent::Text(text) => {
-                            // Simple text message - apply collapse/expand logic with role-based styling
-                            let text_lines: Vec<_> = text.lines().collect();
-                            let total_lines = text_lines.len();
-                            let collapse_threshold = 10;
-                            let summary_lines = 3;
-
-                            let is_expanded = scroll.is_expanded(log_entry.uuid());
-                            let should_collapse = total_lines > collapse_threshold && !is_expanded;
-
-                            if should_collapse {
-                                // Show summary lines with role styling
-                                for line in text_lines.iter().take(summary_lines) {
-                                    lines.push(Line::from(vec![ratatui::text::Span::styled(
-                                        line.to_string(),
-                                        role_style,
-                                    )]));
-                                }
-                                // Add collapse indicator
-                                let remaining = total_lines.saturating_sub(summary_lines);
-                                lines.push(Line::from(vec![ratatui::text::Span::styled(
-                                    format!("(+{} more lines)", remaining),
-                                    Style::default()
-                                        .fg(Color::DarkGray)
-                                        .add_modifier(Modifier::DIM),
-                                )]));
-                            } else {
-                                // Show all lines with role styling
-                                for line in text_lines {
-                                    lines.push(Line::from(vec![ratatui::text::Span::styled(
-                                        line.to_string(),
-                                        role_style,
-                                    )]));
-                                }
-                            }
-                        }
-                        MessageContent::Blocks(blocks) => {
-                            // Structured content - render each block
-                            for block in blocks {
-                                let block_lines = render_content_block(
-                                    block,
-                                    log_entry.uuid(),
-                                    scroll,
-                                    styles,
-                                    role_style,
-                                    10, // Default collapse threshold
-                                    3,  // Default summary lines
-                                );
-                                lines.extend(block_lines);
-                            }
-                        }
-                    }
-                }
-                ConversationEntry::Malformed(malformed) => {
-                    // Render malformed entry with error styling
-                    lines.push(Line::from(vec![ratatui::text::Span::styled(
-                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-                        Style::default().fg(Color::Red),
-                    )]));
-                    lines.push(Line::from(vec![ratatui::text::Span::styled(
-                        format!("⚠ Parse Error (line {})", malformed.line_number()),
-                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                    )]));
-                    for error_line in malformed.error_message().lines() {
-                        lines.push(Line::from(vec![ratatui::text::Span::styled(
-                            error_line.to_string(),
-                            Style::default().fg(Color::Red),
-                        )]));
-                    }
-                }
-            }
-            // Add spacing between entries
-            lines.push(Line::from(""));
+            let entry_lines = render_entry_lines(
+                entry,
+                entry_index,
+                is_subagent_view,
+                scroll,
+                styles,
+                10, // Default collapse threshold
+                3,  // Default summary lines
+            );
+            lines.extend(entry_lines);
         }
     }
 
