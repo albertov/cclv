@@ -58,6 +58,11 @@ lto = true
 codegen-units = 1
 strip = true
 
+# Profiling profile: optimized but with debug symbols
+[profile.bench]
+debug = true
+strip = false
+
 [lints.rust]
 missing_docs = "deny"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(test)'] }
