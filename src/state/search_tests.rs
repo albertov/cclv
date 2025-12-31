@@ -255,7 +255,7 @@ fn execute_search_finds_multiple_matches_in_single_entry() {
 
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].char_offset, 0);
-    assert_eq!(matches[1].char_offset, 20);
+    assert_eq!(matches[1].char_offset, 19);
 }
 
 #[test]

@@ -69,7 +69,99 @@ pub struct SearchMatch {
 /// Performs case-insensitive substring matching.
 /// Returns all matches with full location information.
 pub fn execute_search(session: &Session, query: &SearchQuery) -> Vec<SearchMatch> {
-    todo!("execute_search")
+    let mut matches = Vec::new();
+    let query_lower = query.as_str().to_lowercase();
+
+    // Search main agent
+    search_conversation(session.main_agent(), None, &query_lower, &mut matches);
+
+    // Search all subagents
+    for (agent_id, conversation) in session.subagents() {
+        search_conversation(conversation, Some(agent_id.clone()), &query_lower, &mut matches);
+    }
+
+    matches
+}
+
+/// Search a single conversation (main or subagent) for matches.
+fn search_conversation(
+    conversation: &crate::model::AgentConversation,
+    agent_id: Option<AgentId>,
+    query_lower: &str,
+    matches: &mut Vec<SearchMatch>,
+) {
+    use crate::model::{ContentBlock, MessageContent};
+
+    for entry in conversation.entries() {
+        // Only search valid entries
+        if let Some(log_entry) = entry.as_valid() {
+            let message = log_entry.message();
+            let entry_uuid = log_entry.uuid().clone();
+
+            match message.content() {
+                MessageContent::Text(text) => {
+                    // Search in simple text content
+                    find_matches_in_text(
+                        text,
+                        &entry_uuid,
+                        agent_id.clone(),
+                        0, // block_index for Text is always 0
+                        query_lower,
+                        matches,
+                    );
+                }
+                MessageContent::Blocks(blocks) => {
+                    // Search in each block
+                    for (block_index, block) in blocks.iter().enumerate() {
+                        let text = match block {
+                            ContentBlock::Text { text } => Some(text.as_str()),
+                            ContentBlock::Thinking { thinking } => Some(thinking.as_str()),
+                            ContentBlock::ToolResult { content, .. } => Some(content.as_str()),
+                            ContentBlock::ToolUse(_) => None, // Don't search tool use blocks
+                        };
+
+                        if let Some(text) = text {
+                            find_matches_in_text(
+                                text,
+                                &entry_uuid,
+                                agent_id.clone(),
+                                block_index,
+                                query_lower,
+                                matches,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Find all matches of query in text and add to matches vector.
+fn find_matches_in_text(
+    text: &str,
+    entry_uuid: &EntryUuid,
+    agent_id: Option<AgentId>,
+    block_index: usize,
+    query_lower: &str,
+    matches: &mut Vec<SearchMatch>,
+) {
+    let text_lower = text.to_lowercase();
+    let query_len = query_lower.len();
+
+    // Find all overlapping matches
+    let mut start = 0;
+    while let Some(pos) = text_lower[start..].find(query_lower) {
+        let char_offset = start + pos;
+        matches.push(SearchMatch {
+            agent_id: agent_id.clone(),
+            entry_uuid: entry_uuid.clone(),
+            block_index,
+            char_offset,
+            length: query_len,
+        });
+        start = char_offset + 1; // Move by 1 to find overlapping matches
+    }
 }
 
 // ===== Tests =====
