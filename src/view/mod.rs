@@ -169,6 +169,51 @@ impl<B> TuiApp<B>
 where
     B: ratatui::backend::Backend,
 {
+    /// Create TuiApp for testing (test-only constructor)
+    ///
+    /// This allows tests to construct TuiApp directly without going through
+    /// terminal initialization. Used by acceptance test harness.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn new_for_test(
+        terminal: Terminal<B>,
+        app_state: AppState,
+        input_source: InputSource,
+        line_counter: usize,
+        key_bindings: KeyBindings,
+        log_receiver: std::sync::mpsc::Receiver<crate::state::log_pane::LogPaneEntry>,
+    ) -> Self {
+        Self {
+            terminal,
+            app_state,
+            input_source,
+            line_counter,
+            key_bindings,
+            last_render: std::time::Instant::now(),
+            pending_entries: Vec::new(),
+            log_receiver,
+        }
+    }
+
+    /// Get reference to app state (test-only accessor)
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn app_state(&self) -> &AppState {
+        &self.app_state
+    }
+
+    /// Handle a single keyboard event (test-only accessor)
+    ///
+    /// Returns true if app should quit.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    #[doc(hidden)]
+    pub fn handle_key_test(&mut self, key: KeyEvent) -> bool {
+        self.handle_key(key)
+    }
+
     /// Poll input source for new lines and process them
     ///
     /// Accumulates entries to pending buffer instead of adding directly to session.

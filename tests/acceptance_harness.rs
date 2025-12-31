@@ -3,16 +3,16 @@
 //! Provides a high-level API for acceptance testing user stories by wrapping
 //! TuiApp<TestBackend> with convenient methods for simulating user interactions.
 
-#![allow(unused_imports, unused_variables, dead_code)] // Stubs during TDD
-
+use cclv::integration;
 use cclv::model::SessionId;
-use cclv::source::InputSource;
+use cclv::source::{FileTailer, InputSource};
 use cclv::state::AppState;
 use cclv::view::{TuiApp, TuiError};
+use cclv::config::keybindings::KeyBindings;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
-use std::path::Path;
+use std::path::PathBuf;
 
 /// Test harness for acceptance testing
 ///
@@ -20,7 +20,9 @@ use std::path::Path;
 /// interactions in acceptance tests.
 pub struct AcceptanceTestHarness {
     app: TuiApp<TestBackend>,
+    #[allow(dead_code)] // Stored for potential future use
     width: u16,
+    #[allow(dead_code)] // Stored for potential future use
     height: u16,
     running: bool,
 }
@@ -35,7 +37,7 @@ impl AcceptanceTestHarness {
     /// * `Ok(Self)` - Initialized harness with fixture loaded
     /// * `Err(TuiError)` - If fixture cannot be loaded or parsed
     pub fn from_fixture(path: &str) -> Result<Self, TuiError> {
-        todo!("from_fixture")
+        Self::from_fixture_with_size(path, 80, 24)
     }
 
     /// Load fixture with custom terminal size
@@ -49,7 +51,52 @@ impl AcceptanceTestHarness {
     /// * `Ok(Self)` - Initialized harness with fixture loaded
     /// * `Err(TuiError)` - If fixture cannot be loaded or parsed
     pub fn from_fixture_with_size(path: &str, width: u16, height: u16) -> Result<Self, TuiError> {
-        todo!("from_fixture_with_size")
+        // Create test backend and terminal
+        let backend = TestBackend::new(width, height);
+        let terminal = Terminal::new(backend)?;
+
+        // Load fixture file
+        let mut tailer = FileTailer::new(PathBuf::from(path))?;
+        let lines = tailer.read_new_lines()?;
+
+        // Parse entries
+        let entries = integration::process_lines(lines, 1);
+
+        // Create session and add entries
+        let session_id = SessionId::new("test-session")
+            .map_err(|e| TuiError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?;
+        let mut session = cclv::model::Session::new(session_id);
+
+        for entry in &entries {
+            session.add_conversation_entry(entry.clone());
+        }
+
+        // Create app state
+        let app_state = AppState::new(session);
+        let key_bindings = KeyBindings::default();
+
+        // Create dummy log receiver
+        let (_log_tx, log_rx) = std::sync::mpsc::channel();
+
+        // Wrap tailer in InputSource (won't be used for testing, but required by TuiApp)
+        let input_source = InputSource::File(tailer);
+
+        // Create TuiApp using test constructor
+        let app = TuiApp::new_for_test(
+            terminal,
+            app_state,
+            input_source,
+            entries.len(),
+            key_bindings,
+            log_rx,
+        );
+
+        Ok(Self {
+            app,
+            width,
+            height,
+            running: true,
+        })
     }
 
     /// Send a single key event
@@ -61,7 +108,7 @@ impl AcceptanceTestHarness {
     /// * `true` - If app quit as a result of this key
     /// * `false` - If app is still running
     pub fn send_key(&mut self, key: KeyCode) -> bool {
-        todo!("send_key")
+        self.send_key_with_mods(key, KeyModifiers::NONE)
     }
 
     /// Send key with modifiers (e.g., Ctrl+C)
@@ -74,7 +121,18 @@ impl AcceptanceTestHarness {
     /// * `true` - If app quit as a result of this key
     /// * `false` - If app is still running
     pub fn send_key_with_mods(&mut self, key: KeyCode, mods: KeyModifiers) -> bool {
-        todo!("send_key_with_mods")
+        if !self.running {
+            return true; // Already quit
+        }
+
+        let key_event = KeyEvent::new(key, mods);
+        let quit = self.app.handle_key_test(key_event);
+
+        if quit {
+            self.running = false;
+        }
+
+        quit
     }
 
     /// Send a sequence of keys
@@ -84,7 +142,11 @@ impl AcceptanceTestHarness {
     /// # Arguments
     /// * `keys` - Slice of KeyCodes to send in order
     pub fn send_keys(&mut self, keys: &[KeyCode]) {
-        todo!("send_keys")
+        for key in keys {
+            if self.send_key(*key) {
+                break; // Quit encountered
+            }
+        }
     }
 
     /// Type text (sends individual character key events)
@@ -94,7 +156,11 @@ impl AcceptanceTestHarness {
     /// # Arguments
     /// * `text` - Text to type character by character
     pub fn type_text(&mut self, text: &str) {
-        todo!("type_text")
+        for ch in text.chars() {
+            if self.send_key(KeyCode::Char(ch)) {
+                break; // Quit encountered
+            }
+        }
     }
 
     /// Access app state for assertions
@@ -104,7 +170,7 @@ impl AcceptanceTestHarness {
     /// # Returns
     /// Reference to the current AppState
     pub fn state(&self) -> &AppState {
-        todo!("state")
+        self.app.app_state()
     }
 
     /// Check if app is still running (didn't crash/quit)
@@ -113,6 +179,6 @@ impl AcceptanceTestHarness {
     /// * `true` - App is running normally
     /// * `false` - App has quit or crashed
     pub fn is_running(&self) -> bool {
-        todo!("is_running")
+        self.running
     }
 }

@@ -25,7 +25,7 @@ fn test_from_fixture_creates_working_harness() {
 
     // Should have access to app state
     let state = harness.state();
-    assert!(state.session().main_agent().len() > 0, "Should have loaded entries from fixture");
+    assert!(!state.session().main_agent().is_empty(), "Should have loaded entries from fixture");
 }
 
 #[test]
@@ -193,7 +193,7 @@ fn test_state_provides_readonly_access() {
     let state = harness.state();
 
     // Should be able to query state
-    assert!(state.session().main_agent().len() > 0, "Should have entries");
+    assert!(!state.session().main_agent().is_empty(), "Should have entries");
     let _ = state.focus; // Should be able to access state fields
     let _ = &state.search;
 }
