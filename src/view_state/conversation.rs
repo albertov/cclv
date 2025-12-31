@@ -33,6 +33,10 @@ use crate::state::app_state::WrapMode;
 /// `hit_test()` uses binary search on cumulative_y for O(log n) lookup.
 #[derive(Debug, Clone)]
 pub struct ConversationViewState {
+    /// Agent ID (None for main agent, Some(id) for subagents).
+    agent_id: Option<crate::model::AgentId>,
+    /// Model information (for display in title bar).
+    model: Option<crate::model::ModelInfo>,
     /// Entries with computed layouts and per-entry view state.
     entries: Vec<EntryView>,
     /// Current scroll position.
@@ -53,13 +57,19 @@ pub struct ConversationViewState {
 impl ConversationViewState {
     /// Create new conversation view-state from entries.
     /// Layout is not computed until `recompute_layout` is called.
-    pub fn new(entries: Vec<ConversationEntry>) -> Self {
+    pub fn new(
+        agent_id: Option<crate::model::AgentId>,
+        model: Option<crate::model::ModelInfo>,
+        entries: Vec<ConversationEntry>,
+    ) -> Self {
         let entry_views: Vec<EntryView> = entries
             .into_iter()
             .enumerate()
             .map(|(idx, entry)| EntryView::new(entry, EntryIndex::new(idx)))
             .collect();
         Self {
+            agent_id,
+            model,
             entries: entry_views,
             scroll: ScrollPosition::Top,
             total_height: 0,
@@ -69,9 +79,9 @@ impl ConversationViewState {
         }
     }
 
-    /// Create empty conversation view-state.
+    /// Create empty conversation view-state for main agent.
     pub fn empty() -> Self {
-        Self::new(Vec::new())
+        Self::new(None, None, Vec::new())
     }
 
     // === Focus Management ===
@@ -127,14 +137,24 @@ impl ConversationViewState {
         self.entries.iter()
     }
 
+    /// Get agent ID (None for main agent, Some(id) for subagents).
+    pub fn agent_id(&self) -> Option<&crate::model::AgentId> {
+        self.agent_id.as_ref()
+    }
+
+    /// Get model information.
+    pub fn model(&self) -> Option<&crate::model::ModelInfo> {
+        self.model.as_ref()
+    }
+
     /// Get model ID from first system:init entry.
+    #[deprecated(note = "Use model() instead - this is for backward compatibility")]
     pub fn model_id(&self) -> Option<&str> {
         self.system_metadata().and_then(|m| m.model.as_deref())
     }
 
     /// Get model display name from first system:init entry.
-    /// For now, just returns the raw model ID.
-    /// TODO: Map to display names like "Claude Opus 4.5" when we have ModelInfo.
+    #[deprecated(note = "Use model() instead - this is for backward compatibility")]
     pub fn model_name(&self) -> Option<&str> {
         self.model_id()
     }
@@ -548,7 +568,7 @@ mod tests {
             make_valid_entry("uuid-3"),
         ];
 
-        let state = ConversationViewState::new(entries);
+        let state = ConversationViewState::new(None, None, entries);
 
         assert_eq!(state.len(), 3, "Should have 3 entries");
         assert!(!state.is_empty(), "Should not be empty");
@@ -557,7 +577,7 @@ mod tests {
     #[test]
     fn new_starts_with_no_layout() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let state = ConversationViewState::new(entries);
+        let state = ConversationViewState::new(None, None, entries);
 
         assert_eq!(
             state.total_height(),
@@ -573,7 +593,7 @@ mod tests {
     #[test]
     fn new_starts_scrolled_to_top() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let state = ConversationViewState::new(entries);
+        let state = ConversationViewState::new(None, None, entries);
 
         assert_eq!(state.scroll(), &ScrollPosition::Top, "Should start at top");
     }
@@ -581,7 +601,7 @@ mod tests {
     #[test]
     fn new_starts_with_no_focused_message() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let state = ConversationViewState::new(entries);
+        let state = ConversationViewState::new(None, None, entries);
 
         assert_eq!(
             state.focused_message(),
@@ -597,7 +617,7 @@ mod tests {
             make_valid_entry("uuid-2"),
             make_valid_entry("uuid-3"),
         ];
-        let state = ConversationViewState::new(entries);
+        let state = ConversationViewState::new(None, None, entries);
 
         assert_eq!(
             state.get(EntryIndex::new(0)).unwrap().index(),
@@ -632,7 +652,7 @@ mod tests {
             make_valid_entry("uuid-2"),
             make_valid_entry("uuid-3"),
         ];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(5));
@@ -651,7 +671,7 @@ mod tests {
             make_valid_entry("uuid-2"),
             make_valid_entry("uuid-3"),
         ];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(5));
@@ -689,7 +709,7 @@ mod tests {
     #[test]
     fn recompute_layout_stores_params() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(5));
@@ -719,7 +739,7 @@ mod tests {
             make_valid_entry("uuid-3"),
             make_valid_entry("uuid-4"),
         ];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10)); // Each entry is 10 lines
@@ -747,7 +767,7 @@ mod tests {
             make_valid_entry("uuid-4"),
             make_valid_entry("uuid-5"),
         ];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10)); // Each entry is 10 lines
@@ -774,7 +794,7 @@ mod tests {
             make_valid_entry("uuid-3"),
             make_valid_entry("uuid-4"),
         ];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10)); // Total height = 40
@@ -801,7 +821,7 @@ mod tests {
             make_valid_entry("uuid-2"),
             make_valid_entry("uuid-3"),
         ];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));
@@ -859,8 +879,8 @@ mod tests {
             make_valid_entry("uuid-3"),
         ];
 
-        let mut state1 = ConversationViewState::new(entries.clone());
-        let mut state2 = ConversationViewState::new(entries);
+        let mut state1 = ConversationViewState::new(None, None, entries.clone());
+        let mut state2 = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
 
@@ -883,7 +903,7 @@ mod tests {
     #[test]
     fn toggle_expand_returns_new_state() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));
@@ -919,7 +939,7 @@ mod tests {
     #[test]
     fn toggle_expand_triggers_relayout() {
         let entries = vec![make_valid_entry("uuid-1"), make_valid_entry("uuid-2")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode| {
@@ -964,7 +984,7 @@ mod tests {
         let entries: Vec<ConversationEntry> = (0..10)
             .map(|i| make_valid_entry(&format!("uuid-{}", i)))
             .collect();
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         let variable_height = |_entry: &ConversationEntry, expanded: bool, _wrap: WrapMode| {
@@ -1070,7 +1090,7 @@ mod tests {
     #[test]
     fn hit_test_finds_first_entry() {
         let entries = vec![make_valid_entry("uuid-1"), make_valid_entry("uuid-2")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));
@@ -1095,7 +1115,7 @@ mod tests {
             make_valid_entry("uuid-2"),
             make_valid_entry("uuid-3"),
         ];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10)); // [0, 10, 20]
@@ -1117,7 +1137,7 @@ mod tests {
     #[test]
     fn hit_test_beyond_content_returns_miss() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10)); // Total height = 10
@@ -1133,7 +1153,7 @@ mod tests {
     #[test]
     fn needs_relayout_true_when_params_change() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params1 = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params1, fixed_height_calculator(10));
@@ -1145,7 +1165,7 @@ mod tests {
     #[test]
     fn needs_relayout_false_when_params_unchanged() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));
@@ -1157,7 +1177,7 @@ mod tests {
 
     #[test]
     fn append_adds_entries_to_end() {
-        let mut state = ConversationViewState::new(vec![make_valid_entry("uuid-1")]);
+        let mut state = ConversationViewState::new(None, None, vec![make_valid_entry("uuid-1")]);
 
         state.append(vec![make_valid_entry("uuid-2"), make_valid_entry("uuid-3")]);
 
@@ -1170,7 +1190,7 @@ mod tests {
 
     #[test]
     fn append_invalidates_layout() {
-        let mut state = ConversationViewState::new(vec![make_valid_entry("uuid-1")]);
+        let mut state = ConversationViewState::new(None, None, vec![make_valid_entry("uuid-1")]);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));
@@ -1188,7 +1208,7 @@ mod tests {
     #[test]
     fn set_wrap_override_updates_entry_state() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));
@@ -1220,7 +1240,7 @@ mod tests {
     #[test]
     fn set_wrap_override_returns_previous_value() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));
@@ -1268,7 +1288,7 @@ mod tests {
         assert_eq!(result, None);
 
         // Also test out of bounds on non-empty state
-        let mut state = ConversationViewState::new(vec![make_valid_entry("uuid-1")]);
+        let mut state = ConversationViewState::new(None, None, vec![make_valid_entry("uuid-1")]);
         state.recompute_layout(params, fixed_height_calculator(10));
 
         let result = state.set_wrap_override(
@@ -1288,7 +1308,7 @@ mod tests {
             make_valid_entry("uuid-2"),
             make_valid_entry("uuid-3"),
         ];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
 
@@ -1375,7 +1395,7 @@ mod tests {
     #[test]
     fn horizontal_offset_starts_at_zero() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let state = ConversationViewState::new(entries);
+        let state = ConversationViewState::new(None, None, entries);
 
         assert_eq!(
             state.horizontal_offset(),
@@ -1387,7 +1407,7 @@ mod tests {
     #[test]
     fn set_horizontal_offset_updates_value() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         state.set_horizontal_offset(42);
 
@@ -1401,7 +1421,7 @@ mod tests {
     #[test]
     fn scroll_right_increases_offset() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         assert_eq!(state.horizontal_offset(), 0);
 
@@ -1423,7 +1443,7 @@ mod tests {
     #[test]
     fn scroll_left_decreases_offset() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         state.set_horizontal_offset(10);
         assert_eq!(state.horizontal_offset(), 10);
@@ -1446,7 +1466,7 @@ mod tests {
     #[test]
     fn scroll_left_saturates_at_zero() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         state.set_horizontal_offset(5);
         assert_eq!(state.horizontal_offset(), 5);
@@ -1471,7 +1491,7 @@ mod tests {
     #[test]
     fn scroll_right_handles_u16_max() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         // Set to near max
         state.set_horizontal_offset(u16::MAX - 5);
@@ -1489,7 +1509,7 @@ mod tests {
     #[test]
     fn set_wrap_override_affects_effective_wrap() {
         let entries = vec![make_valid_entry("uuid-1")];
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
 
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, fixed_height_calculator(10));

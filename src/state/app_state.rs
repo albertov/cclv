@@ -82,14 +82,6 @@ pub struct AppState {
     /// See `FocusPane` for valid states and transitions.
     pub focus: FocusPane,
 
-    /// Scroll state for the main agent conversation pane.
-    /// Tracks vertical/horizontal offset, expanded messages, and per-item wrap overrides.
-    pub main_scroll: ScrollState,
-
-    /// Scroll state for the currently selected subagent tab.
-    /// Each subagent maintains independent scroll state.
-    pub subagent_scroll: ScrollState,
-
     /// Currently selected subagent tab index (0-based).
     /// `None` means no tab is selected (e.g., no subagents exist).
     /// Valid range: `0..session.subagents().len()`.
@@ -148,8 +140,6 @@ impl AppState {
         Self {
             log_view: LogViewState::new(),
             focus: FocusPane::Main,
-            main_scroll: ScrollState::default(),
-            subagent_scroll: ScrollState::default(),
             selected_tab: None,
             search: SearchState::Inactive,
             stats_filter: StatsFilter::Global,
@@ -515,71 +505,6 @@ pub enum WrapMode {
     /// Do not wrap lines; use horizontal scrolling instead.
     /// User must scroll left/right to view content beyond viewport (FR-040).
     NoWrap,
-}
-
-// ===== ScrollState =====
-
-/// Scroll state for a conversation pane.
-///
-/// Tracks message expansion state and per-message wrap overrides
-/// for a single conversation pane (either main agent or a subagent).
-///
-/// NOTE: Scroll position is now managed by ConversationViewState via ScrollPosition.
-/// The vertical_offset field is maintained via dual-write for view layer compatibility.
-///
-/// # Invariants
-///
-/// - `vertical_offset ≥ 0` (managed by scroll_handler via ScrollPosition.resolve())
-/// - `horizontal_offset ≥ 0` (enforced by `scroll_left` saturation)
-///
-/// # State Independence (FR-034)
-///
-/// Each conversation pane maintains independent scroll state. Scrolling in the main
-/// pane does not affect subagent panes, and vice versa. This allows users to navigate
-/// different conversations at their own pace.
-///
-/// # Expansion State (FR-031 to FR-033)
-///
-/// Messages longer than the collapse threshold (default 10 lines) are collapsed by
-/// default, showing only the first 3 lines plus "(+N more lines)" indicator.
-/// Expansion state is managed per-entry via ConversationViewState (EntryView.expanded field).
-///
-/// # Wrap Overrides (FR-048, FR-049)
-///
-/// Individual messages can override the global wrap mode. This is ephemeral state
-/// (not persisted across sessions). Per-item toggle inverts the global setting:
-/// - Global=Wrap, Override present → NoWrap for this message
-/// - Global=NoWrap, Override present → Wrap for this message
-#[derive(Debug, Clone, Default)]
-pub struct ScrollState {
-    /// Vertical scroll offset in lines (absolute line offset from top of content).
-    ///
-    /// **COMPATIBILITY**: This field is written by scroll_handler via dual-write pattern
-    /// and read by view/message.rs during rendering. The semantic scroll position is
-    /// managed by ConversationViewState.scroll() using ScrollPosition enum.
-    ///
-    /// **TODO(cclv-5ur.6.9)**: Remove when view/message.rs migrated to use
-    /// ConversationViewState.visible_range() instead of reading this field directly.
-    pub vertical_offset: usize,
-
-    /// Horizontal scroll offset (number of characters scrolled right from left edge).
-    /// Only relevant when line wrapping is disabled (FR-040).
-    /// 0 means viewing from the leftmost column.
-    pub horizontal_offset: usize,
-}
-
-impl ScrollState {
-    // ===== Active methods (horizontal scrolling) =====
-
-    /// Scroll left by amount, saturating at 0.
-    pub fn scroll_left(&mut self, amount: usize) {
-        self.horizontal_offset = self.horizontal_offset.saturating_sub(amount);
-    }
-
-    /// Scroll right by amount.
-    pub fn scroll_right(&mut self, amount: usize) {
-        self.horizontal_offset = self.horizontal_offset.saturating_add(amount);
-    }
 }
 
 // ===== Tests =====

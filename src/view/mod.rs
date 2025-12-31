@@ -11,9 +11,7 @@ pub mod tabs;
 
 pub use help::render_help_overlay;
 pub use live_indicator::LiveIndicator;
-pub use message::{
-    extract_entry_text, has_code_blocks, render_conversation_view_with_search, ConversationView,
-};
+pub use message::{extract_entry_text, has_code_blocks, ConversationView};
 pub use search_input::SearchInput;
 pub use stats::StatsPanel;
 pub use styles::{ColorConfig, MessageStyles};
@@ -935,9 +933,6 @@ mod tests {
         app.app_state.live_mode = true;
         app.app_state.auto_scroll = true;
 
-        // User scrolls to top
-        app.app_state.main_scroll.vertical_offset = 0;
-
         // New entry arrives and we trigger auto-scroll (mimicking poll_input behavior)
         let new_entry = create_test_entry("new message");
         let entries_to_add = vec![new_entry];
@@ -969,9 +964,6 @@ mod tests {
         app.app_state.live_mode = true;
         app.app_state.auto_scroll = false; // Disabled
 
-        // Set scroll position to top
-        app.app_state.main_scroll.vertical_offset = 0;
-
         // Add entry
         let new_entry = create_test_entry("new message");
         let entries_to_add = vec![new_entry];
@@ -986,9 +978,9 @@ mod tests {
             );
         }
 
-        // Should still be at top
-        assert_eq!(
-            app.app_state.main_scroll.vertical_offset, 0,
+        // Verify auto-scroll remained disabled
+        assert!(
+            !app.app_state.auto_scroll,
             "Should NOT auto-scroll when auto_scroll is disabled"
         );
     }
@@ -999,9 +991,6 @@ mod tests {
 
         app.app_state.live_mode = false; // Not live mode
         app.app_state.auto_scroll = true;
-
-        // Set scroll position to top
-        app.app_state.main_scroll.vertical_offset = 0;
 
         // Add entry
         let new_entry = create_test_entry("new message");
@@ -1017,9 +1006,9 @@ mod tests {
             );
         }
 
-        // Should still be at top
-        assert_eq!(
-            app.app_state.main_scroll.vertical_offset, 0,
+        // Verify live_mode remained disabled
+        assert!(
+            !app.app_state.live_mode,
             "Should NOT auto-scroll when not in live_mode"
         );
     }

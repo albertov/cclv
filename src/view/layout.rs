@@ -257,16 +257,12 @@ fn render_main_pane(frame: &mut Frame, area: Rect, state: &AppState, styles: &Me
         .map(|s| s.main())
         .unwrap_or(&empty_view_state);
 
-    message::render_conversation_view_with_search(
-        frame,
-        area,
-        view_state,
-        &state.main_scroll,
-        &state.search,
-        styles,
-        state.focus == FocusPane::Main,
-        state.global_wrap,
-    );
+    // Render using Widget pattern
+    let conversation_widget =
+        message::ConversationView::new(view_state, styles, state.focus == FocusPane::Main)
+            .global_wrap(state.global_wrap);
+
+    frame.render_widget(conversation_widget, area);
 }
 
 /// Render the subagent tabs pane with tab bar and selected conversation.
@@ -318,16 +314,11 @@ fn render_subagent_pane(frame: &mut Frame, area: Rect, state: &AppState, styles:
 
     // Render the selected conversation using its view-state
     if let Some(conversation_view) = selected_conversation_view {
-        message::render_conversation_view_with_search(
-            frame,
-            content_area,
-            conversation_view,
-            &state.subagent_scroll,
-            &state.search,
-            styles,
-            state.focus == FocusPane::Subagent,
-            state.global_wrap,
-        );
+        let conversation_widget =
+            message::ConversationView::new(conversation_view, styles, state.focus == FocusPane::Subagent)
+                .global_wrap(state.global_wrap);
+
+        frame.render_widget(conversation_widget, content_area);
     }
 }
 

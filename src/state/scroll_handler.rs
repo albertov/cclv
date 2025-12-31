@@ -3,10 +3,7 @@
 //! Pure functions that transform AppState in response to scroll actions.
 //! Focus-aware: dispatches actions to the correct ConversationViewState based on current focus.
 //!
-//! # Dual-Write Migration Pattern
-//! This handler uses ConversationViewState.set_scroll() with ScrollPosition (new, semantic)
-//! and also writes the resolved offset to ScrollState.vertical_offset (compatibility).
-//! The dual-write maintains view/message.rs compatibility during migration to visible_range.
+//! All scrolling is handled via ConversationViewState.set_scroll() with ScrollPosition.
 
 use crate::model::KeyAction;
 use crate::state::{AppState, FocusPane};
@@ -160,25 +157,6 @@ pub fn handle_scroll_action(
 
     // Apply the new scroll position
     conversation.set_scroll(new_scroll.clone());
-
-    // Dual-write: Resolve scroll position and update ScrollState.vertical_offset
-    // This maintains compatibility with view/message.rs during migration.
-    // TODO(cclv-5ur.6.9): Remove when view/message.rs uses visible_range instead.
-    let total_height = conversation.total_height();
-    let resolved_offset = new_scroll.resolve(total_height, viewport_height, |idx| {
-        conversation.entry_cumulative_y(idx)
-    });
-
-    // Write to the appropriate ScrollState based on focus
-    match state.focus {
-        FocusPane::Main => {
-            state.main_scroll.vertical_offset = resolved_offset.get();
-        }
-        FocusPane::Subagent => {
-            state.subagent_scroll.vertical_offset = resolved_offset.get();
-        }
-        _ => {} // Stats/Search don't have scroll state
-    }
 
     state
 }

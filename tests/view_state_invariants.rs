@@ -182,7 +182,7 @@ proptest! {
             return Ok(());
         }
 
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, simple_height_calculator);
 
@@ -212,7 +212,7 @@ proptest! {
             return Ok(());
         }
 
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, simple_height_calculator);
 
@@ -236,7 +236,7 @@ proptest! {
 proptest! {
     #[test]
     fn total_height_equals_sum_of_all_heights(entries in arb_entry_list(50)) {
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, simple_height_calculator);
 
@@ -269,7 +269,7 @@ proptest! {
         scroll in arb_scroll_position(),
         viewport in arb_viewport()
     ) {
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
         let params = LayoutParams::new(viewport.width, WrapMode::Wrap);
         state.recompute_layout(params, simple_height_calculator);
 
@@ -301,7 +301,7 @@ proptest! {
         entries in arb_entry_list(50),
         viewport in arb_viewport()
     ) {
-        let mut state = ConversationViewState::new(entries.clone());
+        let mut state = ConversationViewState::new(None, None, entries.clone());
         let params = LayoutParams::new(viewport.width, WrapMode::Wrap);
         state.recompute_layout(params, simple_height_calculator);
 
@@ -337,7 +337,7 @@ proptest! {
             return Ok(());
         }
 
-        let mut state = ConversationViewState::new(entries.clone());
+        let mut state = ConversationViewState::new(None, None, entries.clone());
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, simple_height_calculator);
 
@@ -508,7 +508,7 @@ proptest! {
             return Ok(());
         }
 
-        let mut state = ConversationViewState::new(entries.clone());
+        let mut state = ConversationViewState::new(None, None, entries.clone());
 
         // Set focus to an arbitrary index
         state.set_focused_message(Some(EntryIndex::new(focus_index)));
@@ -576,7 +576,7 @@ proptest! {
             return Ok(());
         }
 
-        let mut state = ConversationViewState::new(entries);
+        let mut state = ConversationViewState::new(None, None, entries);
         let params = LayoutParams::new(80, WrapMode::Wrap);
         state.recompute_layout(params, simple_height_calculator);
 

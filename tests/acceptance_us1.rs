@@ -271,17 +271,8 @@ fn us1_scenario6_auto_scroll_on_new() {
     // VERIFY: In auto-scroll mode, scroll position should be at or near bottom
     // The exact scroll offset depends on content height and terminal size,
     // but auto_scroll flag being true guarantees new messages will be shown
-    let scroll_state = match state.focus {
-        cclv::state::FocusPane::Main => &state.main_scroll,
-        cclv::state::FocusPane::Subagent => &state.subagent_scroll,
-        _ => &state.main_scroll,
-    };
-
-    // Just verify scroll state is accessible and makes sense
-    let _vertical_offset = scroll_state.vertical_offset;
-    // Note: Exact offset verification would require knowing rendered line count,
-    // which depends on terminal size and wrapping. The auto_scroll flag is the
-    // reliable indicator that new messages will be shown.
+    // Note: Scroll state is now managed within ConversationViewState, not AppState.
+    // The auto_scroll flag is the reliable indicator that new messages will be shown.
 
     // RESULT: Auto-scroll enabled, session loads with latest content visible
     // MATCHES: Yes - auto-scroll shows new messages
@@ -319,18 +310,9 @@ fn us1_scenario7_auto_scroll_pause() {
         "Should pause auto-scroll when user scrolls up"
     );
 
-    // VERIFY: Scroll up actually changed the offset
-    let state = harness.state();
-    let scroll_state = match state.focus {
-        cclv::state::FocusPane::Main => &state.main_scroll,
-        cclv::state::FocusPane::Subagent => &state.subagent_scroll,
-        _ => &state.main_scroll,
-    };
-
-    // After scrolling up, we should have moved from the starting position
-    // (Note: Exact verification requires knowing if content was scrollable)
-    let offset_after_scroll = scroll_state.vertical_offset;
-    let _ = offset_after_scroll; // Offset is accessible
+    // VERIFY: Scroll up command was processed (scroll state is internal to view-state now)
+    // After scrolling up, auto-scroll should pause (implementation detail verified elsewhere)
+    // Note: Scroll state is now managed within ConversationViewState, not AppState
 
     // VERIFY: In live mode with auto_scroll paused, indicator should appear
     // Check the rendered output for new messages indicator

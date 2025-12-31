@@ -3,8 +3,7 @@ source: tests/acceptance_harness.rs
 expression: output
 ---
 Model: claude-opus-4-5-20251101 | Main Agent | /workspace/project | 3 tools, 0 a
-┌Conversation [claude-opus-4-5-20251101] (6 entries)───────────────────────────┐
-│                                                                              │
+┌Main Agent (6 entries)────────────────────────────────────────────────────────┐
 │                                                                              │
 │Hello                                                                         │
 │                                                                              │
@@ -15,6 +14,7 @@ Model: claude-opus-4-5-20251101 | Main Agent | /workspace/project | 3 tools, 0 a
 │Of course, I'd be happy to help.                                              │
 │                                                                              │
 │Thanks                                                                        │
+│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

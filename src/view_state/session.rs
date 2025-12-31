@@ -65,7 +65,7 @@ impl SessionViewState {
         if !self.subagents.contains_key(id) {
             // Create from pending entries
             let entries = self.pending_subagent_entries.remove(id).unwrap_or_default();
-            let view_state = ConversationViewState::new(entries);
+            let view_state = ConversationViewState::new(Some(id.clone()), None, entries);
             self.subagents.insert(id.clone(), view_state);
         }
         self.subagents.get(id).unwrap()
@@ -75,7 +75,7 @@ impl SessionViewState {
     pub fn subagent_mut(&mut self, id: &AgentId) -> &mut ConversationViewState {
         if !self.subagents.contains_key(id) {
             let entries = self.pending_subagent_entries.remove(id).unwrap_or_default();
-            let view_state = ConversationViewState::new(entries);
+            let view_state = ConversationViewState::new(Some(id.clone()), None, entries);
             self.subagents.insert(id.clone(), view_state);
         }
         self.subagents.get_mut(id).unwrap()
