@@ -1370,12 +1370,29 @@ fn bug_horizontal_scroll_does_not_work() {
     // Snapshot captures current (buggy) state
     insta::assert_snapshot!("bug_horizontal_scroll_no_effect", scrolled_output);
 
-    // BUG: After scrolling right 50 chars, we should see content that was hidden
+    // TEST 1: Verify scroll indicators appear in title after scrolling
+    // After scrolling right 120 chars, title should show "◀ Main Agent ... ▶"
+    // (left indicator because offset > 0, right indicator because content extends beyond viewport)
+    assert!(
+        scrolled_output.contains("◀"),
+        "Scroll indicator ◀ should appear in title after scrolling right.\n\
+         This indicates content extends to the left (horizontal_offset > 0).\n\
+         Scrolled output:\n{scrolled_output}"
+    );
+
+    assert!(
+        scrolled_output.contains("▶"),
+        "Scroll indicator ▶ should appear in title when content extends beyond viewport.\n\
+         This indicates more content is available to the right.\n\
+         Scrolled output:\n{scrolled_output}"
+    );
+
+    // TEST 2: BUG: After scrolling right 120 chars, we should see content that was hidden
     // The MARKER_END_OF_LINE should now be visible, but rendering ignores horizontal_offset
     assert!(
         scrolled_output.contains("MARKER_END_OF_LINE"),
         "BUG: Horizontal scroll has no visual effect.\n\
-         After pressing Right 50 times, content should shift left to reveal MARKER_END_OF_LINE.\n\
+         After pressing Right 120 times, content should shift left to reveal MARKER_END_OF_LINE.\n\
          Expected: MARKER_END_OF_LINE visible after scrolling right\n\
          Actual: Content unchanged, horizontal_offset state updates but rendering ignores it.\n\n\
          Initial output:\n{initial_output}\n\n\
