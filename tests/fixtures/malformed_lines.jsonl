@@ -1,5 +1,5 @@
-{"type":"user","message":{"role":"user","content":"test"},"uuid":"abc-123"
-{"type":"assistant","invalid_utf8":"\uDC80\uDC81"}
-{"type":"user"}
-{not valid json at all
-{"type":"assistant","message":{"role":"assistant","content":[]}}
+{"type":"user","message":{"role":"user","content":"truncated"
+{"type":"assistant","invalid_field":123,"message":"number where string expected"}
+{"valid":"json","but":"missing","required":"uuid field"}
+{"type":"user","message":{"role":"user","content":"invalid\x80\xFFutf8"},"uuid":"bad-utf8"}
+{"type":"assistant","message":{"content":"invalid escape \uDC80 sequence"},"uuid":"esc-123"}
