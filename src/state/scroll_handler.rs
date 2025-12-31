@@ -136,9 +136,34 @@ pub fn handle_scroll_action(
     // Apply the new scroll position
     conversation.set_scroll(new_scroll.clone());
 
+    // Auto-focus: Update focused_message to entry closest to viewport top
+    // Find the entry whose start (cumulative_y) is closest to scroll_offset without going over
+    let visible_range = conversation.visible_range(viewport);
+
+    if !visible_range.is_empty() {
+        let scroll_line = visible_range.scroll_offset.get();
+
+        // Find the last entry whose cumulative_y <= scroll_line
+        // This is the entry whose header is at or above the viewport top
+        let mut best_entry = visible_range.start_index;
+        for idx in visible_range.start_index.get()..visible_range.end_index.get() {
+            let entry_idx = crate::view_state::types::EntryIndex::new(idx);
+            if let Some(entry_y) = conversation.entry_cumulative_y(entry_idx) {
+                if entry_y.get() <= scroll_line {
+                    best_entry = entry_idx;
+                } else {
+                    break; // Found first entry past scroll line
+                }
+            }
+        }
+
+        conversation.set_focused_message(Some(best_entry));
+    }
+
     // FR-036: Update auto_scroll based on whether we're at bottom
     // Check if the new scroll position puts us at bottom
     let at_bottom = conversation.is_at_bottom(viewport);
+    // Borrow of conversation ends here
 
     // Update auto_scroll:
     // - If at bottom → enable auto_scroll (for End key, or scroll down reaching bottom)
