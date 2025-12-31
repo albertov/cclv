@@ -19,6 +19,8 @@
 
     # Additional helpful tools
     rust-analyzer # LSP server (also in toolchain extensions)
+    cargo-flamegraph
+    linuxPackages.perf
   ];
 
   # Environment variables for development
