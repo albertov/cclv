@@ -10,12 +10,12 @@ use crate::model::{
     ToolCall, ToolName, ToolUseId,
 };
 use crate::state::WrapMode;
-use crate::view::{tabs, ConversationView, MessageStyles, StatsPanel};
+use crate::view::{ConversationView, MessageStyles, StatsPanel, tabs};
 use crate::view_state::conversation::ConversationViewState;
 use crate::view_state::layout_params::LayoutParams;
 use crate::view_state::types::{EntryIndex, ViewportDimensions};
-use ratatui::backend::TestBackend;
 use ratatui::Terminal;
+use ratatui::backend::TestBackend;
 use std::collections::{HashMap, HashSet};
 
 // ===== Test Helpers =====
@@ -817,8 +817,8 @@ fn bug_initial_screen_blank_until_keypress() {
     use crate::source::FileSource;
     use crate::state::AppState;
     use crate::view::TuiApp;
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load fixture
@@ -877,8 +877,8 @@ fn bug_excessive_blank_lines_in_entry_rendering() {
     use crate::source::FileSource;
     use crate::state::AppState;
     use crate::view::TuiApp;
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load real fixture that reproduces the bug
@@ -972,8 +972,8 @@ fn bug_page_down_twice_causes_blank_viewport() {
     use crate::state::AppState;
     use crate::view::TuiApp;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load minimal fixture from real log data (300 lines → ~294 entries)
@@ -1072,8 +1072,8 @@ fn us1_page_down_to_bottom_always_shows_content() {
     use crate::state::AppState;
     use crate::view::TuiApp;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load large fixture: cc-session-log.jsonl has 31,210 entries
@@ -1171,8 +1171,8 @@ fn us1_home_key_shows_first_entries_from_bottom() {
     use crate::state::AppState;
     use crate::view::TuiApp;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load large fixture
@@ -1247,8 +1247,8 @@ fn us1_end_key_shows_last_entries_with_content() {
     use crate::state::AppState;
     use crate::view::TuiApp;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load large fixture
@@ -1319,8 +1319,8 @@ fn us1_rapid_scroll_updates_within_60fps() {
     use crate::state::AppState;
     use crate::view::TuiApp;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
     use std::time::Instant;
 
@@ -1413,8 +1413,8 @@ fn bug_thinking_blocks_not_wrapped_like_prose() {
     use crate::source::FileSource;
     use crate::state::AppState;
     use crate::view::TuiApp;
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load minimal fixture with long thinking block line
@@ -1491,8 +1491,8 @@ fn bug_horizontal_scroll_does_not_work() {
     use crate::state::AppState;
     use crate::view::TuiApp;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load minimal fixture with long line
@@ -2950,9 +2950,8 @@ fn bug_tab_click_x_offset_main_vs_main_agent() {
     use std::path::PathBuf;
 
     // Load minimal fixture with Main + one subagent "tab2"
-    let mut file_source =
-        FileSource::new(PathBuf::from("tests/fixtures/tab_x_offset_repro.jsonl"))
-            .expect("Should load fixture");
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/tab_x_offset_repro.jsonl"))
+        .expect("Should load fixture");
     let log_entries = file_source.drain_entries().expect("Should parse entries");
     let entry_count = log_entries.len();
 
@@ -3001,8 +3000,8 @@ fn bug_tab_click_x_offset_main_vs_main_agent() {
 
     let mouse_event = MouseEvent {
         kind: MouseEventKind::Down(MouseButton::Left),
-        column: 9,  // Visually on "tab2", but bug thinks this is still "Main Agent"
-        row: 2,     // Tab bar content row (0-indexed, accounting for title row)
+        column: 9, // Visually on "tab2", but bug thinks this is still "Main Agent"
+        row: 2,    // Tab bar content row (0-indexed, accounting for title row)
         modifiers: KeyModifiers::NONE,
     };
     app.handle_mouse_test(mouse_event);
@@ -3055,8 +3054,8 @@ fn bug_help_popup_not_triggered_by_question_mark() {
     use crate::state::AppState;
     use crate::view::TuiApp;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load minimal fixture
@@ -3519,8 +3518,8 @@ fn bug_token_stats_divider_wrong_calculation() {
     use crate::source::FileSource;
     use crate::state::AppState;
     use crate::view::TuiApp;
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::path::PathBuf;
 
     // Load minimal fixture with token usage data
@@ -3620,9 +3619,12 @@ fn bug_help_popup_no_scroll() {
 
     // Use small height to ensure help content is taller than viewport
     // Help popup has ~50 lines of content, 20 row terminal ensures truncation
-    let mut harness =
-        AcceptanceTestHarness::from_fixture_with_size("tests/fixtures/help_scroll_repro.jsonl", 80, 20)
-            .expect("Failed to load fixture");
+    let mut harness = AcceptanceTestHarness::from_fixture_with_size(
+        "tests/fixtures/help_scroll_repro.jsonl",
+        80,
+        20,
+    )
+    .expect("Failed to load fixture");
 
     // Open help popup
     harness.send_key_with_mods(KeyCode::Char('?'), crossterm::event::KeyModifiers::NONE);
@@ -3655,4 +3657,3 @@ fn bug_help_popup_no_scroll() {
          The help popup has more content than fits in viewport but cannot be scrolled."
     );
 }
-

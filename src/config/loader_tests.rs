@@ -620,7 +620,11 @@ fn apply_cli_overrides_multiple_overrides() {
         max_context_tokens: 200_000,
     };
 
-    let result = apply_cli_overrides(base.clone(), Some(THEME_SOLARIZED_DARK.to_string()), Some(true));
+    let result = apply_cli_overrides(
+        base.clone(),
+        Some(THEME_SOLARIZED_DARK.to_string()),
+        Some(true),
+    );
 
     assert_eq!(result.theme, THEME_SOLARIZED_DARK);
     assert!(result.show_stats);

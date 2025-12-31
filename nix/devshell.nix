@@ -24,14 +24,19 @@
     linuxPackages.perf
     asciinema
     asciinema-agg
-    jetbrains-mono  # Font for agg gif rendering
+    jetbrains-mono # Font for agg gif rendering
   ];
 
   # Environment variables for development
   RUST_BACKTRACE = "1";
 
   # Font config for agg (asciinema gif renderer)
-  FONTCONFIG_FILE = pkgs.makeFontsConf { fontDirectories = [ pkgs.jetbrains-mono pkgs.noto-fonts-color-emoji ]; };
+  FONTCONFIG_FILE = pkgs.makeFontsConf {
+    fontDirectories = [
+      pkgs.jetbrains-mono
+      pkgs.noto-fonts-color-emoji
+    ];
+  };
 
   shellHook = ''
     echo "cclv - Claude Code Log Viewer"

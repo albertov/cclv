@@ -1,7 +1,7 @@
 //! Tests for LiveIndicator widget (FR-042b).
 
-use super::*;
 use super::super::styles::MUTED_TEXT;
+use super::*;
 use ratatui::style::{Color, Style};
 
 // ===== Static Mode Tests =====

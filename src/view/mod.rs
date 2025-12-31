@@ -17,7 +17,7 @@ pub mod tabs;
 pub use help::render_help_overlay;
 pub use helpers::{empty_line, key_value_line};
 pub use live_indicator::LiveIndicator;
-pub use message::{extract_entry_text, has_code_blocks, ConversationView};
+pub use message::{ConversationView, extract_entry_text, has_code_blocks};
 pub use search_input::SearchInput;
 pub use stats::StatsPanel;
 pub use stats_multi_scope::MultiScopeStatsPanel;
@@ -30,17 +30,17 @@ use crate::source::InputSource;
 #[cfg(test)]
 use crate::state::ConversationSelection;
 use crate::state::{
-    expand_handler, handle_toggle_wrap, next_match, prev_match, scroll_handler,
-    search_input_handler, AppState, FocusPane,
+    AppState, FocusPane, expand_handler, handle_toggle_wrap, next_match, prev_match,
+    scroll_handler, search_input_handler,
 };
 use crossterm::{
+    ExecutableCommand,
     event::{
         self, Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     },
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    ExecutableCommand,
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io::{self, Stdout};
 use std::time::Duration;
 use thiserror::Error;
@@ -416,8 +416,9 @@ where
                             height: h,
                         }
                     });
-                    let help_height = (size.height * crate::view::constants::HELP_POPUP_HEIGHT_PERCENT / 100)
-                        .saturating_sub(2); // Subtract 2 for borders
+                    let help_height =
+                        (size.height * crate::view::constants::HELP_POPUP_HEIGHT_PERCENT / 100)
+                            .saturating_sub(2); // Subtract 2 for borders
                     let max_scroll = HELP_CONTENT_LINES.saturating_sub(help_height);
 
                     match action {
@@ -574,11 +575,7 @@ where
                     Ok(size) if size.width > 0 => size.width,
                     _ => 80, // Fallback for errors OR zero width (cclv-5ur.58)
                 };
-                expand_handler::handle_expand_action(
-                    &mut self.app_state,
-                    action,
-                    viewport_width,
-                );
+                expand_handler::handle_expand_action(&mut self.app_state, action, viewport_width);
             }
 
             // Search actions - delegate to pure search input handler
@@ -591,7 +588,7 @@ where
                 self.app_state.search =
                     search_input_handler::submit_search(self.app_state.search.clone());
                 // Execute search to populate matches
-                use crate::state::{execute_search, SearchState};
+                use crate::state::{SearchState, execute_search};
                 if let SearchState::Active { query, .. } = &self.app_state.search {
                     let session_view = self
                         .app_state
@@ -693,8 +690,9 @@ where
                             height: h,
                         }
                     });
-                    let help_height = (size.height * crate::view::constants::HELP_POPUP_HEIGHT_PERCENT / 100)
-                        .saturating_sub(2); // Subtract 2 for borders
+                    let help_height =
+                        (size.height * crate::view::constants::HELP_POPUP_HEIGHT_PERCENT / 100)
+                            .saturating_sub(2); // Subtract 2 for borders
                     let max_scroll = HELP_CONTENT_LINES.saturating_sub(help_height);
 
                     if mouse.kind == MouseEventKind::ScrollUp {
@@ -1164,7 +1162,9 @@ fn restore_terminal() -> Result<(), TuiError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{THEME_BASE16_OCEAN, THEME_MONOKAI, THEME_SOLARIZED_DARK, THEME_SOLARIZED_LIGHT};
+    use crate::config::{
+        THEME_BASE16_OCEAN, THEME_MONOKAI, THEME_SOLARIZED_DARK, THEME_SOLARIZED_LIGHT,
+    };
     use crossterm::event::KeyModifiers;
 
     #[test]
@@ -1896,7 +1896,11 @@ mod tests {
 
         // Initialize layout so entries have heights
         if let Some(view) = app.app_state.main_conversation_view_mut() {
-            view.relayout(80, crate::state::WrapMode::Wrap, &crate::state::SearchState::Inactive);
+            view.relayout(
+                80,
+                crate::state::WrapMode::Wrap,
+                &crate::state::SearchState::Inactive,
+            );
         }
 
         // Focus on Main pane and use Ctrl+j to focus first entry
@@ -2382,7 +2386,11 @@ mod tests {
 
         // Initialize main view HeightIndex
         if let Some(view) = app.app_state.main_conversation_view_mut() {
-            view.relayout(80, crate::state::WrapMode::Wrap, &crate::state::SearchState::Inactive);
+            view.relayout(
+                80,
+                crate::state::WrapMode::Wrap,
+                &crate::state::SearchState::Inactive,
+            );
         }
 
         // Add entry to subagent pane
@@ -2408,7 +2416,11 @@ mod tests {
         app.app_state.focus = FocusPane::Subagent;
         app.app_state.selected_conversation = ConversationSelection::Subagent(sub_agent_id.clone());
         if let Some(view) = app.app_state.subagent_conversation_view_mut(0) {
-            view.relayout(80, crate::state::WrapMode::Wrap, &crate::state::SearchState::Inactive); // Initialize HeightIndex
+            view.relayout(
+                80,
+                crate::state::WrapMode::Wrap,
+                &crate::state::SearchState::Inactive,
+            ); // Initialize HeightIndex
             view.set_focused_message(Some(crate::view_state::types::EntryIndex::new(0)));
         }
 
@@ -2640,7 +2652,10 @@ mod tests {
             200_000,
             crate::model::PricingConfig::default(),
         );
-        assert_eq!(args.theme, THEME_MONOKAI, "CliArgs should store theme value");
+        assert_eq!(
+            args.theme, THEME_MONOKAI,
+            "CliArgs should store theme value"
+        );
     }
 
     #[test]

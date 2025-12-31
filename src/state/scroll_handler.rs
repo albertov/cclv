@@ -78,7 +78,9 @@ pub fn handle_scroll_action(
                 ScrollPosition::AtLine(offset) => {
                     // Clamp to max_offset to prevent overshoot beyond valid scroll range
                     let new_offset_raw = offset.get().saturating_add(1).min(max_offset);
-                    ScrollPosition::AtLine(crate::view_state::types::LineOffset::new(new_offset_raw))
+                    ScrollPosition::AtLine(crate::view_state::types::LineOffset::new(
+                        new_offset_raw,
+                    ))
                 }
                 ScrollPosition::Bottom => ScrollPosition::Bottom, // Already at bottom
                 _ => {
@@ -89,7 +91,9 @@ pub fn handle_scroll_action(
                         });
                     // Clamp to max_offset to prevent overshoot beyond valid scroll range
                     let new_offset_raw = offset.get().saturating_add(1).min(max_offset);
-                    ScrollPosition::AtLine(crate::view_state::types::LineOffset::new(new_offset_raw))
+                    ScrollPosition::AtLine(crate::view_state::types::LineOffset::new(
+                        new_offset_raw,
+                    ))
                 }
             }
         }
@@ -115,8 +119,13 @@ pub fn handle_scroll_action(
             match current_scroll {
                 ScrollPosition::AtLine(offset) => {
                     // Clamp to max_offset to prevent overshoot beyond valid scroll range
-                    let new_offset_raw = offset.get().saturating_add(viewport.height as usize).min(max_offset);
-                    ScrollPosition::AtLine(crate::view_state::types::LineOffset::new(new_offset_raw))
+                    let new_offset_raw = offset
+                        .get()
+                        .saturating_add(viewport.height as usize)
+                        .min(max_offset);
+                    ScrollPosition::AtLine(crate::view_state::types::LineOffset::new(
+                        new_offset_raw,
+                    ))
                 }
                 ScrollPosition::Bottom => ScrollPosition::Bottom, // Already at bottom
                 _ => {
@@ -126,8 +135,13 @@ pub fn handle_scroll_action(
                             conversation.entry_cumulative_y(idx)
                         });
                     // Clamp to max_offset to prevent overshoot beyond valid scroll range
-                    let new_offset_raw = offset.get().saturating_add(viewport.height as usize).min(max_offset);
-                    ScrollPosition::AtLine(crate::view_state::types::LineOffset::new(new_offset_raw))
+                    let new_offset_raw = offset
+                        .get()
+                        .saturating_add(viewport.height as usize)
+                        .min(max_offset);
+                    ScrollPosition::AtLine(crate::view_state::types::LineOffset::new(
+                        new_offset_raw,
+                    ))
                 }
             }
         }

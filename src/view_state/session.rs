@@ -116,10 +116,11 @@ impl SessionViewState {
 
             // Propagate viewport dimensions to newly created subagent
             if self.viewport_width > 0 {
-                self.subagents
-                    .get_mut(id)
-                    .unwrap()
-                    .relayout(self.viewport_width, self.global_wrap, &crate::state::SearchState::Inactive);
+                self.subagents.get_mut(id).unwrap().relayout(
+                    self.viewport_width,
+                    self.global_wrap,
+                    &crate::state::SearchState::Inactive,
+                );
             }
         }
         self.subagents.get_mut(id).unwrap()
@@ -188,13 +189,15 @@ impl SessionViewState {
                 // Clone model before getting mutable reference to avoid borrow checker issues
                 let model_clone = model.clone();
                 self.main.set_model_if_none(model_clone);
-                self.main.append_entries(vec![entry], &crate::state::SearchState::Inactive);
+                self.main
+                    .append_entries(vec![entry], &crate::state::SearchState::Inactive);
                 return;
             }
         }
 
         // No model to extract, just append
-        self.main.append_entries(vec![entry], &crate::state::SearchState::Inactive);
+        self.main
+            .append_entries(vec![entry], &crate::state::SearchState::Inactive);
     }
 
     /// Add entry to subagent conversation.
@@ -217,7 +220,8 @@ impl SessionViewState {
         }
 
         // No model to extract, just append
-        self.subagent_mut(&agent_id).append_entries(vec![entry], &crate::state::SearchState::Inactive);
+        self.subagent_mut(&agent_id)
+            .append_entries(vec![entry], &crate::state::SearchState::Inactive);
     }
 
     /// Start line offset (for multi-session positioning).
@@ -245,7 +249,8 @@ impl SessionViewState {
 
         // Relayout main conversation
         // Use Inactive search state since this is called during initialization/resize
-        self.main.relayout(width, wrap, &crate::state::SearchState::Inactive);
+        self.main
+            .relayout(width, wrap, &crate::state::SearchState::Inactive);
 
         // Relayout all existing subagents
         for subagent in self.subagents.values_mut() {

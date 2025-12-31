@@ -23,11 +23,7 @@ use crate::view_state::types::EntryIndex;
 /// - Tab 1+ = Subagent conversations (index - 1 in sorted subagent list)
 ///
 /// This matches the routing in scroll_handler.rs to ensure consistency.
-pub fn handle_expand_action(
-    state: &mut AppState,
-    action: KeyAction,
-    _viewport_width: u16,
-) {
+pub fn handle_expand_action(state: &mut AppState, action: KeyAction, _viewport_width: u16) {
     // Early return for non-expandable panes
     match state.focus {
         FocusPane::Stats | FocusPane::Search => return,

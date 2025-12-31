@@ -1,7 +1,7 @@
 //! Claude Code Log Viewer - Entry Point
 
-use cclv::config::VALID_THEMES;
 use cclv::config::THEME_DEFAULT;
+use cclv::config::VALID_THEMES;
 use clap::Parser;
 use std::path::PathBuf;
 use tracing::info;
@@ -107,7 +107,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cclv::config::{THEME_BASE16_OCEAN, THEME_DEFAULT, THEME_MONOKAI, THEME_SOLARIZED_DARK, THEME_SOLARIZED_LIGHT};
+    use cclv::config::{
+        THEME_BASE16_OCEAN, THEME_DEFAULT, THEME_MONOKAI, THEME_SOLARIZED_DARK,
+        THEME_SOLARIZED_LIGHT,
+    };
     use clap::Parser;
 
     #[test]
@@ -262,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_theme_flows_through_config_precedence_chain() {
-        use cclv::config::{apply_cli_overrides, apply_env_overrides, merge_config, ConfigFile};
+        use cclv::config::{ConfigFile, apply_cli_overrides, apply_env_overrides, merge_config};
 
         // Simulate full precedence chain: Defaults → Config File → Env Vars → CLI Args
         let config_file = ConfigFile {

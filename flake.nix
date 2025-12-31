@@ -68,17 +68,21 @@
                 rustc = final.myRustToolchain;
               };
 
-              libsecret = if final.stdenv.hostPlatform.isMusl
+              libsecret =
+                if
+                  final.stdenv.hostPlatform.isMusl
                 # test 21 hangs for some reason
-                then prev.libsecret.overrideAttrs { doCheck = false; }
-                else prev.libsecret;
+                then
+                  prev.libsecret.overrideAttrs { doCheck = false; }
+                else
+                  prev.libsecret;
             })
           ];
           pkgs' = import inputs.nixpkgs {
             inherit system overlays;
           };
 
-          rustToolchain = pkgs'.myRustToolChain;
+          rustToolchain = pkgs'.myRustToolchain;
           rustPlatform = pkgs'.myRustPlatform;
 
           # Determine static build target based on platform
@@ -107,35 +111,26 @@
         in
         {
           # Configure treefmt for code formatting
-          treefmt = import ./nix/treefmt.nix { inherit pkgs rustToolchain; };
-
-          # Default package (dynamic linking)
-          packages.default = rustPlatform.buildRustPackage {
-            pname = "cclv";
-            version = "0.1.0";
-            src = ./.;
-            inherit cargoHash;
-            doCheck = true;
-            dontStrip = false;
-            meta = packageMeta;
+          treefmt = import ./nix/treefmt.nix {
+            inherit pkgs;
+            inherit (pkgs')
+              myRustToolchain
+              ;
           };
 
           # Static package for Linux (fully static, no glibc dependency)
-          packages.static = lib.mkIf isLinux (
-            pkgs'.pkgsCross.musl64.myRustPlatform.buildRustPackage {
+          packages.default = pkgs'.pkgsCross.musl64.myRustPlatform.buildRustPackage (
+            {
               pname = "cclv";
               version = "0.1.0";
               src = ./.;
               inherit cargoHash;
-              doCheck = false; #FIXME
-
+              doCheck = false; # FIXME
+              meta = packageMeta;
+            }
+            // lib.optionalAttrs isLinux {
               CARGO_BUILD_TARGET = staticTarget;
               RUSTFLAGS = "-C target-feature=+crt-static";
-
-              meta = packageMeta // {
-                description = "TUI application for viewing Claude Code JSONL session logs (static build)";
-                platforms = lib.platforms.linux;
-              };
             }
           );
 

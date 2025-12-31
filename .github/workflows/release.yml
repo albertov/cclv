@@ -1,0 +1,41 @@
+name: Build and Release
+permissions:
+  contents: write
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+      with:
+        github_access_token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Setup Cachix cache
+      uses: cachix/cachix-action@v14
+      with:
+        name: cclv
+        authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+    - name: Build and test
+      run: nix flake check --accept-flake-config
+    - name: Build static binary
+      run: nix build .#static --accept-flake-config
+    - name: Create release tarball
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        TARBALL="cclv-${VERSION}-x86_64-linux.tar.xz"
+        mkdir -p release
+        cp result/bin/cclv release/
+        tar -cJf "$TARBALL" -C release cclv
+        echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
+    - name: Create Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create ${{ github.ref_name }} \
+          --title "cclv ${{ github.ref_name }}" \
+          --generate-notes \
+          "$TARBALL"

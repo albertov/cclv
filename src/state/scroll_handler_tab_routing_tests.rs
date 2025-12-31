@@ -100,12 +100,7 @@ fn scroll_routes_to_selected_tab_0_main_agent() {
     handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
     // Verify: Main agent scroll position changed
-    let main_scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let main_scroll = state.log_view().current_session().unwrap().main().scroll();
 
     match main_scroll {
         ScrollPosition::AtLine(offset) => {
@@ -243,12 +238,7 @@ fn scrolling_tab_0_does_not_affect_tab_1() {
     handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
     // Verify: Main agent scrolled
-    let main_scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let main_scroll = state.log_view().current_session().unwrap().main().scroll();
     match main_scroll {
         ScrollPosition::AtLine(offset) => {
             assert_eq!(offset.get(), 11, "Main agent should have scrolled");
@@ -328,12 +318,7 @@ fn scrolling_tab_1_does_not_affect_tab_0() {
     }
 
     // Verify: Main agent scroll unchanged
-    let main_scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let main_scroll = state.log_view().current_session().unwrap().main().scroll();
     match main_scroll {
         ScrollPosition::AtLine(offset) => {
             assert_eq!(
@@ -425,12 +410,7 @@ fn scroll_defaults_to_main_when_selected_tab_is_none() {
     handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
     // Verify: Main agent scroll changed (default behavior)
-    let main_scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let main_scroll = state.log_view().current_session().unwrap().main().scroll();
 
     match main_scroll {
         ScrollPosition::AtLine(offset) => {

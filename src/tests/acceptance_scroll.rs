@@ -326,8 +326,8 @@ fn page_up_multiple_times_continues_scrolling() {
 fn bug_scroll_overshoot_k_absorbed() {
     const FIXTURE: &str = "tests/fixtures/scroll_overshoot_repro.jsonl";
 
-    let mut harness =
-        AcceptanceTestHarness::from_fixture_with_size(FIXTURE, 80, 24).expect("Should load fixture");
+    let mut harness = AcceptanceTestHarness::from_fixture_with_size(FIXTURE, 80, 24)
+        .expect("Should load fixture");
 
     // Step 1: G (go to bottom)
     harness.send_key_with_mods(KeyCode::Char('G'), crossterm::event::KeyModifiers::SHIFT);

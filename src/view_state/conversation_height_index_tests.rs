@@ -168,7 +168,11 @@ fn set_entry_wrap_override_updates_height_index() {
     let _height_before = state.entries[0].height().get() as usize;
 
     // Set wrap override to NoWrap
-    state.set_entry_wrap_override(0, Some(WrapMode::NoWrap), &crate::state::SearchState::Inactive);
+    state.set_entry_wrap_override(
+        0,
+        Some(WrapMode::NoWrap),
+        &crate::state::SearchState::Inactive,
+    );
 
     let height_after = state.entries[0].height().get() as usize;
 
@@ -300,7 +304,11 @@ fn total_height_equals_height_index_total() {
     state.toggle_entry_expanded(1, &crate::state::SearchState::Inactive);
     assert_eq!(state.total_height(), state.height_index.total());
 
-    state.set_entry_wrap_override(0, Some(WrapMode::NoWrap), &crate::state::SearchState::Inactive);
+    state.set_entry_wrap_override(
+        0,
+        Some(WrapMode::NoWrap),
+        &crate::state::SearchState::Inactive,
+    );
     assert_eq!(state.total_height(), state.height_index.total());
 }
 
@@ -325,11 +333,18 @@ fn height_index_invariant_maintained_across_operations() {
     verify_height_index_invariant(&state);
 
     // Set wrap override
-    state.set_entry_wrap_override(1, Some(WrapMode::NoWrap), &crate::state::SearchState::Inactive);
+    state.set_entry_wrap_override(
+        1,
+        Some(WrapMode::NoWrap),
+        &crate::state::SearchState::Inactive,
+    );
     verify_height_index_invariant(&state);
 
     // Append
-    state.append_entries(vec![make_valid_entry("uuid-new")], &crate::state::SearchState::Inactive);
+    state.append_entries(
+        vec![make_valid_entry("uuid-new")],
+        &crate::state::SearchState::Inactive,
+    );
     verify_height_index_invariant(&state);
 
     // Relayout

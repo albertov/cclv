@@ -11,9 +11,7 @@ use ratatui::style::{Color, Modifier, Style};
 /// Style for section headers: Cyan + Bold.
 ///
 /// Used for section headers in stats, help, and other UI components.
-pub const SECTION_HEADER: Style = Style::new()
-    .fg(Color::Cyan)
-    .add_modifier(Modifier::BOLD);
+pub const SECTION_HEADER: Style = Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD);
 
 /// Style for muted text: Gray.
 ///

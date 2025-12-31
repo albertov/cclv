@@ -316,7 +316,11 @@ impl ConversationViewState {
     /// # Deprecated
     /// This method exists for backward compatibility. New code should use `relayout()`.
     pub fn recompute_layout(&mut self, params: LayoutParams) {
-        self.relayout(params.width, params.global_wrap, &crate::state::SearchState::Inactive);
+        self.relayout(
+            params.width,
+            params.global_wrap,
+            &crate::state::SearchState::Inactive,
+        );
     }
 
     /// Relayout from a specific entry index onward.
@@ -332,7 +336,11 @@ impl ConversationViewState {
 
         // For simplicity, just do a full relayout (same as new API)
         // The optimization of relayout_from vs full relayout is not critical
-        self.relayout(params.width, params.global_wrap, &crate::state::SearchState::Inactive);
+        self.relayout(
+            params.width,
+            params.global_wrap,
+            &crate::state::SearchState::Inactive,
+        );
     }
 
     /// Toggle expand state for entry at index and relayout.
@@ -604,7 +612,12 @@ impl ConversationViewState {
     /// * `width` - Viewport width
     /// * `wrap` - Global wrap mode
     /// * `search_state` - Current search state (for highlighting matches)
-    pub fn relayout(&mut self, width: u16, wrap: WrapMode, search_state: &crate::state::SearchState) {
+    pub fn relayout(
+        &mut self,
+        width: u16,
+        wrap: WrapMode,
+        search_state: &crate::state::SearchState,
+    ) {
         self.viewport_width = width;
         self.global_wrap = wrap;
         self.height_index.clear();
@@ -629,7 +642,11 @@ impl ConversationViewState {
     /// # Arguments
     /// * `index` - Entry index to toggle
     /// * `search_state` - Current search state (for highlighting matches)
-    pub fn toggle_entry_expanded(&mut self, index: usize, search_state: &crate::state::SearchState) {
+    pub fn toggle_entry_expanded(
+        &mut self,
+        index: usize,
+        search_state: &crate::state::SearchState,
+    ) {
         if index >= self.entries.len() {
             return;
         }
@@ -642,7 +659,12 @@ impl ConversationViewState {
         // Recompute lines with new expand state
         let effective_wrap = entry.effective_wrap(self.global_wrap);
         let is_focused = self.focused_message.is_some_and(|f| f.get() == index);
-        entry.recompute_lines(effective_wrap, self.viewport_width, search_state, is_focused);
+        entry.recompute_lines(
+            effective_wrap,
+            self.viewport_width,
+            search_state,
+            is_focused,
+        );
 
         let new_height = entry.height().get() as usize;
 
@@ -661,7 +683,12 @@ impl ConversationViewState {
     /// * `index` - Entry index to modify
     /// * `mode` - Wrap mode override (None to use global)
     /// * `search_state` - Current search state (for highlighting matches)
-    pub fn set_entry_wrap_override(&mut self, index: usize, mode: Option<WrapMode>, search_state: &crate::state::SearchState) {
+    pub fn set_entry_wrap_override(
+        &mut self,
+        index: usize,
+        mode: Option<WrapMode>,
+        search_state: &crate::state::SearchState,
+    ) {
         if index >= self.entries.len() {
             return;
         }
@@ -674,7 +701,12 @@ impl ConversationViewState {
         // Recompute lines with new wrap mode
         let effective_wrap = entry.effective_wrap(self.global_wrap);
         let is_focused = self.focused_message.is_some_and(|f| f.get() == index);
-        entry.recompute_lines(effective_wrap, self.viewport_width, search_state, is_focused);
+        entry.recompute_lines(
+            effective_wrap,
+            self.viewport_width,
+            search_state,
+            is_focused,
+        );
 
         let new_height = entry.height().get() as usize;
 
@@ -692,7 +724,11 @@ impl ConversationViewState {
     /// # Arguments
     /// * `entries` - New conversation entries to append
     /// * `search_state` - Current search state (for highlighting matches)
-    pub fn append_entries(&mut self, entries: Vec<ConversationEntry>, search_state: &crate::state::SearchState) {
+    pub fn append_entries(
+        &mut self,
+        entries: Vec<ConversationEntry>,
+        search_state: &crate::state::SearchState,
+    ) {
         let start_idx = self.entries.len();
 
         // Get accumulated tokens from last entry (or 0 if empty)
@@ -719,7 +755,12 @@ impl ConversationViewState {
             let is_focused = self
                 .focused_message
                 .is_some_and(|f| f.get() == (start_idx + offset));
-            entry_view.recompute_lines(effective_wrap, self.viewport_width, search_state, is_focused);
+            entry_view.recompute_lines(
+                effective_wrap,
+                self.viewport_width,
+                search_state,
+                is_focused,
+            );
 
             let height = entry_view.height().get() as usize;
 

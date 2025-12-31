@@ -4,21 +4,20 @@
 //! with tab bar for switching between main agent and subagent conversations.
 
 use crate::model::{AgentId, PricingConfig};
-use crate::state::{agent_ids_with_matches, AppState, FocusPane, SearchState, WrapMode};
+use crate::state::{AppState, FocusPane, SearchState, WrapMode, agent_ids_with_matches};
 use crate::view::{
+    MessageStyles, SearchInput,
     constants::{SEARCH_INPUT_HEIGHT, STATS_PANEL_HEIGHT, STATUS_BAR_HEIGHT, TAB_BAR_HEIGHT},
     help::render_help_overlay,
     message,
     stats::StatsPanel,
     tabs,
-    MessageStyles,
-    SearchInput,
 };
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     text::{Line, Span},
     widgets::Paragraph,
-    Frame,
 };
 use std::collections::HashSet;
 
@@ -40,7 +39,7 @@ pub fn calculate_tab_area(frame_area: Rect, state: &AppState) -> Option<Rect> {
         Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),                     // Content
+                Constraint::Min(0),                      // Content
                 Constraint::Length(SEARCH_INPUT_HEIGHT), // Search
                 Constraint::Length(STATUS_BAR_HEIGHT),   // Status
             ])
@@ -49,7 +48,7 @@ pub fn calculate_tab_area(frame_area: Rect, state: &AppState) -> Option<Rect> {
         Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),                   // Content
+                Constraint::Min(0),                    // Content
                 Constraint::Length(STATUS_BAR_HEIGHT), // Status
             ])
             .split(frame_area)
@@ -95,7 +94,7 @@ pub fn calculate_pane_area(frame_area: Rect, state: &AppState) -> Rect {
         Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),                     // Content
+                Constraint::Min(0),                      // Content
                 Constraint::Length(SEARCH_INPUT_HEIGHT), // Search
                 Constraint::Length(STATUS_BAR_HEIGHT),   // Status
             ])
@@ -104,7 +103,7 @@ pub fn calculate_pane_area(frame_area: Rect, state: &AppState) -> Rect {
         Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),                   // Content
+                Constraint::Min(0),                    // Content
                 Constraint::Length(STATUS_BAR_HEIGHT), // Status
             ])
             .split(frame_area)
@@ -145,7 +144,7 @@ pub fn render_layout(frame: &mut Frame, state: &AppState) {
         Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),                     // Main content area
+                Constraint::Min(0),                      // Main content area
                 Constraint::Length(SEARCH_INPUT_HEIGHT), // Search input
                 Constraint::Length(STATUS_BAR_HEIGHT),   // Status bar
             ])
@@ -154,7 +153,7 @@ pub fn render_layout(frame: &mut Frame, state: &AppState) {
         Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),                   // Main content area
+                Constraint::Min(0),                    // Main content area
                 Constraint::Length(STATUS_BAR_HEIGHT), // Status bar
             ])
             .split(frame.area())
@@ -172,8 +171,8 @@ pub fn render_layout(frame: &mut Frame, state: &AppState) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(0),                       // Conversation area (flexible)
-                Constraint::Length(STATS_PANEL_HEIGHT),   // Stats panel
+                Constraint::Min(0),                     // Conversation area (flexible)
+                Constraint::Length(STATS_PANEL_HEIGHT), // Stats panel
             ])
             .split(content_area);
         (chunks[0], Some(chunks[1]))
@@ -222,7 +221,7 @@ fn render_conversation_pane(
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(TAB_BAR_HEIGHT), // Tab bar
-            Constraint::Min(0),                  // Conversation content
+            Constraint::Min(0),                 // Conversation content
         ])
         .split(area);
 

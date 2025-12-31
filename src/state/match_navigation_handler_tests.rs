@@ -486,7 +486,12 @@ fn next_match_scrolls_to_match_entry_in_main_conversation() {
         width: 80,
         global_wrap: crate::state::app_state::WrapMode::Wrap,
     };
-    state.log_view_mut().current_session_mut().unwrap().main_mut().recompute_layout(params);
+    state
+        .log_view_mut()
+        .current_session_mut()
+        .unwrap()
+        .main_mut()
+        .recompute_layout(params);
 
     let query = SearchQuery::new("message").expect("valid query");
 
@@ -503,7 +508,9 @@ fn next_match_scrolls_to_match_entry_in_main_conversation() {
     next_match(&mut state);
 
     // Verify scroll position updated to show entry 3
-    let main_conv = state.main_conversation_view().expect("should have main conversation");
+    let main_conv = state
+        .main_conversation_view()
+        .expect("should have main conversation");
     match main_conv.scroll() {
         ScrollPosition::AtEntry { entry_index, .. } => {
             assert_eq!(
@@ -549,7 +556,12 @@ fn prev_match_scrolls_to_match_entry_in_main_conversation() {
         width: 80,
         global_wrap: crate::state::app_state::WrapMode::Wrap,
     };
-    state.log_view_mut().current_session_mut().unwrap().main_mut().recompute_layout(params);
+    state
+        .log_view_mut()
+        .current_session_mut()
+        .unwrap()
+        .main_mut()
+        .recompute_layout(params);
 
     let query = SearchQuery::new("message").expect("valid query");
 
@@ -567,7 +579,9 @@ fn prev_match_scrolls_to_match_entry_in_main_conversation() {
     prev_match(&mut state);
 
     // Verify scroll position updated to show entry 1 (prev match)
-    let main_conv = state.main_conversation_view().expect("should have main conversation");
+    let main_conv = state
+        .main_conversation_view()
+        .expect("should have main conversation");
     match main_conv.scroll() {
         ScrollPosition::AtEntry { entry_index, .. } => {
             assert_eq!(

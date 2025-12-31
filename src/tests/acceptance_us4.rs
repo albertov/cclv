@@ -598,10 +598,7 @@ fn us4_scenario6_enter_expands_collapsed() {
     // Get the first entry's UUID (entry 0, which is large)
     let initial_state = harness.state();
     let entries = initial_state.session_view().main().entries();
-    let entry_0_uuid = entries[0]
-        .uuid()
-        .expect("Entry 0 should have UUID")
-        .clone();
+    let entry_0_uuid = entries[0].uuid().expect("Entry 0 should have UUID").clone();
 
     // VERIFY: Entry 0 starts collapsed
     assert!(
@@ -652,10 +649,7 @@ fn us4_scenario7_enter_collapses_expanded() {
     // Get entry 0's UUID
     let initial_state = harness.state();
     let entries = initial_state.session_view().main().entries();
-    let entry_0_uuid = entries[0]
-        .uuid()
-        .expect("Entry 0 should have UUID")
-        .clone();
+    let entry_0_uuid = entries[0].uuid().expect("Entry 0 should have UUID").clone();
 
     // WHEN: User scrolls down and presses Enter to expand
     for _ in 0..5 {

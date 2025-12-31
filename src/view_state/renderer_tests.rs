@@ -2236,7 +2236,7 @@ fn test_search_highlights_matches_in_text() {
         SearchMatch {
             agent_id: None,
             entry_uuid: entry_uuid.clone(),
-            block_index: 0, // Text content is block 0
+            block_index: 0,  // Text content is block 0
             char_offset: 11, // First "error" at position 11
             length: 5,
         },
@@ -2279,9 +2279,9 @@ fn test_search_highlights_matches_in_text() {
 
     // Verify that at least one line contains yellow background highlighting
     let has_yellow_bg = lines.iter().any(|line| {
-        line.spans.iter().any(|span| {
-            span.style.bg == Some(ratatui::style::Color::Yellow)
-        })
+        line.spans
+            .iter()
+            .any(|span| span.style.bg == Some(ratatui::style::Color::Yellow))
     });
 
     assert!(

@@ -80,12 +80,7 @@ fn scroll_up_uses_scroll_position_at_line() {
     handle_scroll_action(&mut state, KeyAction::ScrollUp, viewport);
 
     // Should scroll up by 1 line (10 -> 9)
-    let scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let scroll = state.log_view().current_session().unwrap().main().scroll();
 
     match scroll {
         ScrollPosition::AtLine(offset) => {
@@ -112,12 +107,7 @@ fn scroll_up_saturates_at_top() {
     handle_scroll_action(&mut state, KeyAction::ScrollUp, viewport);
 
     // Should stay at line 0
-    let scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let scroll = state.log_view().current_session().unwrap().main().scroll();
 
     match scroll {
         ScrollPosition::AtLine(offset) => {
@@ -146,12 +136,7 @@ fn scroll_down_uses_scroll_position_at_line() {
     handle_scroll_action(&mut state, KeyAction::ScrollDown, viewport);
 
     // Should scroll down by 1 line (5 -> 6)
-    let scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let scroll = state.log_view().current_session().unwrap().main().scroll();
 
     match scroll {
         ScrollPosition::AtLine(offset) => {
@@ -180,12 +165,7 @@ fn page_down_uses_scroll_position_with_viewport_offset() {
     handle_scroll_action(&mut state, KeyAction::PageDown, viewport);
 
     // Should move by viewport_height (5 + 20 = 25)
-    let scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let scroll = state.log_view().current_session().unwrap().main().scroll();
 
     match scroll {
         ScrollPosition::AtLine(offset) => {
@@ -214,12 +194,7 @@ fn page_up_uses_scroll_position_with_viewport_offset() {
     handle_scroll_action(&mut state, KeyAction::PageUp, viewport);
 
     // Should move by viewport_height (25 - 20 = 5)
-    let scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let scroll = state.log_view().current_session().unwrap().main().scroll();
 
     match scroll {
         ScrollPosition::AtLine(offset) => {
@@ -248,12 +223,7 @@ fn scroll_to_top_uses_scroll_position_top() {
     handle_scroll_action(&mut state, KeyAction::ScrollToTop, viewport);
 
     // Should use ScrollPosition::Top
-    let scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let scroll = state.log_view().current_session().unwrap().main().scroll();
 
     assert_eq!(
         *scroll,
@@ -281,12 +251,7 @@ fn scroll_to_bottom_uses_scroll_position_bottom() {
     handle_scroll_action(&mut state, KeyAction::ScrollToBottom, viewport);
 
     // Should use ScrollPosition::Bottom
-    let scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let scroll = state.log_view().current_session().unwrap().main().scroll();
 
     assert_eq!(
         *scroll,
@@ -327,12 +292,7 @@ fn scroll_position_not_bounded_by_entry_count() {
 
     // Should clamp to max_offset (line-based), NOT to entry count (5)
     // This proves we're using LINE offsets, not entry counts
-    let scroll = state
-        .log_view()
-        .current_session()
-        .unwrap()
-        .main()
-        .scroll();
+    let scroll = state.log_view().current_session().unwrap().main().scroll();
 
     match scroll {
         ScrollPosition::AtLine(offset) => {
