@@ -141,6 +141,20 @@ impl<'a> Widget for StatsPanel<'a> {
             "  Count: {}",
             self.stats.subagent_count
         )));
+        lines.push(Line::from(""));
+
+        // Entries section
+        lines.push(
+            Line::from("Entries:").style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
+        lines.push(Line::from(format!(
+            "  Count: {}",
+            self.stats.entry_count
+        )));
 
         // Render the paragraph
         let paragraph = Paragraph::new(lines);
