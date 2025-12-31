@@ -92,7 +92,7 @@ impl Default for KeyBindings {
         );
 
         // Tab navigation with Tab key and number keys
-        // Note: Number keys map to 0-indexed tabs (1→0, 2→1, 3→2, etc.)
+        // Note: User presses N to select tab N (1-indexed: 1→tab 1, 2→tab 2, etc.)
         bindings.insert(
             KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
             KeyAction::NextTab,
