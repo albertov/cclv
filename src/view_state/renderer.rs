@@ -588,16 +588,22 @@ fn format_entry_index(entry_index: usize) -> String {
 fn prepend_index_to_line(line: Line<'static>, entry_index: usize, focused: bool) -> Line<'static> {
     let index_text = format_entry_index(entry_index);
 
-    // TODO: cclv-5ur.27 - Use different styling for focused entries
-    // Focused: Cyan, unfocused: DarkGray + DIM
-    let _ = focused; // Silence unused warning until implemented
-
-    let index_span = Span::styled(
-        index_text,
-        Style::default()
-            .fg(Color::DarkGray)
-            .add_modifier(Modifier::DIM),
-    );
+    // Apply different styling based on focus state
+    let index_span = if focused {
+        // Focused: Cyan color (no DIM modifier for visibility)
+        Span::styled(
+            index_text,
+            Style::default().fg(Color::Cyan),
+        )
+    } else {
+        // Unfocused: DarkGray + DIM (subdued)
+        Span::styled(
+            index_text,
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::DIM),
+        )
+    };
 
     // Create new line with index span prepended
     let mut new_spans = vec![index_span];
