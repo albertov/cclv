@@ -799,6 +799,9 @@ impl<'a> ConversationView<'a> {
         let mut start_entry_index = 0;
 
         // Find the first entry that should be visible (accounting for buffer)
+        // Start rendering from buffer_size lines above viewport, or 0 if scroll < buffer
+        let render_start_line = scroll_offset.saturating_sub(self.buffer_size);
+
         for (i, entry) in entries.iter().enumerate() {
             let entry_height = self.calculate_entry_height(
                 entry,
@@ -807,7 +810,9 @@ impl<'a> ConversationView<'a> {
                 global_wrap,
                 is_subagent_view,
             );
-            if cumulative_height + entry_height > scroll_offset.saturating_sub(self.buffer_size) {
+
+            // If this entry's bottom edge is past render_start_line, include it
+            if cumulative_height + entry_height > render_start_line {
                 start_entry_index = i;
                 break;
             }
@@ -894,6 +899,21 @@ impl<'a> Widget for ConversationView<'a> {
             let (start_index, end_index) =
                 self.calculate_visible_range(viewport_height, viewport_width, self.global_wrap);
 
+            // Calculate absolute Y position of first visible entry
+            let mut first_entry_absolute_y = 0_usize;
+            for (idx, entry) in self.conversation.entries()[..start_index].iter().enumerate() {
+                first_entry_absolute_y += self.calculate_entry_height(
+                    entry,
+                    idx,
+                    viewport_width,
+                    self.global_wrap,
+                    self.is_subagent_view,
+                );
+            }
+
+            let mut cumulative_y = first_entry_absolute_y;
+            let scroll_offset = self.scroll_state.vertical_offset;
+
             // Render only the visible range
             for (visible_index, entry) in self.conversation.entries()[start_index..end_index]
                 .iter()
@@ -902,6 +922,24 @@ impl<'a> Widget for ConversationView<'a> {
                 // Calculate actual index in full entry list
                 let actual_index = start_index + visible_index;
 
+                // Calculate how many lines to skip from this entry if it's partially scrolled off
+                let lines_to_skip = if cumulative_y < scroll_offset {
+                    scroll_offset.saturating_sub(cumulative_y)
+                } else {
+                    0
+                };
+
+                let entry_height = self.calculate_entry_height(
+                    entry,
+                    actual_index,
+                    viewport_width,
+                    self.global_wrap,
+                    self.is_subagent_view,
+                );
+
+                // Collect entry lines into temporary vector
+                let mut entry_lines = Vec::new();
+
                 match entry {
                     ConversationEntry::Valid(log_entry) => {
                         let role = log_entry.message().role();
@@ -909,7 +947,7 @@ impl<'a> Widget for ConversationView<'a> {
 
                         // Add "Initial Prompt" label for first message in subagent view
                         if self.is_subagent_view && actual_index == 0 {
-                            lines.push(Line::from(vec![ratatui::text::Span::styled(
+                            entry_lines.push(Line::from(vec![ratatui::text::Span::styled(
                                 "🔷 Initial Prompt",
                                 Style::default()
                                     .fg(Color::Magenta)
@@ -921,7 +959,7 @@ impl<'a> Widget for ConversationView<'a> {
                             MessageContent::Text(text) => {
                                 // Simple text message - render each line with role-based styling
                                 for line in text.lines() {
-                                    lines.push(Line::from(vec![ratatui::text::Span::styled(
+                                    entry_lines.push(Line::from(vec![ratatui::text::Span::styled(
                                         line.to_string(),
                                         role_style,
                                     )]));
@@ -939,7 +977,7 @@ impl<'a> Widget for ConversationView<'a> {
                                         self.collapse_threshold,
                                         self.summary_lines,
                                     );
-                                    lines.extend(block_lines);
+                                    entry_lines.extend(block_lines);
                                 }
                             }
                         }
@@ -947,25 +985,32 @@ impl<'a> Widget for ConversationView<'a> {
                     ConversationEntry::Malformed(malformed) => {
                         // Render malformed entry with error styling
                         // Header: "⚠ Parse Error (line N)"
-                        lines.push(Line::from(vec![ratatui::text::Span::styled(
+                        entry_lines.push(Line::from(vec![ratatui::text::Span::styled(
                             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
                             Style::default().fg(Color::Red),
                         )]));
-                        lines.push(Line::from(vec![ratatui::text::Span::styled(
+                        entry_lines.push(Line::from(vec![ratatui::text::Span::styled(
                             format!("⚠ Parse Error (line {})", malformed.line_number()),
                             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                         )]));
                         // Error message
                         for error_line in malformed.error_message().lines() {
-                            lines.push(Line::from(vec![ratatui::text::Span::styled(
+                            entry_lines.push(Line::from(vec![ratatui::text::Span::styled(
                                 error_line.to_string(),
                                 Style::default().fg(Color::Red),
                             )]));
                         }
                     }
                 }
+
                 // Add spacing between entries
-                lines.push(Line::from(""));
+                entry_lines.push(Line::from(""));
+
+                // Skip lines that are scrolled off the top, then add to final lines
+                lines.extend(entry_lines.into_iter().skip(lines_to_skip));
+
+                // Update cumulative_y for next entry
+                cumulative_y += entry_height;
             }
         }
 
