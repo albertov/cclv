@@ -5,7 +5,7 @@ expression: scrolled_output
 ┌Conversations─────────────────────────────────────────────────────────────────┐
 │ Main Agent                                                                   │
 └──────────────────────────────────────────────────────────────────────────────┘
-┌Main Agent (20 entries)───────────────────────────────────────────────────────┐
+┌Main Agent [Opus] (20 entries)────────────────────────────────────────────────┐
 ││                                                                             │
 ││    1. I'm a coordinator agent that CANNOT read/write code directly          │
 ││    (+10 more lines)                                                         │
