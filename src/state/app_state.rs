@@ -27,8 +27,19 @@ pub struct AppState {
 
 impl AppState {
     /// Create new AppState with default UI state.
-    pub fn new(_session: Session) -> Self {
-        todo!("AppState::new")
+    pub fn new(session: Session) -> Self {
+        Self {
+            session,
+            focus: FocusPane::Main,
+            main_scroll: ScrollState::default(),
+            subagent_scroll: ScrollState::default(),
+            selected_tab: None,
+            search: SearchState::Inactive,
+            stats_filter: StatsFilter::Global,
+            stats_visible: false,
+            live_mode: false,
+            auto_scroll: true,
+        }
     }
 }
 
@@ -56,33 +67,37 @@ pub struct ScrollState {
 
 impl ScrollState {
     /// Scroll up by amount, saturating at 0.
-    pub fn scroll_up(&mut self, _amount: usize) {
-        todo!("ScrollState::scroll_up")
+    pub fn scroll_up(&mut self, amount: usize) {
+        self.vertical_offset = self.vertical_offset.saturating_sub(amount);
     }
 
     /// Scroll down by amount, clamped to max.
-    pub fn scroll_down(&mut self, _amount: usize, _max: usize) {
-        todo!("ScrollState::scroll_down")
+    pub fn scroll_down(&mut self, amount: usize, max: usize) {
+        self.vertical_offset = (self.vertical_offset + amount).min(max);
     }
 
     /// Scroll left by amount, saturating at 0.
-    pub fn scroll_left(&mut self, _amount: usize) {
-        todo!("ScrollState::scroll_left")
+    pub fn scroll_left(&mut self, amount: usize) {
+        self.horizontal_offset = self.horizontal_offset.saturating_sub(amount);
     }
 
     /// Scroll right by amount.
-    pub fn scroll_right(&mut self, _amount: usize) {
-        todo!("ScrollState::scroll_right")
+    pub fn scroll_right(&mut self, amount: usize) {
+        self.horizontal_offset = self.horizontal_offset.saturating_add(amount);
     }
 
     /// Toggle expand/collapse for a message.
-    pub fn toggle_expand(&mut self, _uuid: &EntryUuid) {
-        todo!("ScrollState::toggle_expand")
+    pub fn toggle_expand(&mut self, uuid: &EntryUuid) {
+        if self.expanded_messages.contains(uuid) {
+            self.expanded_messages.remove(uuid);
+        } else {
+            self.expanded_messages.insert(uuid.clone());
+        }
     }
 
     /// Check if a message is expanded.
-    pub fn is_expanded(&self, _uuid: &EntryUuid) -> bool {
-        todo!("ScrollState::is_expanded")
+    pub fn is_expanded(&self, uuid: &EntryUuid) -> bool {
+        self.expanded_messages.contains(uuid)
     }
 }
 
