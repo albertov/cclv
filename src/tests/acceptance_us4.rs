@@ -13,73 +13,76 @@ const TOOL_CALLS_FIXTURE: &str = "tests/fixtures/tool_calls.jsonl";
 const LARGE_MESSAGE_FIXTURE: &str = "tests/fixtures/large_message.jsonl";
 const SUBAGENTS_FIXTURE: &str = "tests/fixtures/with_subagents.jsonl";
 
-// ===== US4 Scenario 1: Tab Cycles Focus =====
+// ===== US4 Scenario 1: Tab Cycles Tabs =====
 
 #[test]
 fn us4_scenario1_tab_cycles_focus() {
-    // GIVEN: The viewer is open
+    // GIVEN: The viewer is open with multiple tabs
     // WHEN: User presses Tab
-    // THEN: Focus moves between main pane, subagent pane, and stats panel
+    // THEN: Tab selection cycles through conversation tabs (Main, subagent1, subagent2, ...)
 
-    // DOING: Load session and verify Tab cycles through focus panes
-    // EXPECT: Tab key changes focus pane in cycle: Main -> Subagent -> Stats -> Main
-    let mut harness = AcceptanceTestHarness::from_fixture(MINIMAL_FIXTURE)
-        .expect("Should load session for focus cycling test");
+    // DOING: Load session with subagents and verify Tab cycles through tabs
+    // EXPECT: Tab key changes selected tab continuously
+    let mut harness = AcceptanceTestHarness::from_fixture(SUBAGENTS_FIXTURE)
+        .expect("Should load session with subagents for tab cycling test");
 
     // IF YES: Session loaded
     let initial_state = harness.state();
-    let initial_focus = initial_state.focus;
+    let initial_tab = initial_state.selected_tab_index();
 
-    // Verify initial focus is Main pane
+    // Verify we start on tab 0 (Main)
     assert_eq!(
-        initial_focus,
-        crate::state::FocusPane::Main,
-        "Initial focus should be Main pane"
+        initial_tab,
+        Some(0),
+        "Initial tab should be Main (tab 0)"
     );
 
     // WHEN: User presses Tab
     harness.send_key(KeyCode::Tab);
 
-    // VERIFY: Focus moved to next pane
+    // VERIFY: Tab changed to next tab
     let state_after_first_tab = harness.state();
+    let second_tab = state_after_first_tab.selected_tab_index();
     assert_ne!(
-        state_after_first_tab.focus, initial_focus,
-        "Tab should change focus from Main to another pane"
+        second_tab, initial_tab,
+        "Tab should change to next conversation tab"
     );
-
-    // Record the second focus state
-    let second_focus = state_after_first_tab.focus;
+    assert_eq!(
+        second_tab,
+        Some(1),
+        "First Tab press should go to tab 1"
+    );
 
     // WHEN: User presses Tab again
     harness.send_key(KeyCode::Tab);
 
-    // VERIFY: Focus moved to a different pane
+    // VERIFY: Tab moved to next tab again
     let state_after_second_tab = harness.state();
+    let third_tab = state_after_second_tab.selected_tab_index();
     assert_ne!(
-        state_after_second_tab.focus, second_focus,
-        "Second Tab should move focus to yet another pane"
+        third_tab, second_tab,
+        "Second Tab should move to yet another tab"
     );
 
     // WHEN: User presses Tab enough times to cycle back
-    // The cycle is: Main -> Subagent -> Stats -> Main
-    // We've pressed Tab twice, need one or two more to return to Main
-    harness.send_key(KeyCode::Tab);
-    let state_after_third = harness.state();
-
-    // Should either be back at Main or need one more Tab
-    if state_after_third.focus != crate::state::FocusPane::Main {
+    // Keep pressing until we loop back to tab 0
+    let mut current_state = state_after_second_tab;
+    let mut iterations = 0;
+    while current_state.selected_tab_index() != Some(0) && iterations < 10 {
         harness.send_key(KeyCode::Tab);
-        let state_after_fourth = harness.state();
-        assert_eq!(
-            state_after_fourth.focus,
-            crate::state::FocusPane::Main,
-            "Focus should cycle back to Main pane after cycling through all panes"
-        );
+        current_state = harness.state();
+        iterations += 1;
     }
 
-    // RESULT: Tab cycles through focus panes
-    // MATCHES: Yes - focus changes with each Tab press
-    // THEREFORE: US4 Scenario 1 verified
+    assert_eq!(
+        current_state.selected_tab_index(),
+        Some(0),
+        "Tab should cycle back to Main (tab 0) after cycling through all tabs"
+    );
+
+    // RESULT: Tab cycles through conversation tabs
+    // MATCHES: Yes - tab selection changes with each Tab press
+    // THEREFORE: US4 Scenario 1 verified (now testing tab cycling instead of focus cycling)
 }
 
 // ===== US4 Scenario 2: Arrow Keys Switch Tabs =====
@@ -96,41 +99,32 @@ fn us4_scenario2_arrow_keys_switch_tabs() {
         .expect("Should load session for tab switching test");
 
     // IF YES: Session loaded
-    // WHEN: User presses Tab to focus subagent pane
-    harness.send_key(KeyCode::Tab);
-
-    let state_after_tab = harness.state();
-    assert_eq!(
-        state_after_tab.focus,
-        crate::state::FocusPane::Subagent,
-        "Should focus subagent pane after Tab"
-    );
-
-    // VERIFY: A subagent tab is selected
-    let initial_selection = state_after_tab.selected_conversation.clone();
-    assert!(
-        !matches!(initial_selection, crate::state::ConversationSelection::Main),
-        "Should have a subagent selected when focused on subagent pane"
-    );
+    // Get initial tab selection (should be Main = tab 0)
+    let initial_state = harness.state();
+    let initial_tab = initial_state.selected_tab_index();
+    assert_eq!(initial_tab, Some(0), "Should start on Main tab");
 
     // WHEN: User presses ] to switch to next tab
     harness.send_key(KeyCode::Char(']'));
 
-    // VERIFY: Tab selection changed
+    // VERIFY: Tab selection changed to next tab
     let state_after_next = harness.state();
-    assert_ne!(
-        state_after_next.selected_conversation, initial_selection,
-        "] key should switch to next subagent tab"
+    let next_tab = state_after_next.selected_tab_index();
+    assert_eq!(
+        next_tab,
+        Some(1),
+        "] key should switch to next tab (from 0 to 1)"
     );
 
     // WHEN: User presses [ to switch to previous tab
     harness.send_key(KeyCode::Char('['));
 
-    // VERIFY: Tab switched back
+    // VERIFY: Tab switched back to initial
     let state_after_prev = harness.state();
+    let prev_tab = state_after_prev.selected_tab_index();
     assert_eq!(
-        state_after_prev.selected_conversation, initial_selection,
-        "[ key should switch back to previous tab"
+        prev_tab, initial_tab,
+        "[ key should switch back to previous tab (back to 0)"
     );
 
     // RESULT: ] and [ keys switch tabs

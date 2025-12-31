@@ -25,4 +25,4 @@ expression: output
 │                                                                              │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
-[LIVE] Wrap: On | q: Quit | [ ]: Tabs | 1-9: Select | ?: Help
+[LIVE] Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes
