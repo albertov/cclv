@@ -256,13 +256,7 @@ impl FileSource {
         self.line_count = total_lines;
 
         // If no valid entries were found, create default session
-        let session = session.unwrap_or_else(|| {
-            // SAFETY: "unknown-session" is a valid non-empty string constant
-            Session::new(
-                SessionId::new("unknown-session")
-                    .expect("BUG: constant 'unknown-session' is valid non-empty string"),
-            )
-        });
+        let session = session.unwrap_or_else(|| Session::new(SessionId::unknown()));
 
         Ok(session)
     }

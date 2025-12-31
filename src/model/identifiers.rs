@@ -45,6 +45,13 @@ impl SessionId {
         Ok(Self(s))
     }
 
+    /// Return a pre-validated fallback SessionId for unknown sessions.
+    /// This is panic-free and used as a last resort when no valid session ID is found.
+    pub fn unknown() -> Self {
+        // SAFETY: "unknown-session" is a valid non-empty string constant
+        Self(String::from("unknown-session"))
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
