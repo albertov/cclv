@@ -1,6 +1,8 @@
 //! TUI rendering and terminal management (impure shell)
 
 mod help;
+#[cfg(test)]
+mod height_calculator_tests;
 mod layout;
 pub mod live_indicator;
 mod message;
