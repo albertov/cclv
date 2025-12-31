@@ -499,6 +499,10 @@ pub struct SessionStats {
     pub main_agent_usage: TokenUsage,
     pub subagent_usage: HashMap<AgentId, TokenUsage>,
     pub tool_counts: HashMap<ToolName, u32>,
+    /// Tool usage counts for the main agent only (entries with no agent_id).
+    pub main_agent_tool_counts: HashMap<ToolName, u32>,
+    /// Tool usage counts per subagent, keyed by AgentId.
+    pub subagent_tool_counts: HashMap<AgentId, HashMap<ToolName, u32>>,
     pub subagent_count: usize,
     pub entry_count: usize,
 }
@@ -524,7 +528,18 @@ impl SessionStats {
         }
 
         for tool in entry.message().tool_calls() {
+            // Global tool counts (all agents)
             *self.tool_counts.entry(tool.name().clone()).or_default() += 1;
+
+            // Per-agent tool counts
+            if let Some(agent_id) = entry.agent_id() {
+                let agent_tools = self.subagent_tool_counts
+                    .entry(agent_id.clone())
+                    .or_default();
+                *agent_tools.entry(tool.name().clone()).or_default() += 1;
+            } else {
+                *self.main_agent_tool_counts.entry(tool.name().clone()).or_default() += 1;
+            }
         }
 
         if entry.agent_id().is_some() {
@@ -555,6 +570,24 @@ impl SessionStats {
             * cache_rate;
 
         input_cost + output_cost + cache_cost
+    }
+
+    /// Returns tool counts filtered by the current stats filter.
+    /// - StatsFilter::Global → all agents combined
+    /// - StatsFilter::MainAgent → main agent only
+    /// - StatsFilter::Subagent(id) → specific subagent (empty if not found)
+    pub fn filtered_tool_counts(&self, filter: &StatsFilter) -> &HashMap<ToolName, u32> {
+        use std::sync::OnceLock;
+        static EMPTY: OnceLock<HashMap<ToolName, u32>> = OnceLock::new();
+
+        match filter {
+            StatsFilter::Global => &self.tool_counts,
+            StatsFilter::MainAgent => &self.main_agent_tool_counts,
+            StatsFilter::Subagent(agent_id) => self
+                .subagent_tool_counts
+                .get(agent_id)
+                .unwrap_or_else(|| EMPTY.get_or_init(HashMap::new)),
+        }
     }
 }
 
