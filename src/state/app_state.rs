@@ -211,6 +211,33 @@ impl AppState {
         &self.session
     }
 
+    /// Populate log_view from existing session entries (test helper).
+    ///
+    /// This is needed for tests that build Session first, then create AppState.
+    /// In production, entries arrive via add_entries() which does dual-write.
+    /// In tests, Session is already populated, so we need to sync log_view.
+    ///
+    /// NOTE: This only writes to log_view, NOT to session (no duplication).
+    ///
+    /// # Warning
+    /// This is a test-only helper. Do not use in production code.
+    #[doc(hidden)]
+    pub fn populate_log_view_from_session(&mut self) {
+        // Main agent entries
+        let main_entries: Vec<_> = self.session.main_agent().entries().to_vec();
+        for entry in main_entries {
+            self.log_view.add_entry(entry, None);
+        }
+
+        // Subagent entries
+        for (agent_id, conversation) in self.session.subagents() {
+            let entries: Vec<_> = conversation.entries().to_vec();
+            for entry in entries {
+                self.log_view.add_entry(entry, Some(agent_id.clone()));
+            }
+        }
+    }
+
     /// Check if new messages indicator should be shown.
     /// Returns true when live_mode is active but auto_scroll is paused.
     /// This signals to the UI that new content has arrived below the current view.

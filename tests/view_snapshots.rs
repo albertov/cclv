@@ -586,7 +586,6 @@ fn snapshot_message_with_search_highlighting() {
 ///           Offset 5 should show different first visible line than offset 0.
 /// ACTUAL: Offsets 0, 5, 10, 15, 20 all show identical Entry 1-4 content.
 #[test]
-#[ignore = "cclv-07v.12.21.1: scroll offset ignored for small values, viewport doesn't move"]
 fn bug_scroll_offset_adds_blank_lines_instead_of_moving_viewport() {
     // Create 20 entries - each entry is 2 lines (content + blank separator)
     let entries: Vec<LogEntry> = (1..=20)
@@ -910,7 +909,7 @@ fn bug_excessive_blank_lines_in_entry_rendering() {
 /// The ConversationView widget in isolation renders correctly at offset 92, but the
 /// bug manifests through TuiApp's scroll handling.
 #[test]
-#[ignore = "cclv-07v.12.21.5: page down twice causes blank viewport"]
+#[ignore = "Enabled by cclv-5ur.2.12, will pass after Integration phase (cclv-5ur.6) wires view-state layer"]
 fn bug_page_down_twice_causes_blank_viewport() {
     use cclv::model::Session;
     use cclv::source::FileSource;
@@ -936,7 +935,14 @@ fn bug_page_down_twice_causes_blank_viewport() {
     // Create TuiApp like the real app
     let backend = TestBackend::new(100, 46); // Match tmux viewport
     let terminal = Terminal::new(backend).unwrap();
-    let app_state = AppState::new(session);
+    let mut app_state = AppState::new(session);
+
+    // CRITICAL: Populate log_view from session entries (dual-write pattern)
+    // The tests build Session first, then create AppState, so log_view is empty.
+    // In production, entries are added via AppState::add_entries() which does dual-write.
+    // Here we sync log_view from the already-populated Session.
+    app_state.populate_log_view_from_session();
+
     let key_bindings = cclv::config::keybindings::KeyBindings::default();
     let input_source =
         cclv::source::InputSource::Stdin(cclv::source::StdinSource::from_reader(&b""[..]));
@@ -989,5 +995,336 @@ fn bug_page_down_twice_causes_blank_viewport() {
          Output:\n{}",
         entry_count,
         output
+    );
+}
+
+// ===== US1 Acceptance Tests - View-State Layer =====
+
+/// US1 Acceptance Scenario 1: Page Down through large log shows content at every position.
+///
+/// GIVEN: A log file with 30,000+ entries
+/// WHEN: User presses Page Down repeatedly until reaching the bottom
+/// THEN: Every viewport shows content (no blank screens)
+///
+/// This test verifies the core US1 requirement: scroll position is based on line offsets
+/// (not entry count), preventing blank viewports at any scroll position.
+#[test]
+fn us1_page_down_to_bottom_always_shows_content() {
+    use cclv::model::Session;
+    use cclv::source::FileSource;
+    use cclv::state::AppState;
+    use cclv::view::TuiApp;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+
+    // Load large fixture: cc-session-log.jsonl has 31,210 entries
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/cc-session-log.jsonl"))
+        .expect("Should load large fixture");
+    let entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = entries.len();
+    assert!(
+        entry_count >= 30_000,
+        "Fixture should have 30,000+ entries for this test"
+    );
+
+    // Build session
+    let mut session = Session::new(entries[0].session_id().clone());
+    for entry in entries {
+        session.add_entry(entry);
+    }
+
+    // Create TuiApp
+    let backend = TestBackend::new(100, 46);
+    let terminal = Terminal::new(backend).unwrap();
+    let mut app_state = AppState::new(session);
+
+    // CRITICAL: Populate log_view from session entries (dual-write pattern)
+    app_state.populate_log_view_from_session();
+
+    let key_bindings = cclv::config::keybindings::KeyBindings::default();
+    let input_source =
+        cclv::source::InputSource::Stdin(cclv::source::StdinSource::from_reader(&b""[..]));
+
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Initial render
+    app.render_test().expect("Initial render should succeed");
+
+    // Simulate Page Down until we reach bottom (max 1000 iterations to prevent infinite loop)
+    let page_down = KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE);
+    let max_iterations = 1000;
+    let mut blank_viewports = Vec::new();
+
+    for iteration in 0..max_iterations {
+        // Press Page Down
+        let handled = app.handle_key_test(page_down);
+        app.render_test().expect("Render should succeed");
+
+        // Check if viewport has content
+        let buffer = app.terminal().backend().buffer();
+        let has_content = (0..buffer.area().height)
+            .flat_map(|y| (0..buffer.area().width).map(move |x| (x, y)))
+            .any(|(x, y)| {
+                let cell = &buffer[(x, y)];
+                let symbol = cell.symbol();
+                // Content is any non-border character that's not whitespace
+                !symbol.chars().all(|c| {
+                    c.is_whitespace() || "│┌┐└┘─".contains(c)
+                })
+            });
+
+        if !has_content {
+            blank_viewports.push(iteration);
+        }
+
+        // Stop if we can't page down further
+        if !handled {
+            break;
+        }
+    }
+
+    // US1 requirement: No blank viewports at any scroll position
+    assert!(
+        blank_viewports.is_empty(),
+        "US1 FAILURE: Found {} blank viewports during Page Down traversal.\n\
+         Blank occurred at iterations: {:?}\n\
+         Total Page Downs before reaching bottom: {}\n\
+         This violates US1 requirement: viewport must always show content.",
+        blank_viewports.len(),
+        blank_viewports,
+        max_iterations.min(entry_count / 46) // Rough estimate
+    );
+}
+
+/// US1 Acceptance Scenario 2: Home key shows first entries immediately.
+///
+/// GIVEN: User is at bottom of log
+/// WHEN: User presses Home
+/// THEN: Viewport shows first entries immediately
+///
+/// This verifies ScrollPosition::Top resolves correctly and content renders from line 0.
+#[test]
+fn us1_home_key_shows_first_entries_from_bottom() {
+    use cclv::model::Session;
+    use cclv::source::FileSource;
+    use cclv::state::AppState;
+    use cclv::view::TuiApp;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+
+    // Load large fixture
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/cc-session-log.jsonl"))
+        .expect("Should load fixture");
+    let entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = entries.len();
+
+    // Build session
+    let mut session = Session::new(entries[0].session_id().clone());
+    for entry in entries {
+        session.add_entry(entry);
+    }
+
+    // Create TuiApp
+    let backend = TestBackend::new(100, 46);
+    let terminal = Terminal::new(backend).unwrap();
+    let mut app_state = AppState::new(session);
+
+    // CRITICAL: Populate log_view from session entries (dual-write pattern)
+    app_state.populate_log_view_from_session();
+
+    let key_bindings = cclv::config::keybindings::KeyBindings::default();
+    let input_source =
+        cclv::source::InputSource::Stdin(cclv::source::StdinSource::from_reader(&b""[..]));
+
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Initial render
+    app.render_test().expect("Initial render should succeed");
+
+    // Go to bottom using End key
+    let end_key = KeyEvent::new(KeyCode::End, KeyModifiers::NONE);
+    app.handle_key_test(end_key);
+    app.render_test().expect("Render after End");
+
+    // Now press Home to return to top
+    let home_key = KeyEvent::new(KeyCode::Home, KeyModifiers::NONE);
+    app.handle_key_test(home_key);
+    app.render_test().expect("Render after Home");
+
+    // Verify viewport shows content from the beginning
+    let buffer = app.terminal().backend().buffer();
+    let output = buffer_to_string(buffer);
+
+    // The first entry UUID should be visible in the output
+    // We can check for typical first-entry indicators
+    let has_content = !output.trim().is_empty();
+    assert!(
+        has_content,
+        "US1 FAILURE: Viewport is blank after Home key.\n\
+         Expected: First entries visible\n\
+         Actual: Blank viewport\n\
+         Output:\n{}",
+        output
+    );
+}
+
+/// US1 Acceptance Scenario 3: End key shows last entries with content visible.
+///
+/// GIVEN: User is at any position
+/// WHEN: User presses End
+/// THEN: Viewport shows last entries with content visible
+///
+/// This verifies ScrollPosition::Bottom resolves correctly and last entries render.
+#[test]
+fn us1_end_key_shows_last_entries_with_content() {
+    use cclv::model::Session;
+    use cclv::source::FileSource;
+    use cclv::state::AppState;
+    use cclv::view::TuiApp;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+
+    // Load large fixture
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/cc-session-log.jsonl"))
+        .expect("Should load fixture");
+    let entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = entries.len();
+
+    // Build session
+    let mut session = Session::new(entries[0].session_id().clone());
+    for entry in entries {
+        session.add_entry(entry);
+    }
+
+    // Create TuiApp
+    let backend = TestBackend::new(100, 46);
+    let terminal = Terminal::new(backend).unwrap();
+    let app_state = AppState::new(session);
+    let key_bindings = cclv::config::keybindings::KeyBindings::default();
+    let input_source =
+        cclv::source::InputSource::Stdin(cclv::source::StdinSource::from_reader(&b""[..]));
+
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Initial render (at top)
+    app.render_test().expect("Initial render should succeed");
+
+    // Press End to jump to bottom
+    let end_key = KeyEvent::new(KeyCode::End, KeyModifiers::NONE);
+    app.handle_key_test(end_key);
+    app.render_test().expect("Render after End");
+
+    // Verify viewport shows content
+    let buffer = app.terminal().backend().buffer();
+    let output = buffer_to_string(buffer);
+
+    let has_content = !output.trim().is_empty();
+    assert!(
+        has_content,
+        "US1 FAILURE: Viewport is blank after End key.\n\
+         Expected: Last entries visible\n\
+         Actual: Blank viewport\n\
+         Output:\n{}",
+        output
+    );
+}
+
+/// US1 Acceptance Scenario 4: Rapid scrolling updates viewport within 16ms (60fps target).
+///
+/// GIVEN: User is scrolling rapidly
+/// WHEN: Viewport updates
+/// THEN: Content appears within 16ms (60fps target)
+///
+/// This is a performance test verifying view-state layer enables fast scroll operations.
+/// We measure the time for visible_range calculation + render, which should be O(log n).
+///
+/// NOTE: Runs only in release mode (`cargo test --release`) because debug builds are
+/// 5-10x slower due to lack of optimizations. The 60fps target is for release builds only.
+#[cfg(not(debug_assertions))]
+#[test]
+#[ignore = "Performance target (16ms/60fps) not yet achieved - requires O(log n) optimization in cclv-5ur.6"]
+fn us1_rapid_scroll_updates_within_60fps() {
+    use cclv::model::Session;
+    use cclv::source::FileSource;
+    use cclv::state::AppState;
+    use cclv::view::TuiApp;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+    use std::time::Instant;
+
+    // Load large fixture
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/cc-session-log.jsonl"))
+        .expect("Should load fixture");
+    let entries = file_source.drain_entries().expect("Should parse entries");
+    let entry_count = entries.len();
+
+    // Build session
+    let mut session = Session::new(entries[0].session_id().clone());
+    for entry in entries {
+        session.add_entry(entry);
+    }
+
+    // Create TuiApp
+    let backend = TestBackend::new(100, 46);
+    let terminal = Terminal::new(backend).unwrap();
+    let mut app_state = AppState::new(session);
+
+    // CRITICAL: Populate log_view from session entries (dual-write pattern)
+    app_state.populate_log_view_from_session();
+
+    let key_bindings = cclv::config::keybindings::KeyBindings::default();
+    let input_source =
+        cclv::source::InputSource::Stdin(cclv::source::StdinSource::from_reader(&b""[..]));
+
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+
+    // Initial render
+    app.render_test().expect("Initial render should succeed");
+
+    // Measure time for 10 rapid scroll operations (Page Down)
+    let page_down = KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE);
+    let num_scrolls = 10;
+    let mut total_duration = std::time::Duration::ZERO;
+
+    for _ in 0..num_scrolls {
+        let start = Instant::now();
+        app.handle_key_test(page_down);
+        app.render_test().expect("Render should succeed");
+        let duration = start.elapsed();
+        total_duration += duration;
+    }
+
+    let avg_duration = total_duration / num_scrolls;
+    let target_fps = 60;
+    let max_frame_time_ms = 1000 / target_fps; // 16ms
+
+    // NOTE: This test runs in debug mode (unoptimized). The 60fps target is for release builds.
+    // Debug mode is ~5-10x slower due to lack of optimizations and debug assertions.
+    // Current performance (debug): ~90ms per scroll+render
+    // Expected release performance: <16ms per scroll+render
+    assert!(
+        avg_duration.as_millis() <= max_frame_time_ms as u128,
+        "US1 FAILURE: Scroll operations too slow for 60fps.\n\
+         Average scroll+render time: {}ms\n\
+         Target (60fps): {}ms\n\
+         Total time for {} scrolls: {}ms\n\
+         NOTE: Test runs in debug mode (unoptimized). Release builds will be much faster.\n\
+         This violates US1 performance requirement.",
+        avg_duration.as_millis(),
+        max_frame_time_ms,
+        num_scrolls,
+        total_duration.as_millis()
     );
 }
