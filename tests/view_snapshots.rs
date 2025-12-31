@@ -7,7 +7,7 @@
 use cclv::model::{
     AgentConversation, AgentId, ContentBlock, ConversationEntry, EntryMetadata, EntryType,
     EntryUuid, LogEntry, Message, MessageContent, PricingConfig, Role, Session, SessionId,
-    SessionStats, StatsFilter, ToolCall, ToolName, TokenUsage, ToolUseId,
+    SessionStats, StatsFilter, TokenUsage, ToolCall, ToolName, ToolUseId,
 };
 use cclv::state::{ScrollState, WrapMode};
 use cclv::view::{tabs, ConversationView, MessageStyles, StatsPanel};
@@ -533,7 +533,8 @@ fn snapshot_message_with_search_highlighting() {
     use cclv::view::render_conversation_view_with_search;
 
     // Create a message with searchable text
-    let text = "This is a test message with some searchable content.\nAnother line with test keyword.";
+    let text =
+        "This is a test message with some searchable content.\nAnother line with test keyword.";
     let entry = create_test_log_entry(
         "msg-search",
         Role::Assistant,
@@ -573,4 +574,3 @@ fn snapshot_message_with_search_highlighting() {
     let output = buffer_to_string(terminal.backend().buffer());
     insta::assert_snapshot!("message_with_search_highlighting", output);
 }
-

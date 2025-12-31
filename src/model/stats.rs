@@ -678,11 +678,10 @@ mod tests {
                 output_tokens: 1_000_000, // 1 million
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
-            
-            
+
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -704,8 +703,7 @@ mod tests {
                 ephemeral_5m_input_tokens: 0,
                 ephemeral_1h_input_tokens: 0,
             },
-            
-            
+
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -727,8 +725,7 @@ mod tests {
                 ephemeral_5m_input_tokens: 0,
                 ephemeral_1h_input_tokens: 0,
             },
-            
-            
+
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -747,11 +744,10 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
-            
-            
+
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -770,11 +766,10 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
-            
-            
+
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -793,11 +788,10 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
-            
-            
+
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -816,11 +810,10 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
-            
-            
+
             ..Default::default()
         };
         let pricing = PricingConfig::default();
@@ -992,8 +985,8 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 100,
                 cache_read_input_tokens: 50,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 600,
@@ -1029,8 +1022,8 @@ mod tests {
                 output_tokens: 200,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
         );
         subagent_usage.insert(
@@ -1040,8 +1033,8 @@ mod tests {
                 output_tokens: 150,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
         );
 
@@ -1090,8 +1083,8 @@ mod tests {
                 output_tokens: 200,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
         );
 
@@ -1237,8 +1230,7 @@ mod tests {
 
         let stats = SessionStats {
             tool_counts: tool_counts.clone(),
-            
-            
+
             ..Default::default()
         };
 
@@ -1262,7 +1254,7 @@ mod tests {
         let stats = SessionStats {
             tool_counts: global_counts,
             main_agent_tool_counts: main_counts,
-            
+
             ..Default::default()
         };
 
@@ -1292,7 +1284,7 @@ mod tests {
 
         let stats = SessionStats {
             tool_counts: HashMap::new(),
-            
+
             subagent_tool_counts: subagent_counts,
             ..Default::default()
         };
@@ -1319,7 +1311,7 @@ mod tests {
 
         let stats = SessionStats {
             tool_counts: HashMap::new(),
-            
+
             subagent_tool_counts: subagent_counts,
             ..Default::default()
         };

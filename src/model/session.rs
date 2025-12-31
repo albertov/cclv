@@ -934,10 +934,7 @@ mod tests {
 
         assert_eq!(metadata.subtype, "init");
         assert_eq!(metadata.cwd, Some(PathBuf::from("/home/claude/cclv")));
-        assert_eq!(
-            metadata.model,
-            Some("claude-opus-4-5-20251101".to_string())
-        );
+        assert_eq!(metadata.model, Some("claude-opus-4-5-20251101".to_string()));
         assert_eq!(metadata.tools.len(), 3);
         assert_eq!(metadata.agents.len(), 1);
         assert_eq!(metadata.skills.len(), 2);

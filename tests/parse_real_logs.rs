@@ -58,8 +58,7 @@ fn test_parse_cc_session_log() {
     let fixture_path = "tests/fixtures/cc-session-log.jsonl";
 
     // Parse the file
-    let stats = parse_fixture_file(fixture_path)
-        .expect("Should be able to read fixture file");
+    let stats = parse_fixture_file(fixture_path).expect("Should be able to read fixture file");
 
     // Report statistics
     println!("\n=== Parse Statistics ===");
@@ -70,7 +69,10 @@ fn test_parse_cc_session_log() {
 
     // Test passes if we successfully parsed the file
     // (Some parse failures are expected during format compatibility work)
-    assert!(stats.total_lines > 0, "Should have parsed at least one line");
+    assert!(
+        stats.total_lines > 0,
+        "Should have parsed at least one line"
+    );
 
     // Document current state: If success rate is below 100%,
     // this indicates format compatibility issues to fix

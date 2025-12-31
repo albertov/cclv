@@ -771,9 +771,14 @@ mod tests {
             Some(sys_meta),
         );
 
-        let retrieved = entry.system_metadata().expect("Should have system_metadata");
+        let retrieved = entry
+            .system_metadata()
+            .expect("Should have system_metadata");
         assert_eq!(retrieved.subtype, "init");
-        assert_eq!(retrieved.model, Some("claude-opus-4-5-20251101".to_string()));
+        assert_eq!(
+            retrieved.model,
+            Some("claude-opus-4-5-20251101".to_string())
+        );
     }
 
     #[test]
@@ -790,7 +795,10 @@ mod tests {
             EntryMetadata::default(),
         );
 
-        assert!(entry.system_metadata().is_none(), "Non-system entry should have no system_metadata");
+        assert!(
+            entry.system_metadata().is_none(),
+            "Non-system entry should have no system_metadata"
+        );
     }
 
     // ===== ResultMetadata Tests (FMT-007) =====

@@ -180,6 +180,7 @@ impl AcceptanceTestHarness {
     ///
     /// # Arguments
     /// * `text` - Text to type character by character
+    #[allow(dead_code)]
     pub fn type_text(&mut self, text: &str) {
         for ch in text.chars() {
             if self.send_key(KeyCode::Char(ch)) {

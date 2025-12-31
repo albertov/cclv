@@ -581,7 +581,10 @@ mod tests {
         let raw = r#"{"type":"user","message":{"role":"user","content":"Test"},"session_id":"s1","uuid":"u1","parent_tool_use_id":null}"#;
         let result = parse_entry(raw, 1);
 
-        assert!(result.is_ok(), "Should parse entry with null parent_tool_use_id");
+        assert!(
+            result.is_ok(),
+            "Should parse entry with null parent_tool_use_id"
+        );
         let entry = result.unwrap();
         assert!(
             entry.parent_uuid().is_none(),
@@ -1236,7 +1239,10 @@ mod tests {
         let raw = r#"{"type":"assistant","message":{"role":"assistant","content":"Test","usage":{"input_tokens":50,"output_tokens":25,"cache_creation_input_tokens":10000,"cache_read_input_tokens":5000,"cache_creation":{"ephemeral_5m_input_tokens":6000,"ephemeral_1h_input_tokens":4000}}},"session_id":"s1","uuid":"u1"}"#;
         let result = parse_entry(raw, 1);
 
-        assert!(result.is_ok(), "Should parse entry with both ephemeral fields");
+        assert!(
+            result.is_ok(),
+            "Should parse entry with both ephemeral fields"
+        );
         let entry = result.unwrap();
         let usage = entry.message().usage().expect("Should have usage");
 
@@ -1374,10 +1380,15 @@ mod tests {
         let raw = r#"{"type":"system","subtype":"init","message":{"role":"assistant","content":"Init"},"uuid":"sys-003","session_id":"test-session","tools":[],"agents":[],"skills":[]}"#;
 
         let result = parse_entry(raw, 1);
-        assert!(result.is_ok(), "Should parse system entry with empty arrays");
+        assert!(
+            result.is_ok(),
+            "Should parse system entry with empty arrays"
+        );
         let entry = result.unwrap();
 
-        let sys_meta = entry.system_metadata().expect("Should have system_metadata");
+        let sys_meta = entry
+            .system_metadata()
+            .expect("Should have system_metadata");
         assert!(sys_meta.tools.is_empty(), "tools should be empty");
         assert!(sys_meta.agents.is_empty(), "agents should be empty");
         assert!(sys_meta.skills.is_empty(), "skills should be empty");
@@ -1454,10 +1465,7 @@ mod tests {
         let raw = r#"{"type":"result","subtype":"success","is_error":false,"duration_ms":306681,"num_turns":36,"result":"Session complete","session_id":"test-session","total_cost_usd":1.3874568,"uuid":"res-001"}"#;
 
         let result = parse_entry(raw, 1);
-        assert!(
-            result.is_ok(),
-            "Should parse result entry with metadata"
-        );
+        assert!(result.is_ok(), "Should parse result entry with metadata");
         let entry = result.unwrap();
         assert_eq!(entry.entry_type(), EntryType::Result);
 
@@ -1512,10 +1520,7 @@ mod tests {
         let raw = r#"{"type":"result","subtype":"success","is_error":false,"duration_ms":306681,"duration_api_ms":336809,"num_turns":36,"result":"---\n\n## Session Complete ✓\n\n**Bead Completed**: `cclv-07v.1.3` - Initialize Cargo.toml with project metadata\n\n**Summary**:\n- Updated Cargo.toml with rust-version = \"1.83\"\n- Added 7 core dependencies: ratatui, crossterm, serde, serde_json, clap, thiserror, chrono\n- Added 2 dev-dependencies: proptest, insta\n- cargo check passes successfully\n- Review: PASS\n\n**Commit**: `f8b5dd1 chore(deps): add core dependencies for TUI implementation`\n\n**Now Unblocked**: `cclv-07v.1.4` (Create minimal src/main.rs and src/lib.rs)\n\n**STOPPING** as instructed - wrapper script handles next iteration.","session_id":"c297ee1e-885f-4261-9046-1e5fb4628313","total_cost_usd":1.3874568,"uuid":"9cafe6c3-d683-4670-bda2-8bed22efbe84"}"#;
 
         let result = parse_entry(raw, 1);
-        assert!(
-            result.is_ok(),
-            "Should parse real Claude Code result entry"
-        );
+        assert!(result.is_ok(), "Should parse real Claude Code result entry");
         let entry = result.unwrap();
 
         // Verify basic entry properties

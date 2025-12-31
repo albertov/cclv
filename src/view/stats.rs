@@ -398,8 +398,8 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 100,
                 cache_read_input_tokens: 50,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage::default(),
             subagent_usage: HashMap::new(),
@@ -408,7 +408,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 2,
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -435,8 +435,8 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 200,
                 cache_read_input_tokens: 150,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage::default(),
             subagent_usage: HashMap::new(),
@@ -445,7 +445,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -484,8 +484,8 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage::default(),
             subagent_usage: HashMap::new(),
@@ -494,7 +494,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -530,8 +530,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage::default(),
             subagent_usage: HashMap::new(),
@@ -540,7 +540,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -582,8 +582,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage::default(),
             subagent_usage: HashMap::new(),
@@ -592,7 +592,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -626,8 +626,8 @@ mod tests {
                 output_tokens: 2_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage::default(),
             subagent_usage: HashMap::new(),
@@ -636,7 +636,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -680,7 +680,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -714,8 +714,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage::default(),
             subagent_usage: HashMap::new(),
@@ -724,7 +724,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -765,8 +765,8 @@ mod tests {
                 output_tokens: 50_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage::default(),
             subagent_usage: HashMap::new(),
@@ -775,7 +775,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 0,
             entry_count: 5,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -974,8 +974,8 @@ mod tests {
                 output_tokens: 200,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
         );
 
@@ -985,16 +985,16 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 600,
                 output_tokens: 300,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
             tool_counts: HashMap::new(),
@@ -1002,7 +1002,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -1047,8 +1047,8 @@ mod tests {
                 output_tokens: 200,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
         );
 
@@ -1058,16 +1058,16 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 600,
                 output_tokens: 300,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
             tool_counts: HashMap::new(),
@@ -1075,7 +1075,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::MainAgent;
@@ -1121,8 +1121,8 @@ mod tests {
                 output_tokens: 200,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
         );
 
@@ -1132,16 +1132,16 @@ mod tests {
                 output_tokens: 500,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 600,
                 output_tokens: 300,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
             tool_counts: HashMap::new(),
@@ -1149,7 +1149,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Subagent(agent1);
@@ -1277,8 +1277,8 @@ mod tests {
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
         );
 
@@ -1288,16 +1288,16 @@ mod tests {
                 output_tokens: 2_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 1_000_000,
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
             tool_counts: HashMap::new(),
@@ -1305,7 +1305,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::MainAgent;
@@ -1350,8 +1350,8 @@ mod tests {
                 output_tokens: 500_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
         );
 
@@ -1361,16 +1361,16 @@ mod tests {
                 output_tokens: 1_500_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             main_agent_usage: TokenUsage {
                 input_tokens: 1_000_000,
                 output_tokens: 1_000_000,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
-            ephemeral_5m_input_tokens: 0,
-            ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
             tool_counts: HashMap::new(),
@@ -1378,7 +1378,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 1,
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Subagent(agent1);
@@ -1427,7 +1427,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 3,
             entry_count: 42,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -1468,7 +1468,7 @@ mod tests {
             subagent_tool_counts: HashMap::new(),
             subagent_count: 7, // Test value - distinct from other tests
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Global;
@@ -1530,7 +1530,7 @@ mod tests {
             subagent_tool_counts: subagent_counts,
             subagent_count: 1,
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::MainAgent;
@@ -1600,7 +1600,7 @@ mod tests {
             subagent_tool_counts: subagent_counts,
             subagent_count: 1,
             entry_count: 10,
-        ..Default::default()
+            ..Default::default()
         };
 
         let filter = StatsFilter::Subagent(agent1);
