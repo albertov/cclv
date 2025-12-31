@@ -253,7 +253,6 @@ fn parse_raw_sections(content: &str) -> Vec<(SectionType, String)> {
 ///
 /// # Returns
 /// Sections with search highlighting applied to matching text
-#[allow(dead_code)] // Will be used when refactoring search highlighting
 fn apply_search_to_sections(
     sections: Vec<RenderedSection>,
     entry_uuid: &crate::model::EntryUuid,
@@ -1214,7 +1213,6 @@ fn render_entry_lines_with_search(
 /// # Returns
 /// Vector of RenderedSection with type tags and styled lines
 #[allow(clippy::too_many_arguments)]
-#[allow(dead_code)] // Used in render_conversation_view refactoring
 fn render_entry_as_sections(
     entry: &ConversationEntry,
     entry_index: usize,
@@ -1329,6 +1327,65 @@ fn render_entry_as_sections(
     sections
 }
 
+/// Flatten sections to lines (discards section type information).
+///
+/// Used when rendering with the per-entry Paragraph approach.
+/// For section-aware rendering, use sections directly.
+fn flatten_sections_to_lines(sections: Vec<RenderedSection>) -> Vec<Line<'static>> {
+    sections.into_iter().flat_map(|s| s.lines).collect()
+}
+
+/// Render entry as sections with search highlighting applied.
+///
+/// Combines section-based rendering (for independent wrap control) with search highlighting.
+/// This is the primary entry rendering function when search is active.
+///
+/// # Arguments
+/// * `entry` - The conversation entry to render
+/// * `entry_index` - Index of this entry (for initial prompt label)
+/// * `is_subagent_view` - Whether in subagent pane (affects first entry labeling)
+/// * `scroll` - Scroll state (for expansion tracking)
+/// * `search` - Search state (for match highlighting)
+/// * `styles` - Message styling configuration
+/// * `collapse_threshold` - Number of lines before collapsing
+/// * `summary_lines` - Number of lines shown when collapsed
+///
+/// # Returns
+/// Vector of RenderedSection with type tags, styled lines, and search highlighting
+#[allow(clippy::too_many_arguments)]
+fn render_entry_as_sections_with_search(
+    entry: &ConversationEntry,
+    entry_index: usize,
+    is_subagent_view: bool,
+    scroll: &ScrollState,
+    search: &crate::state::SearchState,
+    styles: &MessageStyles,
+    collapse_threshold: usize,
+    summary_lines: usize,
+) -> Vec<RenderedSection> {
+    // First render as sections (without search highlighting)
+    let sections = render_entry_as_sections(
+        entry,
+        entry_index,
+        is_subagent_view,
+        scroll,
+        styles,
+        collapse_threshold,
+        summary_lines,
+    );
+
+    // Then apply search highlighting if this is a valid entry
+    match entry {
+        ConversationEntry::Valid(log_entry) => {
+            apply_search_to_sections(sections, log_entry.uuid(), search)
+        }
+        ConversationEntry::Malformed(_) => {
+            // Malformed entries don't have search highlighting
+            sections
+        }
+    }
+}
+
 /// Render a content block as sections (FR-053).
 ///
 /// For ContentBlock::Text with markdown, parses into prose/code sections.
@@ -1337,7 +1394,6 @@ fn render_entry_as_sections(
 /// # Returns
 /// Vector of RenderedSection preserving section types
 #[allow(clippy::too_many_arguments)]
-#[allow(dead_code)] // Used by render_entry_as_sections
 fn render_content_block_as_sections(
     block: &ContentBlock,
     entry_uuid: &crate::model::EntryUuid,
@@ -1972,7 +2028,7 @@ pub fn render_conversation_view_with_search(
         let mut all_lines = Vec::new();
         for (idx, entry) in visible_entries.iter().enumerate() {
             let actual_entry_index = start_idx + idx;
-            let entry_lines = render_entry_lines_with_search(
+            let sections = render_entry_as_sections_with_search(
                 entry,
                 actual_entry_index,
                 is_subagent_view,
@@ -1982,6 +2038,7 @@ pub fn render_conversation_view_with_search(
                 10,
                 3,
             );
+            let entry_lines = flatten_sections_to_lines(sections);
             all_lines.extend(entry_lines);
         }
 
@@ -2034,8 +2091,8 @@ pub fn render_conversation_view_with_search(
             global_wrap
         };
 
-        // Get entry lines with search highlighting
-        let mut entry_lines = render_entry_lines_with_search(
+        // Get entry lines with search highlighting (section-based rendering)
+        let sections = render_entry_as_sections_with_search(
             entry,
             actual_entry_index,
             is_subagent_view,
@@ -2045,6 +2102,7 @@ pub fn render_conversation_view_with_search(
             10, // Default collapse threshold
             3,  // Default summary lines
         );
+        let mut entry_lines = flatten_sections_to_lines(sections);
 
         // Apply horizontal offset if NoWrap mode and offset > 0 (FR-040)
         if effective_wrap == WrapMode::NoWrap && horizontal_offset > 0 {
