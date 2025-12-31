@@ -179,7 +179,7 @@ impl AppState {
             focus: FocusPane::Main,
             selected_conversation: ConversationSelection::Main, // FR-083: Default to main agent
             search: SearchState::Inactive,
-            stats_filter: StatsFilter::Global,
+            stats_filter: StatsFilter::MainAgent, // Sync with Main conversation selection
             stats_visible: false,
             help_visible: false,
             live_mode: false,

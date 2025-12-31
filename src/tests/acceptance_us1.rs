@@ -225,8 +225,8 @@ fn us1_scenario5_model_name_header() {
 
     // DOING: Load fixture
     // EXPECT: UI renders without header
-    let mut harness = AcceptanceTestHarness::from_fixture(MINIMAL_FIXTURE)
-        .expect("Should load session");
+    let mut harness =
+        AcceptanceTestHarness::from_fixture(MINIMAL_FIXTURE).expect("Should load session");
 
     // IF YES: Session loaded
     // VERIFY: Render works (no crashes) and does NOT show model name in first line

@@ -31,11 +31,7 @@ fn us4_scenario1_tab_cycles_focus() {
     let initial_tab = initial_state.selected_tab_index();
 
     // Verify we start on tab 0 (Main)
-    assert_eq!(
-        initial_tab,
-        Some(0),
-        "Initial tab should be Main (tab 0)"
-    );
+    assert_eq!(initial_tab, Some(0), "Initial tab should be Main (tab 0)");
 
     // WHEN: User presses Tab
     harness.send_key(KeyCode::Tab);
@@ -47,11 +43,7 @@ fn us4_scenario1_tab_cycles_focus() {
         second_tab, initial_tab,
         "Tab should change to next conversation tab"
     );
-    assert_eq!(
-        second_tab,
-        Some(1),
-        "First Tab press should go to tab 1"
-    );
+    assert_eq!(second_tab, Some(1), "First Tab press should go to tab 1");
 
     // WHEN: User presses Tab again
     harness.send_key(KeyCode::Tab);

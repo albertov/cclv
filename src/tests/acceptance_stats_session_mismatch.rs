@@ -58,6 +58,18 @@ fn bug_stats_should_update_when_switching_tabs() {
     // Snapshot the buggy state (shows global stats: 3,125 input)
     insta::assert_snapshot!("bug_stats_main_tab", main_tab_output);
 
+    // THEN: Main tab should show MainAgent stats (3,000), not Global (3,125)
+    assert!(
+        main_tab_output.contains("Input:  3,000") || main_tab_output.contains("Input: 3,000"),
+        "BUG: Main tab shows global stats instead of MainAgent stats.\n\
+         Expected: Main tab should show Input: 3,000 (MainAgent tokens only)\n\
+         Actual: Stats show Input: 3,125 (global total)\n\
+         \n\
+         The stats pane should show MainAgent stats when Main tab is selected.\n\
+         Actual output:\n{}",
+        main_tab_output
+    );
+
     // WHEN: User switches to subagent tab
     harness.send_key(KeyCode::Tab);
 
@@ -91,8 +103,8 @@ fn bug_stats_should_update_when_switching_tabs() {
 /// the most recent session (Beta), but the stats pane shows stats from
 /// a different session (Alpha) or aggregated across all sessions.
 ///
-/// Expected: Stats should show Beta session tokens (11,800 input)
-/// Actual: Stats show Alpha session tokens (2,700 input)
+/// Expected: Stats should show Beta session MainAgent tokens (11,000 input)
+/// Actual (before fix): Stats show Alpha session tokens (2,700 input)
 #[test]
 fn bug_multi_session_stats_should_match_displayed_session() {
     // GIVEN: Log file with two sessions:
@@ -119,15 +131,15 @@ fn bug_multi_session_stats_should_match_displayed_session() {
         output
     );
 
-    // THEN: Stats should show Beta session stats (11,800 input)
-    // BUG: Stats show Alpha session (2,700) instead of displayed Beta (11,800)
+    // THEN: Stats should show Beta session MainAgent stats (11,000 input)
+    // (Main tab is selected by default, so MainAgent stats are shown)
     assert!(
-        output.contains("11,800") || output.contains("11800"),
-        "BUG: Stats pane shows wrong session's stats.\n\
-         Expected: Stats should show displayed session (Beta: 11,800 input)\n\
-         Actual: Stats show different session (Alpha: 2,700 input)\n\
+        output.contains("11,000") || output.contains("11000"),
+        "Stats pane should show Beta session MainAgent stats.\n\
+         Expected: Beta session MainAgent (11,000 input)\n\
+         Actual: Stats show different value\n\
          \n\
-         In multi-session logs, stats must match the currently displayed session.\n\
+         In multi-session logs, stats must match the currently displayed session and agent.\n\
          Actual output:\n{}",
         output
     );

@@ -2979,8 +2979,7 @@ fn bug_help_popup_not_triggered_by_question_mark() {
     // (the shift is "absorbed" into producing the '?' character)
     let question_mark_real_terminal = KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE);
     app.handle_key_test(question_mark_real_terminal);
-    app.render_test()
-        .expect("Render after '?' should succeed");
+    app.render_test().expect("Render after '?' should succeed");
 
     // Capture output - should show help overlay
     let output = buffer_to_string(app.terminal().backend().buffer());
@@ -3024,9 +3023,10 @@ fn bug_help_popup_scroll_passthrough() {
     use std::path::PathBuf;
 
     // Load minimal fixture with enough entries to scroll
-    let mut file_source =
-        FileSource::new(PathBuf::from("tests/fixtures/help_popup_scroll_repro.jsonl"))
-            .expect("Should load fixture");
+    let mut file_source = FileSource::new(PathBuf::from(
+        "tests/fixtures/help_popup_scroll_repro.jsonl",
+    ))
+    .expect("Should load fixture");
     let log_entries = file_source.drain_entries().expect("Should parse entries");
     let entry_count = log_entries.len();
 
@@ -3044,7 +3044,8 @@ fn bug_help_popup_scroll_passthrough() {
     let key_bindings = KeyBindings::default();
     let input_source = InputSource::Stdin(StdinSource::from_reader(&b""[..]));
 
-    let mut app = TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
 
     // Initial render
     app.render_test().expect("Initial render should succeed");
@@ -3052,7 +3053,8 @@ fn bug_help_popup_scroll_passthrough() {
     // Open help popup
     let open_help = KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE);
     app.handle_key_test(open_help);
-    app.render_test().expect("Render after opening help should succeed");
+    app.render_test()
+        .expect("Render after opening help should succeed");
 
     // Verify help is visible
     assert!(
@@ -3069,7 +3071,8 @@ fn bug_help_popup_scroll_passthrough() {
         let scroll_down = KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE);
         app.handle_key_test(scroll_down);
     }
-    app.render_test().expect("Render after scrolling should succeed");
+    app.render_test()
+        .expect("Render after scrolling should succeed");
 
     // Capture state AFTER scrolling
     let after_scroll = buffer_to_string(app.terminal().backend().buffer());
@@ -3111,9 +3114,10 @@ fn bug_help_popup_mouse_scroll_passthrough() {
     use std::path::PathBuf;
 
     // Load minimal fixture with enough entries to scroll
-    let mut file_source =
-        FileSource::new(PathBuf::from("tests/fixtures/help_popup_scroll_repro.jsonl"))
-            .expect("Should load fixture");
+    let mut file_source = FileSource::new(PathBuf::from(
+        "tests/fixtures/help_popup_scroll_repro.jsonl",
+    ))
+    .expect("Should load fixture");
     let log_entries = file_source.drain_entries().expect("Should parse entries");
     let entry_count = log_entries.len();
 
@@ -3131,7 +3135,8 @@ fn bug_help_popup_mouse_scroll_passthrough() {
     let key_bindings = KeyBindings::default();
     let input_source = InputSource::Stdin(StdinSource::from_reader(&b""[..]));
 
-    let mut app = TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
+    let mut app =
+        TuiApp::new_for_test(terminal, app_state, input_source, entry_count, key_bindings);
 
     // Initial render
     app.render_test().expect("Initial render should succeed");
@@ -3139,7 +3144,8 @@ fn bug_help_popup_mouse_scroll_passthrough() {
     // Open help popup
     let open_help = KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE);
     app.handle_key_test(open_help);
-    app.render_test().expect("Render after opening help should succeed");
+    app.render_test()
+        .expect("Render after opening help should succeed");
 
     // Verify help is visible
     assert!(
@@ -3161,7 +3167,8 @@ fn bug_help_popup_mouse_scroll_passthrough() {
         };
         app.handle_mouse_test(mouse_scroll);
     }
-    app.render_test().expect("Render after mouse scrolling should succeed");
+    app.render_test()
+        .expect("Render after mouse scrolling should succeed");
 
     // Capture state AFTER mouse scrolling
     let after_scroll = buffer_to_string(app.terminal().backend().buffer());
@@ -3343,8 +3350,7 @@ fn bug_number_keys_should_select_tabs() {
     let after_1 = app.app_state().selected_tab_index();
 
     // Capture snapshot for reference
-    app.render_test()
-        .expect("Render after '1' should succeed");
+    app.render_test().expect("Render after '1' should succeed");
     let output = buffer_to_string(app.terminal().backend().buffer());
     insta::assert_snapshot!("bug_number_key_1_should_select_main", output);
 
@@ -3401,9 +3407,8 @@ fn bug_token_stats_divider_wrong_calculation() {
     use std::path::PathBuf;
 
     // Load minimal fixture with token usage data
-    let mut file_source =
-        FileSource::new(PathBuf::from("tests/fixtures/token_stats_repro.jsonl"))
-            .expect("Should load fixture");
+    let mut file_source = FileSource::new(PathBuf::from("tests/fixtures/token_stats_repro.jsonl"))
+        .expect("Should load fixture");
     let log_entries = file_source.drain_entries().expect("Should parse entries");
     let entry_count = log_entries.len();
 

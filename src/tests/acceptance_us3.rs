@@ -136,11 +136,11 @@ fn us3_scenario2_filter_main_agent() {
     let initial_state = harness.state();
     let initial_filter = &initial_state.stats_filter;
 
-    // Verify initial filter is Global
+    // Verify initial filter is MainAgent (synced with Main conversation selection)
     assert_eq!(
         *initial_filter,
-        crate::model::StatsFilter::Global,
-        "Default stats filter should be Global"
+        crate::model::StatsFilter::MainAgent,
+        "Default stats filter should be MainAgent (synced with Main conversation)"
     );
 
     // WHEN: User presses 'm' to filter to Main Agent

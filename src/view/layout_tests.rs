@@ -1394,7 +1394,9 @@ fn status_line_not_rendered() {
         first_line
     );
     assert!(
-        !first_line.contains("tools") && !first_line.contains("agents") && !first_line.contains("skills"),
+        !first_line.contains("tools")
+            && !first_line.contains("agents")
+            && !first_line.contains("skills"),
         "First line should NOT contain metadata counts - status line should be removed. Got: '{}'",
         first_line
     );
