@@ -67,7 +67,12 @@ impl HeightIndex {
     /// assert_eq!(index.prefix_sum(0), 10);
     /// ```
     pub fn set(&mut self, index: usize, height: usize) {
-        assert!(index < self.len, "index {} out of bounds (len: {})", index, self.len);
+        assert!(
+            index < self.len,
+            "index {} out of bounds (len: {})",
+            index,
+            self.len
+        );
 
         // Compute delta from current height
         let current_height = if index == 0 {
@@ -102,7 +107,12 @@ impl HeightIndex {
     /// assert_eq!(index.prefix_sum(2), 12);
     /// ```
     pub fn prefix_sum(&self, index: usize) -> usize {
-        assert!(index < self.len, "index {} out of bounds (len: {})", index, self.len);
+        assert!(
+            index < self.len,
+            "index {} out of bounds (len: {})",
+            index,
+            self.len
+        );
 
         let sum = fenwick::array::prefix_sum(&self.tree, index);
         sum.max(0) as usize // Handle potential negative sums from set operations
@@ -268,6 +278,7 @@ impl HeightIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_empty_index() {
@@ -384,5 +395,95 @@ mod tests {
         assert_eq!(index.len(), 1);
         assert_eq!(index.total(), 10);
         assert_eq!(index.prefix_sum(0), 10);
+    }
+
+    // Property-based tests (Constitution Principle VI)
+
+    proptest! {
+        /// Property 1: prefix_sum is cumulative - prefix_sum(i) == sum(heights[0..=i])
+        #[test]
+        fn prop_prefix_sum_is_cumulative(heights in prop::collection::vec(1usize..=100, 1..50)) {
+            let mut index = HeightIndex::new(heights.len());
+            for &h in &heights {
+                index.push(h);
+            }
+
+            // Verify each prefix sum equals the sum of all heights up to that index
+            let mut expected_sum = 0;
+            for (i, &h) in heights.iter().enumerate() {
+                expected_sum += h;
+                prop_assert_eq!(index.prefix_sum(i), expected_sum);
+            }
+        }
+
+        /// Property 2: lower_bound returns valid indices - lower_bound(prefix_sum(i)) <= i + 1
+        #[test]
+        fn prop_lower_bound_within_bounds(heights in prop::collection::vec(1usize..=100, 1..50)) {
+            let mut index = HeightIndex::new(heights.len());
+            for &h in &heights {
+                index.push(h);
+            }
+
+            // For every valid index, lower_bound of its prefix_sum should be <= i + 1
+            for i in 0..index.len() {
+                let prefix = index.prefix_sum(i);
+                if let Some(bound) = index.lower_bound(prefix) {
+                    prop_assert!(bound <= i + 1);
+                }
+            }
+        }
+
+        /// Property 3: set updates height correctly - after set(i, h), height(i) == h
+        #[test]
+        fn prop_set_updates_height(
+            heights in prop::collection::vec(1usize..=100, 1..50),
+            update_index in 0usize..50,
+            new_height in 1usize..=100
+        ) {
+            let mut index = HeightIndex::new(heights.len());
+            for &h in &heights {
+                index.push(h);
+            }
+
+            // Only test if update_index is valid
+            if update_index < index.len() {
+                index.set(update_index, new_height);
+
+                // Extract height at update_index
+                let actual_height = if update_index == 0 {
+                    index.prefix_sum(0)
+                } else {
+                    index.prefix_sum(update_index) - index.prefix_sum(update_index - 1)
+                };
+
+                prop_assert_eq!(actual_height, new_height);
+            }
+        }
+
+        /// Property 4: push increments len - after push, len == old_len + 1
+        #[test]
+        fn prop_push_increments_len(heights in prop::collection::vec(1usize..=100, 0..50)) {
+            let mut index = HeightIndex::new(heights.len() + 1);
+            for &h in &heights {
+                index.push(h);
+            }
+
+            let old_len = index.len();
+            index.push(42);
+            prop_assert_eq!(index.len(), old_len + 1);
+        }
+
+        /// Property 5: total equals last prefix_sum when non-empty
+        #[test]
+        fn prop_total_equals_last_prefix_sum(heights in prop::collection::vec(1usize..=100, 1..50)) {
+            let mut index = HeightIndex::new(heights.len());
+            for &h in &heights {
+                index.push(h);
+            }
+
+            if !index.is_empty() {
+                prop_assert_eq!(index.total(), index.prefix_sum(index.len() - 1));
+            }
+        }
     }
 }
