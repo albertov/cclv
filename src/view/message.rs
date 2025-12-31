@@ -15,6 +15,7 @@ use ratatui::{
     Frame,
 };
 use tui_markdown::from_str;
+use unicode_width::UnicodeWidthStr;
 
 // ===== ConversationView Widget =====
 
@@ -442,32 +443,39 @@ pub fn render_conversation_view(
 ///
 /// Returns a new Line with characters starting from `offset` position.
 /// If offset exceeds line length, returns empty line.
+///
+/// Uses character-based indexing (not byte-based) for UTF-8 safety.
 fn apply_horizontal_offset(line: Line<'static>, offset: usize) -> Line<'static> {
     if offset == 0 {
         return line;
     }
 
-    // Calculate total visible width of the line
-    let total_width: usize = line.spans.iter().map(|span| span.content.len()).sum();
+    // Calculate total character count (not bytes)
+    let total_chars: usize = line.spans.iter().map(|span| span.content.chars().count()).sum();
 
-    if offset >= total_width {
+    if offset >= total_chars {
         // Offset exceeds line length, return empty
         return Line::from(vec![]);
     }
 
-    // Skip characters across spans
+    // Skip characters across spans (character-safe, not byte-based)
     let mut chars_to_skip = offset;
     let mut new_spans = Vec::new();
 
     for span in line.spans {
-        let span_len = span.content.len();
+        let span_char_count = span.content.chars().count();
 
-        if chars_to_skip >= span_len {
+        if chars_to_skip >= span_char_count {
             // Skip entire span
-            chars_to_skip -= span_len;
+            chars_to_skip -= span_char_count;
         } else if chars_to_skip > 0 {
-            // Skip partial span
-            let remaining = span.content[chars_to_skip..].to_string();
+            // Skip partial span - use char_indices for UTF-8 safety
+            let remaining = if let Some((byte_idx, _)) = span.content.char_indices().nth(chars_to_skip) {
+                span.content[byte_idx..].to_string()
+            } else {
+                // Shouldn't happen, but safe fallback
+                String::new()
+            };
             chars_to_skip = 0;
             new_spans.push(ratatui::text::Span {
                 content: remaining.into(),
@@ -483,9 +491,11 @@ fn apply_horizontal_offset(line: Line<'static>, offset: usize) -> Line<'static> 
 }
 
 /// Check if any line in the collection exceeds the viewport width.
+///
+/// Uses visual width (not byte count) for correct Unicode handling.
 fn has_long_lines(lines: &[Line], viewport_width: usize) -> bool {
     lines.iter().any(|line| {
-        let width: usize = line.spans.iter().map(|s| s.content.len()).sum();
+        let width: usize = line.spans.iter().map(|s| s.content.width()).sum();
         width > viewport_width
     })
 }
@@ -2687,6 +2697,96 @@ mod tests {
         assert!(
             !content.contains("more lines"),
             "Should NOT show collapse indicator when expanded"
+        );
+    }
+
+    // ===== Horizontal Scrolling UTF-8 Safety Tests =====
+
+    #[test]
+    fn apply_horizontal_offset_with_cjk_characters_does_not_panic() {
+        // Test with Chinese characters (3 bytes each in UTF-8)
+        // String: "Hello 世界" - 'H'(0) 'e'(1) 'l'(2) 'l'(3) 'o'(4) ' '(5) '世'(byte 6-8) '界'(byte 9-11)
+        let line = Line::from(vec![ratatui::text::Span::raw("Hello 世界")]);
+
+        // Try to skip 7 "units" - with buggy implementation this would try to slice at byte 7
+        // which is in the middle of '世' (bytes 6-8) -> PANIC
+        // With correct implementation, should skip 7 characters and show '界'
+        let result = apply_horizontal_offset(line.clone(), 7);
+
+        // Should contain 界 without panic
+        let text: String = result.spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(
+            text.contains("界"),
+            "Should handle CJK characters without panic, got: '{}'", text
+        );
+    }
+
+    #[test]
+    fn apply_horizontal_offset_with_emoji_does_not_panic() {
+        // Test with emoji (4 bytes in UTF-8)
+        let line = Line::from(vec![ratatui::text::Span::raw("Hi 🎉 there")]);
+
+        // Skip past emoji - should not panic
+        let result = apply_horizontal_offset(line.clone(), 4);
+
+        // Should not panic - we're just verifying it completes
+        let text: String = result.spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(
+            !text.is_empty() || text.is_empty(),
+            "Should handle emoji without panic"
+        );
+    }
+
+    #[test]
+    fn apply_horizontal_offset_mid_multibyte_char_handles_gracefully() {
+        // Test offset that lands in the middle of a multi-byte character
+        let line = Line::from(vec![ratatui::text::Span::raw("AB世CD")]);
+
+        // Offset 3 should skip "AB世" (3 characters) and show "CD"
+        let result = apply_horizontal_offset(line.clone(), 3);
+
+        let text: String = result.spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(
+            text.contains("CD") || text.starts_with("CD"),
+            "Should correctly skip multi-byte characters"
+        );
+    }
+
+    #[test]
+    fn has_long_lines_uses_visual_width_not_byte_count() {
+        // CJK characters have visual width 2 (take up 2 terminal columns)
+        // "世界" is 2 characters but 6 bytes, visual width = 4 (2 chars × 2 cols)
+        // "ab" is 2 characters, 2 bytes, visual width = 2 (2 chars × 1 col)
+
+        let line_cjk = Line::from(vec![ratatui::text::Span::raw("世界")]);
+        let line_ascii = Line::from(vec![ratatui::text::Span::raw("ab")]);
+
+        // CJK visual width 4 should exceed viewport width 3
+        assert!(
+            has_long_lines(&[line_cjk], 3),
+            "CJK '世界' has visual width 4, should exceed viewport 3"
+        );
+
+        // ASCII visual width 2 should NOT exceed viewport width 3
+        assert!(
+            !has_long_lines(&[line_ascii], 3),
+            "ASCII 'ab' has visual width 2, should NOT exceed viewport 3"
+        );
+
+        // If we used byte count (buggy), CJK would be 6 bytes (exceeds 3)
+        // and ASCII would be 2 bytes (doesn't exceed 3)
+        // This test proves we're using visual width, not bytes
+
+        // Both should fit in viewport width 5
+        let line_cjk2 = Line::from(vec![ratatui::text::Span::raw("世界")]);
+        let line_ascii2 = Line::from(vec![ratatui::text::Span::raw("ab")]);
+        assert!(
+            !has_long_lines(&[line_cjk2], 5),
+            "CJK visual width 4 should fit in viewport 5"
+        );
+        assert!(
+            !has_long_lines(&[line_ascii2], 5),
+            "ASCII visual width 2 should fit in viewport 5"
         );
     }
 
