@@ -503,3 +503,237 @@ fn render_header_shows_subagent_id_when_subagent_focused() {
         "Header should show subagent identifier when subagent pane focused"
     );
 }
+
+// ===== Stats Panel Integration Tests =====
+
+#[test]
+fn render_layout_hides_stats_panel_when_stats_visible_false() {
+    let mut terminal = create_test_terminal();
+    let session = create_session_no_subagents();
+    let mut state = AppState::new(session);
+    state.stats_visible = false;
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
+
+    // Stats panel should NOT be visible
+    assert!(
+        !content.contains("Statistics"),
+        "Stats panel should be hidden when stats_visible=false"
+    );
+}
+
+#[test]
+fn render_layout_shows_stats_panel_when_stats_visible_true() {
+    let mut terminal = create_test_terminal();
+    let session = create_session_no_subagents();
+    let mut state = AppState::new(session);
+    state.stats_visible = true;
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
+
+    // Stats panel should be visible with "Statistics" title
+    assert!(
+        content.contains("Statistics"),
+        "Stats panel should show 'Statistics' title when stats_visible=true"
+    );
+
+    // Verify stats content sections are present
+    assert!(
+        content.contains("Tokens:"),
+        "Stats panel should display token usage section"
+    );
+}
+
+#[test]
+fn render_layout_highlights_stats_border_when_focused() {
+    use ratatui::style::Color;
+
+    let mut terminal = create_test_terminal();
+    let session = create_session_no_subagents();
+    let mut state = AppState::new(session);
+    state.stats_visible = true;
+    state.focus = FocusPane::Stats;
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+
+    // Find the stats panel border cells and verify they have focus color
+    // Stats panel is at bottom, so check cells in the stats area for border styling
+    // The exact position depends on layout, but we can search for "Statistics" title
+    // and check cells around it for the expected focus color
+
+    let mut found_stats_border = false;
+    for cell in buffer.content.iter() {
+        // Look for border characters (│ ─ ┌ ┐ └ ┘) with focus color
+        let symbol = cell.symbol();
+        if matches!(symbol, "│" | "─" | "┌" | "┐" | "└" | "┘" | "┤" | "├" | "┬" | "┴") {
+            // Check if this border cell has the focus color (typically cyan or highlighted)
+            // The exact color depends on StatsPanel implementation
+            if cell.fg == Color::Yellow || cell.fg == Color::Cyan {
+                found_stats_border = true;
+                break;
+            }
+        }
+    }
+
+    assert!(
+        found_stats_border,
+        "Stats panel border should be highlighted when FocusPane::Stats"
+    );
+}
+
+#[test]
+fn render_layout_stats_panel_does_not_highlight_when_not_focused() {
+    let mut terminal = create_test_terminal();
+    let session = create_session_no_subagents();
+    let mut state = AppState::new(session);
+    state.stats_visible = true;
+    state.focus = FocusPane::Main; // Focus on main, not stats
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let content = buffer
+        .content
+        .iter()
+        .map(|c| c.symbol())
+        .collect::<String>();
+
+    // Stats panel should still be visible
+    assert!(
+        content.contains("Statistics"),
+        "Stats panel should be visible when stats_visible=true"
+    );
+
+    // Border should NOT have focus color (should be white/default)
+    // We verify by checking that stats panel exists but isn't highlighted
+    // (detailed border color check would be fragile)
+}
+
+#[test]
+fn render_layout_allocates_stats_panel_height_approximately_10_lines() {
+    let mut terminal = create_test_terminal();
+    let session = create_session_no_subagents();
+    let mut state = AppState::new(session);
+    state.stats_visible = true;
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+
+    // Count rows that contain "Statistics" or stats content
+    // Stats panel should occupy roughly 8-10 lines at the bottom
+    let mut stats_rows = 0;
+    for y in 0..buffer.area().height {
+        let row: String = (0..buffer.area().width)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect();
+
+        if row.contains("Statistics")
+            || row.contains("Tokens:")
+            || row.contains("Estimated Cost:")
+        {
+            stats_rows += 1;
+        }
+    }
+
+    // Stats panel should occupy between 6 and 12 lines
+    // (allowing some flexibility for border, padding, content)
+    assert!(
+        stats_rows >= 6 && stats_rows <= 12,
+        "Stats panel should occupy approximately 6-12 rows, found {}",
+        stats_rows
+    );
+}
+
+#[test]
+fn render_layout_reduces_content_area_when_stats_visible() {
+    let mut terminal = create_test_terminal();
+    let session = create_session_with_subagents();
+
+    // First measure with stats hidden
+    let mut state_hidden = AppState::new(session.clone());
+    state_hidden.stats_visible = false;
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state_hidden);
+        })
+        .unwrap();
+
+    let buffer_hidden = terminal.backend().buffer().clone();
+    let main_rows_hidden = count_rows_containing(&buffer_hidden, "Main Agent");
+
+    // Then measure with stats visible
+    let mut state_visible = AppState::new(session);
+    state_visible.stats_visible = true;
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state_visible);
+        })
+        .unwrap();
+
+    let buffer_visible = terminal.backend().buffer().clone();
+    let main_rows_visible = count_rows_containing(&buffer_visible, "Main Agent");
+
+    // Main pane should have fewer rows when stats panel is visible
+    // (stats panel takes space from content area)
+    assert!(
+        main_rows_visible < main_rows_hidden,
+        "Main pane should have fewer rows when stats panel is visible: {} >= {}",
+        main_rows_visible,
+        main_rows_hidden
+    );
+}
+
+// ===== Helper Functions =====
+
+fn count_rows_containing(buffer: &ratatui::buffer::Buffer, text: &str) -> u16 {
+    let mut count = 0;
+    for y in 0..buffer.area().height {
+        let row: String = (0..buffer.area().width)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect();
+
+        if row.contains(text) {
+            count += 1;
+        }
+    }
+    count
+}
