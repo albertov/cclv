@@ -2139,11 +2139,21 @@ pub fn render_conversation_view_with_search(
         };
 
         // Calculate entry area within viewport
+        // CRITICAL: Clamp y coordinate to prevent buffer bounds violations
+        // layout.y_offset can equal viewport_height when entry starts at bottom edge,
+        // which would write to y coordinate beyond buffer bounds (height-1)
+        let entry_y = inner_area.y + layout.y_offset;
+        let entry_y_clamped = entry_y.min(inner_area.y + inner_area.height.saturating_sub(1));
+
+        // Also clamp height to ensure entry doesn't extend beyond inner_area
+        let max_height = inner_area.height.saturating_sub(layout.y_offset);
+        let entry_height = visible_height.min(max_height);
+
         let entry_area = Rect {
             x: inner_area.x,
-            y: inner_area.y + layout.y_offset,
+            y: entry_y_clamped,
             width: inner_area.width,
-            height: visible_height,
+            height: entry_height,
         };
 
         frame.render_widget(entry_paragraph, entry_area);
