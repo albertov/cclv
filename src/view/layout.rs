@@ -402,7 +402,12 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     let mut spans = Vec::new();
 
     // LIVE indicator using LiveIndicator widget (FR-042b)
-    let live_indicator = crate::view::LiveIndicator::new(state.input_mode, state.blink_on);
+    // cclv-463.4.3: Use is_tailing_enabled to gate LIVE indicator visibility
+    let live_indicator = crate::view::LiveIndicator::new(
+        state.input_mode,
+        state.blink_on,
+        state.is_tailing_enabled(),
+    );
     spans.push(live_indicator.render());
 
     // Wrap indicator
