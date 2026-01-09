@@ -405,7 +405,13 @@ where
                 self.app_state.stats_filter = crate::model::StatsFilter::AllSessionsCombined;
             }
             KeyAction::FilterMainAgent => {
-                todo!("Need current session ID for MainAgent");
+                // Get the currently viewed session's ID
+                let session_count = self.app_state.log_view().session_count();
+                if let Some(session_idx) = self.app_state.viewed_session.effective_index(session_count) {
+                    if let Some(session) = self.app_state.log_view().get_session(session_idx.get()) {
+                        self.app_state.stats_filter = crate::model::StatsFilter::MainAgent(session.session_id().clone());
+                    }
+                }
             }
             KeyAction::FilterSubagent => {
                 // Filter to current subagent tab if selected

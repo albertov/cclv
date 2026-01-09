@@ -137,10 +137,10 @@ fn us3_scenario2_filter_main_agent() {
     let initial_filter = &initial_state.stats_filter;
 
     // Verify initial filter is MainAgent (synced with Main conversation selection)
-    assert_eq!(
-        *initial_filter,
-        crate::model::StatsFilter::AllSessionsCombined,
-        "Default stats filter should be AllSessionsCombined"
+    assert!(
+        matches!(initial_filter, crate::model::StatsFilter::MainAgent(_)),
+        "Initial stats filter should be MainAgent (synced with Main tab selection), got: {:?}",
+        initial_filter
     );
 
     // WHEN: User presses 'm' to filter to Main Agent

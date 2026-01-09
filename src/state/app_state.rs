@@ -275,6 +275,9 @@ impl AppState {
             // Write to log_view (source of truth)
             self.log_view.add_entry(entry, agent_id);
         }
+
+        // Synchronize stats filter with current session after adding entries
+        self.sync_stats_filter();
     }
 
     /// Get immutable reference to current session view-state.
@@ -466,7 +469,21 @@ impl AppState {
     /// - Subagent(id) -> Subagent(id)
     fn sync_stats_filter(&mut self) {
         self.stats_filter = match &self.selected_conversation {
-            ConversationSelection::Main => todo!("Need current session ID for MainAgent"),
+            ConversationSelection::Main => {
+                // Get the currently viewed session's ID
+                let session_count = self.log_view.session_count();
+                if let Some(session_idx) = self.viewed_session.effective_index(session_count) {
+                    if let Some(session) = self.log_view.get_session(session_idx.get()) {
+                        StatsFilter::MainAgent(session.session_id().clone())
+                    } else {
+                        // Fallback if session doesn't exist (shouldn't happen in normal operation)
+                        StatsFilter::AllSessionsCombined
+                    }
+                } else {
+                    // Fallback if no valid session index
+                    StatsFilter::AllSessionsCombined
+                }
+            }
             ConversationSelection::Subagent(id) => StatsFilter::Subagent(id.clone()),
         };
     }
