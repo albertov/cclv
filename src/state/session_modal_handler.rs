@@ -1,8 +1,8 @@
 //! Keyboard handler for session modal.
 
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::state::AppState;
+use crate::state::{AppState, ViewedSession};
 
 /// Handle keyboard input when session modal is visible.
 ///
@@ -23,8 +23,89 @@ use crate::state::AppState;
 /// - Enter on last session sets ViewedSession::Latest (enables live tailing)
 /// - Enter on non-last session sets ViewedSession::Pinned(idx)
 /// - Returns false if modal not visible
-pub fn handle_session_modal_key(_state: &mut AppState, _key: KeyEvent) -> bool {
-    todo!("handle_session_modal_key")
+pub fn handle_session_modal_key(state: &mut AppState, key: KeyEvent) -> bool {
+    // Early return if modal not visible
+    if !state.session_modal.is_visible() {
+        return false;
+    }
+
+    let session_count = state.log_view().session_count();
+
+    match key.code {
+        // Close without changing viewed_session
+        KeyCode::Esc => {
+            state.session_modal.close();
+            true
+        }
+
+        // S key (either case) closes without changing viewed_session
+        KeyCode::Char('s') | KeyCode::Char('S') => {
+            state.session_modal.close();
+            true
+        }
+
+        // Navigate up
+        KeyCode::Up | KeyCode::Char('k') => {
+            state.session_modal.select_prev();
+            true
+        }
+
+        // Navigate down
+        KeyCode::Down | KeyCode::Char('j') => {
+            state.session_modal.select_next(session_count);
+            true
+        }
+
+        // Jump to first
+        KeyCode::Home | KeyCode::Char('g') => {
+            state.session_modal.select_first();
+            true
+        }
+
+        // Jump to last (End key or Shift+G)
+        KeyCode::End => {
+            state.session_modal.select_last(session_count);
+            true
+        }
+        KeyCode::Char('G') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            state.session_modal.select_last(session_count);
+            true
+        }
+
+        // Enter: Confirm selection
+        KeyCode::Enter => {
+            // Get validated session index
+            if let Some(idx) = state.session_modal.selected_session_index(session_count) {
+                // If selecting last session, switch to Latest mode (enables live tailing)
+                // Otherwise, pin to specific session
+                if idx.is_last(session_count) {
+                    state.viewed_session = ViewedSession::Latest;
+                } else {
+                    state.viewed_session = ViewedSession::Pinned(idx);
+                }
+            }
+            // Close modal even if selection was invalid
+            state.session_modal.close();
+            true
+        }
+
+        // Quick select: 1-9 jumps to session N-1 (0-indexed)
+        KeyCode::Char(c @ '1'..='9') => {
+            let target_index = (c as usize) - ('1' as usize);
+            // Only change selection if target is valid
+            if target_index < session_count {
+                // Manually set selection by navigating to it
+                state.session_modal.select_first();
+                for _ in 0..target_index {
+                    state.session_modal.select_next(session_count);
+                }
+            }
+            true
+        }
+
+        // Unhandled keys
+        _ => false,
+    }
 }
 
 #[cfg(test)]
