@@ -30,37 +30,74 @@ impl ViewedSession {
     /// Create a pinned view to specific session.
     ///
     /// Returns `None` if index is invalid for current session count.
-    pub fn pinned(_index: usize, _session_count: usize) -> Option<Self> {
-        todo!("ViewedSession::pinned")
+    pub fn pinned(index: usize, session_count: usize) -> Option<Self> {
+        SessionIndex::new(index, session_count).map(Self::Pinned)
     }
 
     /// Check if viewing the last session.
     ///
     /// Used to determine if live tailing should be enabled.
-    pub fn is_last(&self, _session_count: usize) -> bool {
-        todo!("ViewedSession::is_last")
+    pub fn is_last(&self, session_count: usize) -> bool {
+        match self {
+            ViewedSession::Latest => true,
+            ViewedSession::Pinned(idx) => idx.is_last(session_count),
+        }
     }
 
     /// Get the effective session index.
     ///
     /// For `Latest`, returns the last session index.
     /// For `Pinned`, returns the pinned index.
-    pub fn effective_index(&self, _session_count: usize) -> Option<SessionIndex> {
-        todo!("ViewedSession::effective_index")
+    pub fn effective_index(&self, session_count: usize) -> Option<SessionIndex> {
+        match self {
+            ViewedSession::Latest => {
+                if session_count > 0 {
+                    SessionIndex::new(session_count - 1, session_count)
+                } else {
+                    None
+                }
+            }
+            ViewedSession::Pinned(idx) => Some(*idx),
+        }
     }
 
     /// Move to next session (toward latest).
     ///
     /// If at last session, switches to `Latest` mode.
-    pub fn next(&self, _session_count: usize) -> Self {
-        todo!("ViewedSession::next")
+    pub fn next(&self, session_count: usize) -> Self {
+        match self {
+            ViewedSession::Latest => ViewedSession::Latest,
+            ViewedSession::Pinned(idx) => {
+                if idx.is_last(session_count) {
+                    ViewedSession::Latest
+                } else {
+                    idx.next(session_count)
+                        .map(ViewedSession::Pinned)
+                        .unwrap_or(ViewedSession::Latest)
+                }
+            }
+        }
     }
 
     /// Move to previous session (toward first).
     ///
     /// If at first session, stays at first.
-    pub fn prev(&self, _session_count: usize) -> Self {
-        todo!("ViewedSession::prev")
+    pub fn prev(&self, session_count: usize) -> Self {
+        match self {
+            ViewedSession::Latest => {
+                if session_count > 1 {
+                    SessionIndex::new(session_count - 2, session_count)
+                        .map(ViewedSession::Pinned)
+                        .unwrap_or(ViewedSession::Latest)
+                } else {
+                    ViewedSession::Latest
+                }
+            }
+            ViewedSession::Pinned(idx) => idx
+                .prev()
+                .map(ViewedSession::Pinned)
+                .unwrap_or(ViewedSession::Pinned(*idx)),
+        }
     }
 }
 
