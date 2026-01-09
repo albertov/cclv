@@ -4,8 +4,6 @@
 //! - Gray when Static or Eof
 //! - Blinking green when Streaming
 
-#![allow(unused_imports, dead_code)] // Temporary during stub phase
-
 use super::styles::MUTED_TEXT;
 use crate::state::InputMode;
 use ratatui::{
@@ -88,7 +86,28 @@ impl LiveIndicator {
     ///
     /// A `Span` containing the styled indicator text.
     pub fn render(&self) -> Span<'static> {
-        todo!("LiveIndicator::render with tailing_enabled support")
+        match self.mode {
+            InputMode::Static | InputMode::Eof => {
+                // Always gray when static or EOF, regardless of tailing state
+                Span::styled(LIVE_INDICATOR_PREFIX, MUTED_TEXT)
+            }
+            InputMode::Streaming => {
+                // Only show LIVE indicator when tailing is enabled
+                if !self.tailing_enabled {
+                    // Hidden when viewing historical session
+                    return Span::raw("");
+                }
+
+                // Normal blinking behavior when tailing enabled
+                if self.blink_on {
+                    // Green when blinking ON
+                    Span::styled(LIVE_INDICATOR_PREFIX, Style::default().fg(Color::Green))
+                } else {
+                    // Hidden when blinking OFF
+                    Span::raw("")
+                }
+            }
+        }
     }
 }
 
