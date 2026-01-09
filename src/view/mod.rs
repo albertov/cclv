@@ -502,8 +502,13 @@ where
             }
 
             // Tab navigation - delegate to app_state methods
+            // SPECIAL CASE: When Stats pane has focus, Tab cycles stats filter instead (cclv-463.5.5)
             KeyAction::NextTab => {
-                self.app_state.next_tab();
+                if self.app_state.focus == FocusPane::Stats {
+                    self.app_state.cycle_stats_filter();
+                } else {
+                    self.app_state.next_tab();
+                }
             }
             KeyAction::PrevTab => {
                 self.app_state.prev_tab();
