@@ -41,4 +41,4 @@ expression: output_before.clone()
 ││      }                                                                                                                                                                                              │
 │── ↓641/12.3k ↑1/13 / $0.02 | Context: 12.3k (6%) ──                                                                                                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-[LIVE] Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes
+[LIVE] │ Session 24/24 │ Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes

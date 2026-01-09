@@ -410,6 +410,15 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     );
     spans.push(live_indicator.render());
 
+    // Session indicator (FR-012) - only show if multiple sessions exist
+    let session_count = state.log_view().session_count();
+    if session_count > 1 {
+        if let Some(session_idx) = state.viewed_session.effective_index(session_count) {
+            let session_text = format!("│ Session {}/{} │ ", session_idx.display(), session_count);
+            spans.push(Span::styled(session_text, super::styles::MUTED_TEXT));
+        }
+    }
+
     // Wrap indicator
     let wrap_text = match state.global_wrap {
         WrapMode::Wrap => "Wrap: On | ",
