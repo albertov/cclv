@@ -42,7 +42,7 @@ use std::collections::HashMap;
 pub struct SessionStats {
     /// Total token usage across all agents (main agent + all subagents).
     ///
-    /// Corresponds to StatsFilter::Global (FR-020). This is the sum of
+    /// Corresponds to StatsFilter::AllSessionsCombined (FR-020). This is the sum of
     /// `main_agent_usage` and all values in `subagent_usage`.
     pub total_usage: TokenUsage,
 
@@ -61,7 +61,7 @@ pub struct SessionStats {
     /// Total tool invocation counts across all agents, grouped by tool name (FR-018).
     ///
     /// Tracks how many times each tool (Read, Write, Bash, etc.) was invoked across
-    /// the entire session. Corresponds to StatsFilter::Global.
+    /// the entire session. Corresponds to StatsFilter::AllSessionsCombined.
     pub tool_counts: HashMap<ToolName, u32>,
 
     /// Tool invocation counts for the main agent only (FR-019).
@@ -241,9 +241,10 @@ impl SessionStats {
 // ===== StatsFilter =====
 
 /// Filter for statistics display.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum StatsFilter {
     /// Statistics for all sessions combined (all agents).
+    #[default]
     AllSessionsCombined,
 
     /// Statistics for a specific session (main + all subagents combined).
@@ -260,7 +261,7 @@ impl StatsFilter {
     /// Get the full label for display in stats panel title.
     pub fn label(&self) -> String {
         match self {
-            StatsFilter::AllSessionsCombined => "All Sessions".to_string(),
+            StatsFilter::AllSessionsCombined => "Statistics: All Sessions".to_string(),
             StatsFilter::Session(session_id) => {
                 format!("Statistics: Session {}", session_id.as_str())
             }
@@ -268,7 +269,7 @@ impl StatsFilter {
                 format!("Statistics: Main Agent (Session {})", session_id.as_str())
             }
             StatsFilter::Subagent(agent_id) => {
-                format!("Statistics: Subagent {}", agent_id.as_str())
+                format!("Subagent {}", agent_id.as_str())
             }
         }
     }
@@ -281,12 +282,6 @@ impl StatsFilter {
             StatsFilter::MainAgent(_) => "Main",
             StatsFilter::Subagent(_) => "Sub",
         }
-    }
-}
-
-impl Default for StatsFilter {
-    fn default() -> Self {
-        StatsFilter::AllSessionsCombined
     }
 }
 
@@ -1022,7 +1017,7 @@ mod tests {
     #[test]
     fn stats_filter_label_all_sessions_combined() {
         let filter = StatsFilter::AllSessionsCombined;
-        assert_eq!(filter.label(), "All Sessions");
+        assert_eq!(filter.label(), "Statistics: All Sessions");
     }
 
     #[test]
@@ -1043,7 +1038,7 @@ mod tests {
     fn stats_filter_label_subagent() {
         let agent_id = make_agent_id("agent-789");
         let filter = StatsFilter::Subagent(agent_id);
-        assert_eq!(filter.label(), "Statistics: Subagent agent-789");
+        assert_eq!(filter.label(), "Subagent agent-789");
     }
 
     #[test]

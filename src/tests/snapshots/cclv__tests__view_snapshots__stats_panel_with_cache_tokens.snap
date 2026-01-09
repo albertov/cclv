@@ -2,7 +2,7 @@
 source: src/tests/view_snapshots.rs
 expression: output
 ---
-┌ Statistics ────────────────────────────────────┐
+┌ Statistics: All Sessions ──────────────────────┐
 │Tokens:                                         │
 │  Input:  13,500                                │
 │  Output: 5,000                                 │
