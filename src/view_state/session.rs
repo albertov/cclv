@@ -3,6 +3,7 @@
 use super::conversation::ConversationViewState;
 use crate::model::{AgentId, ConversationEntry, SessionId};
 use crate::state::WrapMode;
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
 /// View-state for a single session.
@@ -16,6 +17,7 @@ use std::collections::HashMap;
 /// subagent arrives. This ensures view-state exists before rendering, avoiding
 /// mutable access during immutable render pass.
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Temporary for stub phase (cclv-463.6.3)
 pub struct SessionViewState {
     /// Session identifier.
     session_id: SessionId,
@@ -33,6 +35,8 @@ pub struct SessionViewState {
     viewport_width: u16,
     /// Global wrap mode (for propagating to newly created subagents).
     global_wrap: WrapMode,
+    /// Timestamp of the first entry added to this session (main or subagent).
+    start_time: Option<DateTime<Utc>>,
 }
 
 impl SessionViewState {
@@ -47,12 +51,20 @@ impl SessionViewState {
             pricing: crate::model::PricingConfig::default(),
             viewport_width: 0,
             global_wrap: WrapMode::default(),
+            start_time: None,
         }
     }
 
     /// Session identifier.
     pub fn session_id(&self) -> &SessionId {
         &self.session_id
+    }
+
+    /// Timestamp of the first entry added to this session.
+    ///
+    /// Returns None if no entries have been added yet.
+    pub fn start_time(&self) -> Option<DateTime<Utc>> {
+        todo!("start_time getter")
     }
 
     /// Reference to main conversation view-state.
@@ -182,6 +194,9 @@ impl SessionViewState {
     /// # Model Extraction
     /// If the entry is an assistant message with a model field, and the main
     /// conversation has no model yet, extracts and stores the model in ConversationViewState.
+    ///
+    /// # Start Time Tracking (cclv-463.6.3)
+    /// If this is the first entry added to the session, captures its timestamp as start_time.
     pub fn add_main_entry(&mut self, entry: ConversationEntry) {
         // Extract model from assistant message if present
         if let ConversationEntry::Valid(log_entry) = &entry {
@@ -191,13 +206,17 @@ impl SessionViewState {
                 self.main.set_model_if_none(model_clone);
                 self.main
                     .append_entries(vec![entry], &crate::state::SearchState::Inactive);
-                return;
+                // Track start time from first entry (cclv-463.6.3) - STUB
+                todo!("Track start_time from first entry");
             }
         }
 
         // No model to extract, just append
         self.main
             .append_entries(vec![entry], &crate::state::SearchState::Inactive);
+
+        // Track start time from first entry (cclv-463.6.3) - STUB
+        todo!("Track start_time from first entry");
     }
 
     /// Add entry to subagent conversation.
@@ -206,6 +225,9 @@ impl SessionViewState {
     /// # Model Extraction (cclv-5ur.40.13)
     /// If the entry is an assistant message with a model field, and the subagent
     /// has no model yet, extracts and stores the model in ConversationViewState.
+    ///
+    /// # Start Time Tracking (cclv-463.6.3)
+    /// If this is the first entry added to the session, captures its timestamp as start_time.
     pub fn add_subagent_entry(&mut self, agent_id: AgentId, entry: ConversationEntry) {
         // Extract model from assistant message if present (cclv-5ur.40.13)
         if let ConversationEntry::Valid(log_entry) = &entry {
@@ -215,13 +237,17 @@ impl SessionViewState {
                 let subagent = self.subagent_mut(&agent_id);
                 subagent.set_model_if_none(model_clone);
                 subagent.append_entries(vec![entry], &crate::state::SearchState::Inactive);
-                return;
+                // Track start time from first entry (cclv-463.6.3) - STUB
+                todo!("Track start_time from first entry");
             }
         }
 
         // No model to extract, just append
         self.subagent_mut(&agent_id)
             .append_entries(vec![entry], &crate::state::SearchState::Inactive);
+
+        // Track start time from first entry (cclv-463.6.3) - STUB
+        todo!("Track start_time from first entry");
     }
 
     /// Start line offset (for multi-session positioning).
@@ -970,6 +996,264 @@ mod tests {
         assert!(
             state.main().model().is_none(),
             "Main conversation should have no model from user message"
+        );
+    }
+
+    // ===== Start Time Tracking Tests (cclv-463.6.3) =====
+
+    #[test]
+    fn start_time_is_none_for_new_session() {
+        // RED TEST: New session should have no start_time
+        let session_id = make_session_id("session-1");
+        let state = SessionViewState::new(session_id);
+
+        assert_eq!(
+            state.start_time(),
+            None,
+            "New session should have no start_time"
+        );
+    }
+
+    #[test]
+    fn start_time_captured_from_first_main_entry() {
+        // RED TEST: First entry to main conversation sets start_time
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        let timestamp1 = "2025-01-09T10:00:00Z".parse().expect("valid timestamp");
+        let entry1 = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp1,
+            EntryType::User,
+            make_message("First entry"),
+            EntryMetadata::default(),
+        )));
+
+        state.add_main_entry(entry1);
+
+        assert_eq!(
+            state.start_time(),
+            Some(timestamp1),
+            "start_time should be timestamp of first entry"
+        );
+    }
+
+    #[test]
+    fn start_time_not_updated_by_subsequent_main_entries() {
+        // RED TEST: Second entry should NOT update start_time
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        let timestamp1 = "2025-01-09T10:00:00Z".parse().expect("valid timestamp");
+        let timestamp2 = "2025-01-09T11:00:00Z".parse().expect("valid timestamp");
+
+        let entry1 = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp1,
+            EntryType::User,
+            make_message("First entry"),
+            EntryMetadata::default(),
+        )));
+
+        let entry2 = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-2"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp2,
+            EntryType::User,
+            make_message("Second entry"),
+            EntryMetadata::default(),
+        )));
+
+        state.add_main_entry(entry1);
+        state.add_main_entry(entry2);
+
+        assert_eq!(
+            state.start_time(),
+            Some(timestamp1),
+            "start_time should remain the timestamp of first entry, not second"
+        );
+    }
+
+    #[test]
+    fn start_time_captured_from_first_subagent_entry() {
+        // RED TEST: First entry to subagent (when no main entries yet) sets start_time
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        let timestamp1 = "2025-01-09T10:00:00Z".parse().expect("valid timestamp");
+        let entry1 = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp1,
+            EntryType::User,
+            make_message("First subagent entry"),
+            EntryMetadata::default(),
+        )));
+
+        state.add_subagent_entry(agent_id, entry1);
+
+        assert_eq!(
+            state.start_time(),
+            Some(timestamp1),
+            "start_time should be timestamp of first subagent entry when no main entries"
+        );
+    }
+
+    #[test]
+    fn start_time_uses_earliest_entry_main_before_subagent() {
+        // RED TEST: If main entry comes first, subagent entry doesn't override
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        let timestamp_main = "2025-01-09T10:00:00Z".parse().expect("valid timestamp");
+        let timestamp_subagent = "2025-01-09T11:00:00Z"
+            .parse()
+            .expect("valid timestamp");
+
+        let main_entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-main"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp_main,
+            EntryType::User,
+            make_message("Main entry"),
+            EntryMetadata::default(),
+        )));
+
+        let subagent_entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-sub"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp_subagent,
+            EntryType::User,
+            make_message("Subagent entry"),
+            EntryMetadata::default(),
+        )));
+
+        state.add_main_entry(main_entry);
+        state.add_subagent_entry(agent_id, subagent_entry);
+
+        assert_eq!(
+            state.start_time(),
+            Some(timestamp_main),
+            "start_time should remain main entry timestamp (earlier)"
+        );
+    }
+
+    #[test]
+    fn start_time_uses_earliest_entry_subagent_before_main() {
+        // RED TEST: If subagent entry comes first, main entry doesn't override
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+        let agent_id = make_agent_id("agent-1");
+
+        let timestamp_subagent = "2025-01-09T10:00:00Z"
+            .parse()
+            .expect("valid timestamp");
+        let timestamp_main = "2025-01-09T11:00:00Z".parse().expect("valid timestamp");
+
+        let subagent_entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-sub"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp_subagent,
+            EntryType::User,
+            make_message("Subagent entry"),
+            EntryMetadata::default(),
+        )));
+
+        let main_entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-main"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp_main,
+            EntryType::User,
+            make_message("Main entry"),
+            EntryMetadata::default(),
+        )));
+
+        state.add_subagent_entry(agent_id, subagent_entry);
+        state.add_main_entry(main_entry);
+
+        assert_eq!(
+            state.start_time(),
+            Some(timestamp_subagent),
+            "start_time should remain subagent entry timestamp (earlier)"
+        );
+    }
+
+    #[test]
+    fn start_time_ignores_malformed_entries() {
+        // RED TEST: Malformed entries (no timestamp) should not set start_time
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        use crate::model::MalformedEntry;
+        let malformed = ConversationEntry::Malformed(MalformedEntry::new(
+            1,
+            "bad json",
+            "parse error",
+            Some(make_session_id("session-1")),
+        ));
+
+        state.add_main_entry(malformed);
+
+        assert_eq!(
+            state.start_time(),
+            None,
+            "Malformed entries should not set start_time"
+        );
+    }
+
+    #[test]
+    fn start_time_set_by_first_valid_entry_after_malformed() {
+        // RED TEST: First valid entry after malformed entries sets start_time
+        let session_id = make_session_id("session-1");
+        let mut state = SessionViewState::new(session_id);
+
+        use crate::model::MalformedEntry;
+        let malformed = ConversationEntry::Malformed(MalformedEntry::new(
+            1,
+            "bad json",
+            "parse error",
+            Some(make_session_id("session-1")),
+        ));
+
+        let timestamp1 = "2025-01-09T10:00:00Z".parse().expect("valid timestamp");
+        let valid_entry = ConversationEntry::Valid(Box::new(LogEntry::new(
+            make_entry_uuid("uuid-1"),
+            None,
+            make_session_id("session-1"),
+            None,
+            timestamp1,
+            EntryType::User,
+            make_message("First valid entry"),
+            EntryMetadata::default(),
+        )));
+
+        state.add_main_entry(malformed);
+        state.add_main_entry(valid_entry);
+
+        assert_eq!(
+            state.start_time(),
+            Some(timestamp1),
+            "First valid entry should set start_time, ignoring malformed"
         );
     }
 }
