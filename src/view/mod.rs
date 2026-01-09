@@ -7,6 +7,7 @@ mod layout;
 pub mod live_indicator;
 mod message;
 mod search_input;
+pub mod session_modal;
 #[cfg(test)]
 mod session_separator_tests;
 mod stats;
@@ -18,6 +19,7 @@ pub use help::render_help_overlay;
 pub use helpers::{empty_line, key_value_line};
 pub use live_indicator::LiveIndicator;
 pub use message::{ConversationView, extract_entry_text, has_code_blocks};
+pub use session_modal::render_session_modal;
 pub use search_input::SearchInput;
 pub use stats::StatsPanel;
 pub use stats_multi_scope::MultiScopeStatsPanel;

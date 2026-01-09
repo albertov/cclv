@@ -61,8 +61,10 @@ pub enum KeyAction {
     PrevMatch,
 
     // Stats
-    /// Toggle visibility of statistics panel (FR-015-020). Default: s
+    /// Toggle visibility of statistics panel (FR-015-020). Default: s (lowercase)
     ToggleStats,
+    /// Toggle visibility of session list modal (FR-002, FR-003). Default: S (uppercase)
+    ToggleSessionModal,
     /// Filter stats to show all agents globally (FR-020). Default: !
     FilterGlobal,
     /// Filter stats to show main agent only (FR-020). Default: @
