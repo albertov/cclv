@@ -139,7 +139,8 @@ fn multi_scope_panel_displays_focused_and_session_scopes() {
     let stats = build_session_stats(600, 300, 400, 200);
 
     // WHEN: Rendering panel focused on main agent
-    let focused_filter = StatsFilter::MainAgent;
+    let session_id = make_session_id("test-session");
+    let focused_filter = StatsFilter::MainAgent(session_id);
     let pricing = PricingConfig::default();
     let panel = MultiScopeStatsPanel::new(&stats, &focused_filter, &pricing, Some("opus"), false);
 
@@ -228,7 +229,8 @@ fn multi_scope_panel_session_scope_always_shows_global_totals() {
     let pricing = PricingConfig::default();
 
     // Test with MainAgent focused
-    let focused_main = StatsFilter::MainAgent;
+    let session_id = make_session_id("test-session");
+    let focused_main = StatsFilter::MainAgent(session_id);
     let panel_main =
         MultiScopeStatsPanel::new(&stats, &focused_main, &pricing, Some("opus"), false);
 
@@ -273,7 +275,8 @@ fn multi_scope_panel_session_scope_always_shows_global_totals() {
 fn multi_scope_panel_displays_scope_labels_clearly() {
     // GIVEN: Stats with main agent and subagent
     let stats = build_session_stats(600, 300, 400, 200);
-    let focused_filter = StatsFilter::MainAgent;
+    let session_id = make_session_id("test-session");
+    let focused_filter = StatsFilter::MainAgent(session_id);
     let pricing = PricingConfig::default();
 
     // WHEN: Rendering panel
@@ -314,7 +317,7 @@ fn multi_scope_panel_displays_scope_labels_clearly() {
 fn multi_scope_panel_handles_empty_stats() {
     // GIVEN: Empty stats (no entries recorded)
     let stats = SessionStats::default();
-    let focused_filter = StatsFilter::Global;
+    let focused_filter = StatsFilter::AllSessionsCombined;
     let pricing = PricingConfig::default();
 
     // WHEN: Rendering panel
@@ -350,7 +353,8 @@ fn multi_scope_panel_cost_calculation_differs_by_scope() {
     let pricing = PricingConfig::default();
 
     // WHEN: Rendering panel focused on main agent
-    let focused_filter = StatsFilter::MainAgent;
+    let session_id = make_session_id("test-session");
+    let focused_filter = StatsFilter::MainAgent(session_id);
     let panel = MultiScopeStatsPanel::new(&stats, &focused_filter, &pricing, Some("opus"), false);
 
     let mut terminal = Terminal::new(TestBackend::new(100, 40)).unwrap();
@@ -395,7 +399,8 @@ fn multi_scope_panel_tool_counts_differ_by_scope() {
     let pricing = PricingConfig::default();
 
     // WHEN: Rendering panel focused on main agent
-    let focused_filter = StatsFilter::MainAgent;
+    let session_id = make_session_id("test-session");
+    let focused_filter = StatsFilter::MainAgent(session_id);
     let panel = MultiScopeStatsPanel::new(&stats, &focused_filter, &pricing, Some("opus"), false);
 
     let mut terminal = Terminal::new(TestBackend::new(100, 40)).unwrap();
@@ -435,7 +440,7 @@ fn multi_scope_panel_tool_counts_differ_by_scope() {
 fn multi_scope_panel_renders_without_panic_on_small_area() {
     // GIVEN: Stats and a very small rendering area (constrained terminal)
     let stats = build_session_stats(100, 50, 50, 25);
-    let focused_filter = StatsFilter::Global;
+    let focused_filter = StatsFilter::AllSessionsCombined;
     let pricing = PricingConfig::default();
 
     // WHEN: Rendering in a small area (30x10)

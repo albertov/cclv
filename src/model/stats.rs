@@ -3,7 +3,7 @@
 //! This module provides aggregated statistics for sessions, including token usage,
 //! tool counts, and estimated costs based on pricing configuration.
 
-use crate::model::{AgentId, LogEntry, TokenUsage, ToolName};
+use crate::model::{AgentId, LogEntry, SessionId, TokenUsage, ToolName};
 use std::collections::HashMap;
 
 // ===== SessionStats =====
@@ -198,13 +198,15 @@ impl SessionStats {
     /// Get filtered token usage based on the current stats filter.
     ///
     /// Returns:
-    /// - `StatsFilter::Global`: total_usage (all agents)
-    /// - `StatsFilter::MainAgent`: main_agent_usage only
+    /// - `StatsFilter::AllSessionsCombined`: total_usage (all agents)
+    /// - `StatsFilter::Session(_)`: TODO - session-scoped usage
+    /// - `StatsFilter::MainAgent(_)`: main_agent_usage only
     /// - `StatsFilter::Subagent(id)`: usage for specific subagent, or default if not found
     pub fn filtered_usage(&self, filter: &StatsFilter) -> TokenUsage {
         match filter {
-            StatsFilter::Global => self.total_usage,
-            StatsFilter::MainAgent => self.main_agent_usage,
+            StatsFilter::AllSessionsCombined => self.total_usage,
+            StatsFilter::Session(_) => todo!("Session-scoped filtering"),
+            StatsFilter::MainAgent(_) => self.main_agent_usage,
             StatsFilter::Subagent(agent_id) => self
                 .subagent_usage
                 .get(agent_id)
@@ -216,16 +218,18 @@ impl SessionStats {
     /// Get filtered tool counts based on the current stats filter.
     ///
     /// Returns:
-    /// - `StatsFilter::Global`: tool_counts (all agents)
-    /// - `StatsFilter::MainAgent`: main_agent_tool_counts only
+    /// - `StatsFilter::AllSessionsCombined`: tool_counts (all agents)
+    /// - `StatsFilter::Session(_)`: TODO - session-scoped tool counts
+    /// - `StatsFilter::MainAgent(_)`: main_agent_tool_counts only
     /// - `StatsFilter::Subagent(id)`: tool_counts for specific subagent, or empty if not found
     pub fn filtered_tool_counts(&self, filter: &StatsFilter) -> &HashMap<ToolName, u32> {
         use std::sync::OnceLock;
         static EMPTY: OnceLock<HashMap<ToolName, u32>> = OnceLock::new();
 
         match filter {
-            StatsFilter::Global => &self.tool_counts,
-            StatsFilter::MainAgent => &self.main_agent_tool_counts,
+            StatsFilter::AllSessionsCombined => &self.tool_counts,
+            StatsFilter::Session(_) => todo!("Session-scoped tool counts"),
+            StatsFilter::MainAgent(_) => &self.main_agent_tool_counts,
             StatsFilter::Subagent(agent_id) => self
                 .subagent_tool_counts
                 .get(agent_id)
@@ -239,12 +243,51 @@ impl SessionStats {
 /// Filter for statistics display.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StatsFilter {
-    /// Show statistics for the entire session (all agents)
-    Global,
-    /// Show statistics for the main agent only
-    MainAgent,
-    /// Show statistics for a specific subagent
+    /// Statistics for all sessions combined (all agents).
+    AllSessionsCombined,
+
+    /// Statistics for a specific session (main + all subagents combined).
+    Session(SessionId),
+
+    /// Statistics for a specific session's main agent only.
+    MainAgent(SessionId),
+
+    /// Statistics for a specific subagent.
     Subagent(AgentId),
+}
+
+impl StatsFilter {
+    /// Get the full label for display in stats panel title.
+    pub fn label(&self) -> String {
+        match self {
+            StatsFilter::AllSessionsCombined => "All Sessions".to_string(),
+            StatsFilter::Session(session_id) => {
+                format!("Statistics: Session {}", session_id.as_str())
+            }
+            StatsFilter::MainAgent(session_id) => {
+                format!("Statistics: Main Agent (Session {})", session_id.as_str())
+            }
+            StatsFilter::Subagent(agent_id) => {
+                format!("Statistics: Subagent {}", agent_id.as_str())
+            }
+        }
+    }
+
+    /// Get the short label for display in status bar.
+    pub fn short_label(&self) -> &'static str {
+        match self {
+            StatsFilter::AllSessionsCombined => "All",
+            StatsFilter::Session(_) => "Sess",
+            StatsFilter::MainAgent(_) => "Main",
+            StatsFilter::Subagent(_) => "Sub",
+        }
+    }
+}
+
+impl Default for StatsFilter {
+    fn default() -> Self {
+        StatsFilter::AllSessionsCombined
+    }
 }
 
 // ===== PricingConfig =====
@@ -929,13 +972,28 @@ mod tests {
     // ===== StatsFilter Tests =====
 
     #[test]
-    fn stats_filter_global_equality() {
-        assert_eq!(StatsFilter::Global, StatsFilter::Global);
+    fn stats_filter_all_sessions_combined_equality() {
+        assert_eq!(
+            StatsFilter::AllSessionsCombined,
+            StatsFilter::AllSessionsCombined
+        );
+    }
+
+    #[test]
+    fn stats_filter_session_equality() {
+        let session1 = make_session_id("session-1");
+        let session2 = make_session_id("session-1");
+        assert_eq!(StatsFilter::Session(session1), StatsFilter::Session(session2));
     }
 
     #[test]
     fn stats_filter_main_agent_equality() {
-        assert_eq!(StatsFilter::MainAgent, StatsFilter::MainAgent);
+        let session1 = make_session_id("session-1");
+        let session2 = make_session_id("session-1");
+        assert_eq!(
+            StatsFilter::MainAgent(session1),
+            StatsFilter::MainAgent(session2)
+        );
     }
 
     #[test]
@@ -947,7 +1005,11 @@ mod tests {
 
     #[test]
     fn stats_filter_different_variants_not_equal() {
-        assert_ne!(StatsFilter::Global, StatsFilter::MainAgent);
+        let session_id = make_session_id("session-1");
+        assert_ne!(
+            StatsFilter::AllSessionsCombined,
+            StatsFilter::MainAgent(session_id)
+        );
     }
 
     #[test]
@@ -955,6 +1017,66 @@ mod tests {
         let agent1 = make_agent_id("agent-1");
         let agent2 = make_agent_id("agent-2");
         assert_ne!(StatsFilter::Subagent(agent1), StatsFilter::Subagent(agent2));
+    }
+
+    #[test]
+    fn stats_filter_label_all_sessions_combined() {
+        let filter = StatsFilter::AllSessionsCombined;
+        assert_eq!(filter.label(), "All Sessions");
+    }
+
+    #[test]
+    fn stats_filter_label_session() {
+        let session_id = make_session_id("session-123");
+        let filter = StatsFilter::Session(session_id);
+        assert_eq!(filter.label(), "Statistics: Session session-123");
+    }
+
+    #[test]
+    fn stats_filter_label_main_agent() {
+        let session_id = make_session_id("session-456");
+        let filter = StatsFilter::MainAgent(session_id);
+        assert_eq!(filter.label(), "Statistics: Main Agent (Session session-456)");
+    }
+
+    #[test]
+    fn stats_filter_label_subagent() {
+        let agent_id = make_agent_id("agent-789");
+        let filter = StatsFilter::Subagent(agent_id);
+        assert_eq!(filter.label(), "Statistics: Subagent agent-789");
+    }
+
+    #[test]
+    fn stats_filter_short_label_all_sessions_combined() {
+        let filter = StatsFilter::AllSessionsCombined;
+        assert_eq!(filter.short_label(), "All");
+    }
+
+    #[test]
+    fn stats_filter_short_label_session() {
+        let session_id = make_session_id("session-123");
+        let filter = StatsFilter::Session(session_id);
+        assert_eq!(filter.short_label(), "Sess");
+    }
+
+    #[test]
+    fn stats_filter_short_label_main_agent() {
+        let session_id = make_session_id("session-456");
+        let filter = StatsFilter::MainAgent(session_id);
+        assert_eq!(filter.short_label(), "Main");
+    }
+
+    #[test]
+    fn stats_filter_short_label_subagent() {
+        let agent_id = make_agent_id("agent-789");
+        let filter = StatsFilter::Subagent(agent_id);
+        assert_eq!(filter.short_label(), "Sub");
+    }
+
+    #[test]
+    fn stats_filter_default_is_all_sessions_combined() {
+        let filter = StatsFilter::default();
+        assert_eq!(filter, StatsFilter::AllSessionsCombined);
     }
 
     // ===== ModelPricing Tests =====
@@ -1002,7 +1124,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let usage = stats.filtered_usage(&filter);
 
         assert_eq!(usage.input_tokens, 1000);
@@ -1034,7 +1156,8 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::MainAgent;
+        let session_id = make_session_id("test-session");
+        let filter = StatsFilter::MainAgent(session_id);
         let usage = stats.filtered_usage(&filter);
 
         assert_eq!(usage.input_tokens, 600);
@@ -1268,7 +1391,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let result = stats.filtered_tool_counts(&filter);
 
         assert_eq!(result.get(&ToolName::Read), Some(&5));
@@ -1292,7 +1415,8 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::MainAgent;
+        let session_id = make_session_id("test-session");
+        let filter = StatsFilter::MainAgent(session_id);
         let result = stats.filtered_tool_counts(&filter);
 
         // Should return only main agent counts

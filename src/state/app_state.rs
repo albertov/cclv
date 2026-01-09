@@ -190,7 +190,7 @@ impl AppState {
             focus: FocusPane::Main,
             selected_conversation: ConversationSelection::Main, // FR-083: Default to main agent
             search: SearchState::Inactive,
-            stats_filter: StatsFilter::MainAgent, // Sync with Main conversation selection
+            stats_filter: StatsFilter::AllSessionsCombined, // TODO: Should be session-aware
             stats_visible: false,
             help_visible: false,
             help_scroll_offset: 0,
@@ -462,11 +462,11 @@ impl AppState {
     /// selected_conversation (tab switching, session changes).
     ///
     /// Maps ConversationSelection to StatsFilter:
-    /// - Main -> MainAgent
+    /// - Main -> MainAgent(current_session)
     /// - Subagent(id) -> Subagent(id)
     fn sync_stats_filter(&mut self) {
         self.stats_filter = match &self.selected_conversation {
-            ConversationSelection::Main => StatsFilter::MainAgent,
+            ConversationSelection::Main => todo!("Need current session ID for MainAgent"),
             ConversationSelection::Subagent(id) => StatsFilter::Subagent(id.clone()),
         };
     }
