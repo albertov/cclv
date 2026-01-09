@@ -295,7 +295,7 @@ mod tests {
         // Add 3 messages to main conversation
         for i in 0..3 {
             let entry = crate::model::ConversationEntry::Valid(Box::new(LogEntry::new(
-                EntryUuid::new(&format!("uuid-{}", i)).unwrap(),
+                EntryUuid::new(format!("uuid-{}", i)).unwrap(),
                 None,
                 session_id.clone(),
                 None,

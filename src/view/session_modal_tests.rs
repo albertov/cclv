@@ -380,10 +380,8 @@ fn render_session_modal_calculates_height_per_contract() {
                 for x in 0..buffer.area.width {
                     let cell = buffer.get(x, y);
                     let symbol = cell.symbol();
-                    if symbol == "┌" || symbol == "╭" {
-                        if top_y.is_none() {
-                            top_y = Some(y);
-                        }
+                    if (symbol == "┌" || symbol == "╭") && top_y.is_none() {
+                        top_y = Some(y);
                     }
                     if symbol == "└" || symbol == "╰" {
                         bottom_y = Some(y);
@@ -422,10 +420,8 @@ fn render_session_modal_calculates_height_per_contract() {
                 for x in 0..buffer.area.width {
                     let cell = buffer.get(x, y);
                     let symbol = cell.symbol();
-                    if symbol == "┌" || symbol == "╭" {
-                        if top_y.is_none() {
-                            top_y = Some(y);
-                        }
+                    if (symbol == "┌" || symbol == "╭") && top_y.is_none() {
+                        top_y = Some(y);
                     }
                     if symbol == "└" || symbol == "╰" {
                         bottom_y = Some(y);
