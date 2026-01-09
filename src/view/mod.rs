@@ -838,8 +838,9 @@ where
         let had_pending = !self.pending_entries.is_empty();
         self.flush_pending_entries();
 
-        // FR-035: Auto-scroll to bottom when live_mode && auto_scroll && new entries
-        if had_pending && self.app_state.live_mode && self.app_state.auto_scroll {
+        // FR-035: Auto-scroll to bottom when live_mode && is_tailing_enabled && new entries
+        // FR-006/FR-007: Only auto-scroll when viewing the last session (cclv-463.4.2)
+        if had_pending && self.app_state.live_mode && self.app_state.is_tailing_enabled() {
             let size = self.terminal.size().ok().unwrap_or_else(|| {
                 let (w, h) = crossterm::terminal::size().unwrap_or((80, 20));
                 ratatui::layout::Size {
