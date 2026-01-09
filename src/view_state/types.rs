@@ -150,46 +150,54 @@ impl SessionIndex {
     /// let idx = SessionIndex::new(0, 3); // Some(SessionIndex(0))
     /// let idx = SessionIndex::new(3, 3); // None (out of bounds)
     /// ```
-    pub fn new(_index: usize, _session_count: usize) -> Option<Self> {
-        todo!("SessionIndex::new")
+    pub fn new(index: usize, session_count: usize) -> Option<Self> {
+        if index < session_count {
+            Some(Self(index))
+        } else {
+            None
+        }
     }
 
     /// Get the raw index value.
     pub fn get(&self) -> usize {
-        todo!("SessionIndex::get")
+        self.0
     }
 
     /// Display index (1-based, for user-facing display).
     pub fn display(&self) -> usize {
-        todo!("SessionIndex::display")
+        self.0 + 1
     }
 
     /// Check if this is the last session.
     ///
     /// Used to determine if live tailing should be enabled.
-    pub fn is_last(&self, _session_count: usize) -> bool {
-        todo!("SessionIndex::is_last")
+    pub fn is_last(&self, session_count: usize) -> bool {
+        self.0 + 1 == session_count
     }
 
     /// Check if this is the first session.
     pub fn is_first(&self) -> bool {
-        todo!("SessionIndex::is_first")
+        self.0 == 0
     }
 
     /// Next session index, if valid.
-    pub fn next(&self, _session_count: usize) -> Option<Self> {
-        todo!("SessionIndex::next")
+    pub fn next(&self, session_count: usize) -> Option<Self> {
+        Self::new(self.0 + 1, session_count)
     }
 
     /// Previous session index, if valid.
     pub fn prev(&self) -> Option<Self> {
-        todo!("SessionIndex::prev")
+        if self.0 > 0 {
+            Some(Self(self.0 - 1))
+        } else {
+            None
+        }
     }
 }
 
 impl std::fmt::Display for SessionIndex {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("SessionIndex::Display")
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.display())
     }
 }
 
