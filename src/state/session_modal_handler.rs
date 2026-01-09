@@ -83,6 +83,11 @@ pub fn handle_session_modal_key(state: &mut AppState, key: KeyEvent) -> bool {
                 } else {
                     state.viewed_session = ViewedSession::Pinned(idx);
                 }
+
+                // Update stats filter to reflect new session (cclv-463.5.5, AC-STATS-007)
+                if let Some(session) = state.log_view().get_session(idx.get()) {
+                    state.on_session_change(session.session_id().clone());
+                }
             }
             // Close modal even if selection was invalid
             state.session_modal.close();

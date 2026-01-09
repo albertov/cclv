@@ -50,23 +50,6 @@ fn create_test_app_with_sessions(session_count: usize) -> TuiApp<TestBackend> {
     app
 }
 
-/// Helper to add a subagent entry to an existing session.
-fn add_subagent_entry(
-    app: &mut TuiApp<TestBackend>,
-    session_id: &SessionId,
-    agent_id: &AgentId,
-    uuid_suffix: usize,
-) {
-    let json = format!(
-        r#"{{"type":"user","message":{{"role":"user","content":"Subagent message"}},"session_id":"{}","agentId":"{}","uuid":"test-uuid-sub-{}","timestamp":"2024-01-01T00:00:0{}Z"}}"#,
-        session_id.as_str(),
-        agent_id.as_str(),
-        uuid_suffix,
-        uuid_suffix
-    );
-    let entry = ConversationEntry::from(parser::parse_entry_graceful(&json, uuid_suffix + 100));
-    app.app_state.add_entries(vec![entry]);
-}
 
 // ===== ISSUE 1: Tab Key Should Cycle Stats Filter When Focus On Stats =====
 
@@ -98,12 +81,26 @@ fn tab_key_cycles_stats_filter_when_stats_pane_focused() {
 fn tab_key_cycles_through_all_filter_levels() {
     // GIVEN: App with session that has subagents
     let mut app = create_test_app_with_sessions(1);
-    let session_id = SessionId::new("session-0").unwrap();
     let agent1 = AgentId::new("agent-1").unwrap();
     let agent2 = AgentId::new("agent-2").unwrap();
-    add_subagent_entry(&mut app, &session_id, &agent1, 10);
-    add_subagent_entry(&mut app, &session_id, &agent2, 11);
 
+    // Directly add subagent entries to app_state for testing
+    // This ensures proper routing through the log_view
+    for (agent, idx) in [(agent1.clone(), 10), (agent2.clone(), 11)] {
+        let json = format!(
+            r#"{{"type":"user","message":{{"role":"user","content":"Subagent message"}},"session_id":"session-0","agentId":"{}","uuid":"test-uuid-sub-{}","timestamp":"2024-01-01T00:00:{}Z"}}"#,
+            agent.as_str(),
+            idx,
+            idx
+        );
+        let entry = ConversationEntry::from(parser::parse_entry_graceful(&json, idx + 100));
+        app.app_state.add_entries(vec![entry]);
+    }
+
+    // Ensure we're viewing the session with subagents
+    app.app_state.viewed_session = ViewedSession::Pinned(
+        SessionIndex::new(0, 1).expect("Valid session index")
+    );
     app.app_state.focus = FocusPane::Stats;
     app.app_state.stats_filter = StatsFilter::AllSessionsCombined;
 
