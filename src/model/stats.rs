@@ -58,6 +58,18 @@ pub struct SessionStats {
     /// usage is tracked separately. The number of unique keys determines `subagent_count`.
     pub subagent_usage: HashMap<AgentId, TokenUsage>,
 
+    /// Per-session token usage (main + all subagents for each session).
+    ///
+    /// Used for StatsFilter::Session(id) filtering. Tracks total usage for
+    /// each session, combining main agent and all subagents within that session.
+    pub session_usage: HashMap<SessionId, TokenUsage>,
+
+    /// Main agent token usage by session.
+    ///
+    /// Used for StatsFilter::MainAgent(session_id) filtering. Tracks only main
+    /// agent usage (agent_id == None) for specific sessions.
+    pub main_agent_usage_by_session: HashMap<SessionId, TokenUsage>,
+
     /// Total tool invocation counts across all agents, grouped by tool name (FR-018).
     ///
     /// Tracks how many times each tool (Read, Write, Bash, etc.) was invoked across
@@ -205,8 +217,15 @@ impl SessionStats {
     pub fn filtered_usage(&self, filter: &StatsFilter) -> TokenUsage {
         match filter {
             StatsFilter::AllSessionsCombined => self.total_usage,
-            StatsFilter::Session(_) => todo!("Session-scoped filtering"),
-            StatsFilter::MainAgent(_) => self.main_agent_usage,
+            StatsFilter::Session(session_id) => {
+                self.session_usage.get(session_id).copied().unwrap_or_default()
+            }
+            StatsFilter::MainAgent(session_id) => {
+                self.main_agent_usage_by_session
+                    .get(session_id)
+                    .copied()
+                    .unwrap_or_default()
+            }
             StatsFilter::Subagent(agent_id) => self
                 .subagent_usage
                 .get(agent_id)
@@ -219,8 +238,8 @@ impl SessionStats {
     ///
     /// Returns:
     /// - `StatsFilter::AllSessionsCombined`: tool_counts (all agents)
-    /// - `StatsFilter::Session(_)`: TODO - session-scoped tool counts
-    /// - `StatsFilter::MainAgent(_)`: main_agent_tool_counts only
+    /// - `StatsFilter::Session(session_id)`: TODO - session-scoped tool counts
+    /// - `StatsFilter::MainAgent(session_id)`: main_agent_tool_counts only
     /// - `StatsFilter::Subagent(id)`: tool_counts for specific subagent, or empty if not found
     pub fn filtered_tool_counts(&self, filter: &StatsFilter) -> &HashMap<ToolName, u32> {
         use std::sync::OnceLock;
@@ -228,8 +247,8 @@ impl SessionStats {
 
         match filter {
             StatsFilter::AllSessionsCombined => &self.tool_counts,
-            StatsFilter::Session(_) => todo!("Session-scoped tool counts"),
-            StatsFilter::MainAgent(_) => &self.main_agent_tool_counts,
+            StatsFilter::Session(_session_id) => todo!("Session-scoped tool counts"),
+            StatsFilter::MainAgent(_session_id) => &self.main_agent_tool_counts,
             StatsFilter::Subagent(agent_id) => self
                 .subagent_tool_counts
                 .get(agent_id)
@@ -1601,5 +1620,447 @@ mod tests {
             Some(2.5),
             "Should update to latest result entry cost"
         );
+    }
+
+    // ===== Session-Scoped Statistics Tests =====
+
+    #[test]
+    fn record_entry_populates_session_usage_for_main_agent() {
+        let mut stats = SessionStats::default();
+        let usage = TokenUsage {
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_creation_input_tokens: 10,
+            cache_read_input_tokens: 5,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let message = make_message_with_usage(usage);
+        let entry = make_log_entry("e1", "session-1", None, message); // Main agent
+
+        stats.record_entry(&entry);
+
+        let session_id = make_session_id("session-1");
+        let session_usage = stats
+            .session_usage
+            .get(&session_id)
+            .expect("session usage should be tracked");
+        assert_eq!(session_usage.input_tokens, 100);
+        assert_eq!(session_usage.output_tokens, 50);
+        assert_eq!(session_usage.cache_creation_input_tokens, 10);
+        assert_eq!(session_usage.cache_read_input_tokens, 5);
+    }
+
+    #[test]
+    fn record_entry_populates_session_usage_for_subagent() {
+        let mut stats = SessionStats::default();
+        let usage = TokenUsage {
+            input_tokens: 200,
+            output_tokens: 100,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let message = make_message_with_usage(usage);
+        let entry = make_log_entry("e1", "session-2", Some("agent-123"), message); // Subagent
+
+        stats.record_entry(&entry);
+
+        let session_id = make_session_id("session-2");
+        let session_usage = stats
+            .session_usage
+            .get(&session_id)
+            .expect("session usage should be tracked");
+        assert_eq!(session_usage.input_tokens, 200);
+        assert_eq!(session_usage.output_tokens, 100);
+    }
+
+    #[test]
+    fn record_entry_accumulates_session_usage_across_agents() {
+        let mut stats = SessionStats::default();
+
+        // Main agent entry for session-1
+        let usage1 = TokenUsage {
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let entry1 = make_log_entry("e1", "session-1", None, make_message_with_usage(usage1));
+
+        // Subagent entry for session-1
+        let usage2 = TokenUsage {
+            input_tokens: 200,
+            output_tokens: 100,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let entry2 = make_log_entry(
+            "e2",
+            "session-1",
+            Some("agent-123"),
+            make_message_with_usage(usage2),
+        );
+
+        stats.record_entry(&entry1);
+        stats.record_entry(&entry2);
+
+        let session_id = make_session_id("session-1");
+        let session_usage = stats
+            .session_usage
+            .get(&session_id)
+            .expect("session usage should be tracked");
+
+        // Should accumulate both main and subagent
+        assert_eq!(session_usage.input_tokens, 300);
+        assert_eq!(session_usage.output_tokens, 150);
+    }
+
+    #[test]
+    fn record_entry_tracks_separate_sessions() {
+        let mut stats = SessionStats::default();
+
+        let usage1 = TokenUsage {
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let entry1 = make_log_entry("e1", "session-1", None, make_message_with_usage(usage1));
+
+        let usage2 = TokenUsage {
+            input_tokens: 200,
+            output_tokens: 100,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let entry2 = make_log_entry("e2", "session-2", None, make_message_with_usage(usage2));
+
+        stats.record_entry(&entry1);
+        stats.record_entry(&entry2);
+
+        let session1_id = make_session_id("session-1");
+        let session2_id = make_session_id("session-2");
+
+        let session1_usage = stats.session_usage.get(&session1_id).expect("session-1");
+        assert_eq!(session1_usage.input_tokens, 100);
+
+        let session2_usage = stats.session_usage.get(&session2_id).expect("session-2");
+        assert_eq!(session2_usage.input_tokens, 200);
+    }
+
+    #[test]
+    fn record_entry_populates_main_agent_usage_by_session() {
+        let mut stats = SessionStats::default();
+        let usage = TokenUsage {
+            input_tokens: 150,
+            output_tokens: 75,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let message = make_message_with_usage(usage);
+        let entry = make_log_entry("e1", "session-3", None, message); // Main agent
+
+        stats.record_entry(&entry);
+
+        let session_id = make_session_id("session-3");
+        let main_usage = stats
+            .main_agent_usage_by_session
+            .get(&session_id)
+            .expect("main agent usage by session should be tracked");
+        assert_eq!(main_usage.input_tokens, 150);
+        assert_eq!(main_usage.output_tokens, 75);
+    }
+
+    #[test]
+    fn record_entry_does_not_populate_main_agent_usage_by_session_for_subagent() {
+        let mut stats = SessionStats::default();
+        let usage = TokenUsage {
+            input_tokens: 250,
+            output_tokens: 125,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let message = make_message_with_usage(usage);
+        let entry = make_log_entry("e1", "session-4", Some("agent-456"), message); // Subagent
+
+        stats.record_entry(&entry);
+
+        let session_id = make_session_id("session-4");
+        // Should NOT populate main_agent_usage_by_session for subagent
+        assert!(stats.main_agent_usage_by_session.get(&session_id).is_none());
+    }
+
+    #[test]
+    fn record_entry_accumulates_main_agent_usage_by_session() {
+        let mut stats = SessionStats::default();
+
+        let usage1 = TokenUsage {
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let entry1 = make_log_entry("e1", "session-5", None, make_message_with_usage(usage1));
+
+        let usage2 = TokenUsage {
+            input_tokens: 200,
+            output_tokens: 100,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            ephemeral_5m_input_tokens: 0,
+            ephemeral_1h_input_tokens: 0,
+        };
+        let entry2 = make_log_entry("e2", "session-5", None, make_message_with_usage(usage2));
+
+        stats.record_entry(&entry1);
+        stats.record_entry(&entry2);
+
+        let session_id = make_session_id("session-5");
+        let main_usage = stats
+            .main_agent_usage_by_session
+            .get(&session_id)
+            .expect("main agent usage should accumulate");
+
+        assert_eq!(main_usage.input_tokens, 300);
+        assert_eq!(main_usage.output_tokens, 150);
+    }
+
+    #[test]
+    fn filtered_usage_session_returns_session_scoped_usage() {
+        let mut stats = SessionStats::default();
+
+        // Session 1: main (100) + subagent (200) = 300 input
+        let entry1 = make_log_entry(
+            "e1",
+            "session-1",
+            None,
+            make_message_with_usage(TokenUsage {
+                input_tokens: 100,
+                output_tokens: 50,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        );
+        let entry2 = make_log_entry(
+            "e2",
+            "session-1",
+            Some("agent-123"),
+            make_message_with_usage(TokenUsage {
+                input_tokens: 200,
+                output_tokens: 100,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        );
+
+        stats.record_entry(&entry1);
+        stats.record_entry(&entry2);
+
+        let session_id = make_session_id("session-1");
+        let filter = StatsFilter::Session(session_id);
+        let usage = stats.filtered_usage(&filter);
+
+        assert_eq!(usage.input_tokens, 300);
+        assert_eq!(usage.output_tokens, 150);
+    }
+
+    #[test]
+    fn filtered_usage_main_agent_returns_session_scoped_main_usage() {
+        let mut stats = SessionStats::default();
+
+        // Session 1: main (150) + subagent (ignored for MainAgent filter)
+        let entry1 = make_log_entry(
+            "e1",
+            "session-1",
+            None,
+            make_message_with_usage(TokenUsage {
+                input_tokens: 150,
+                output_tokens: 75,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        );
+        let entry2 = make_log_entry(
+            "e2",
+            "session-1",
+            Some("agent-456"),
+            make_message_with_usage(TokenUsage {
+                input_tokens: 300,
+                output_tokens: 150,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        );
+
+        stats.record_entry(&entry1);
+        stats.record_entry(&entry2);
+
+        let session_id = make_session_id("session-1");
+        let filter = StatsFilter::MainAgent(session_id);
+        let usage = stats.filtered_usage(&filter);
+
+        // Should only include main agent usage (150), not subagent (300)
+        assert_eq!(usage.input_tokens, 150);
+        assert_eq!(usage.output_tokens, 75);
+    }
+
+    #[test]
+    fn filtered_usage_session_returns_zero_for_unknown_session() {
+        let stats = SessionStats::default();
+        let session_id = make_session_id("unknown-session");
+        let filter = StatsFilter::Session(session_id);
+        let usage = stats.filtered_usage(&filter);
+
+        assert_eq!(usage.input_tokens, 0);
+        assert_eq!(usage.output_tokens, 0);
+    }
+
+    #[test]
+    fn filtered_usage_main_agent_returns_zero_for_unknown_session() {
+        let stats = SessionStats::default();
+        let session_id = make_session_id("unknown-session");
+        let filter = StatsFilter::MainAgent(session_id);
+        let usage = stats.filtered_usage(&filter);
+
+        assert_eq!(usage.input_tokens, 0);
+        assert_eq!(usage.output_tokens, 0);
+    }
+
+    // ===== Invariant Tests (from contract) =====
+
+    #[test]
+    fn invariant_all_sessions_equals_sum_of_sessions() {
+        let mut stats = SessionStats::default();
+
+        // Session 1: 100 input
+        stats.record_entry(&make_log_entry(
+            "e1",
+            "session-1",
+            None,
+            make_message_with_usage(TokenUsage {
+                input_tokens: 100,
+                output_tokens: 50,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        ));
+
+        // Session 2: 200 input
+        stats.record_entry(&make_log_entry(
+            "e2",
+            "session-2",
+            None,
+            make_message_with_usage(TokenUsage {
+                input_tokens: 200,
+                output_tokens: 100,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        ));
+
+        // AllSessionsCombined should equal sum of individual sessions
+        let all_combined = stats.filtered_usage(&StatsFilter::AllSessionsCombined);
+
+        let session1_usage =
+            stats.filtered_usage(&StatsFilter::Session(make_session_id("session-1")));
+        let session2_usage =
+            stats.filtered_usage(&StatsFilter::Session(make_session_id("session-2")));
+
+        let sum_input = session1_usage.input_tokens + session2_usage.input_tokens;
+        let sum_output = session1_usage.output_tokens + session2_usage.output_tokens;
+
+        assert_eq!(all_combined.input_tokens, sum_input);
+        assert_eq!(all_combined.output_tokens, sum_output);
+    }
+
+    #[test]
+    fn invariant_session_equals_main_plus_subagents() {
+        let mut stats = SessionStats::default();
+
+        // Main agent: 100 input
+        stats.record_entry(&make_log_entry(
+            "e1",
+            "session-1",
+            None,
+            make_message_with_usage(TokenUsage {
+                input_tokens: 100,
+                output_tokens: 50,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        ));
+
+        // Subagent 1: 200 input
+        stats.record_entry(&make_log_entry(
+            "e2",
+            "session-1",
+            Some("agent-1"),
+            make_message_with_usage(TokenUsage {
+                input_tokens: 200,
+                output_tokens: 100,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        ));
+
+        // Subagent 2: 300 input
+        stats.record_entry(&make_log_entry(
+            "e3",
+            "session-1",
+            Some("agent-2"),
+            make_message_with_usage(TokenUsage {
+                input_tokens: 300,
+                output_tokens: 150,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            }),
+        ));
+
+        let session_id = make_session_id("session-1");
+        let session_usage = stats.filtered_usage(&StatsFilter::Session(session_id.clone()));
+        let main_usage = stats.filtered_usage(&StatsFilter::MainAgent(session_id));
+        let sub1_usage = stats.filtered_usage(&StatsFilter::Subagent(make_agent_id("agent-1")));
+        let sub2_usage = stats.filtered_usage(&StatsFilter::Subagent(make_agent_id("agent-2")));
+
+        let sum_input = main_usage.input_tokens + sub1_usage.input_tokens + sub2_usage.input_tokens;
+        let sum_output =
+            main_usage.output_tokens + sub1_usage.output_tokens + sub2_usage.output_tokens;
+
+        assert_eq!(session_usage.input_tokens, sum_input);
+        assert_eq!(session_usage.output_tokens, sum_output);
     }
 }
