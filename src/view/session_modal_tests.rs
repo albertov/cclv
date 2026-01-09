@@ -287,3 +287,224 @@ fn render_session_modal_centers_modal() {
         "Modal should have borders in middle region (not at edges)"
     );
 }
+
+#[test]
+fn render_session_modal_styles_current_marker_yellow_italic() {
+    let mut state = create_test_state_with_sessions(3);
+
+    // Select session 2 (index 1) as current
+    let session_idx = SessionIndex::new(1, 3).unwrap();
+    state.viewed_session = crate::state::ViewedSession::Pinned(session_idx);
+
+    // Open modal
+    state.session_modal.open(1);
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal
+        .draw(|frame| {
+            render_session_modal(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer();
+
+    // Find the [CURRENT] marker in the buffer
+    let mut found_current_marker = false;
+    let mut correct_style = false;
+
+    for y in 0..buffer.area.height {
+        for x in 0..buffer.area.width.saturating_sub(9) {
+            // Look for "[CURRENT]" text
+            let text: String = (0..9)
+                .map(|offset| buffer.get(x + offset, y).symbol())
+                .collect();
+
+            if text == "[CURRENT]" {
+                found_current_marker = true;
+
+                // Check styling of the '[' character (first character of marker)
+                let cell = buffer.get(x, y);
+                let style = cell.style();
+
+                // Per contract line 110: Current marker | Yellow, italic
+                let is_yellow = style.fg == Some(ratatui::style::Color::Yellow);
+                let is_italic = style
+                    .add_modifier
+                    .contains(ratatui::style::Modifier::ITALIC);
+
+                correct_style = is_yellow && is_italic;
+                break;
+            }
+        }
+        if found_current_marker {
+            break;
+        }
+    }
+
+    assert!(
+        found_current_marker,
+        "[CURRENT] marker should be present in buffer"
+    );
+    assert!(
+        correct_style,
+        "[CURRENT] marker should be styled as yellow and italic per contract line 110"
+    );
+}
+
+#[test]
+fn render_session_modal_calculates_height_per_contract() {
+    // Contract line 30: Height = min(session_count + 4, terminal_height - 4)
+
+    // Test case 1: Few sessions, should be session_count + 4
+    let mut state1 = create_test_state_with_sessions(3);
+    state1.session_modal.open(0);
+
+    let backend1 = TestBackend::new(80, 30);
+    let mut terminal1 = Terminal::new(backend1).unwrap();
+
+    let mut actual_height1 = 0;
+    terminal1
+        .draw(|frame| {
+            render_session_modal(frame, &state1);
+            // We need to capture the modal height somehow
+            // For now, we'll check buffer content to find modal bounds
+            let buffer = frame.buffer_mut();
+            // Find top border
+            let mut top_y = None;
+            let mut bottom_y = None;
+
+            for y in 0..buffer.area.height {
+                for x in 0..buffer.area.width {
+                    let cell = buffer.get(x, y);
+                    let symbol = cell.symbol();
+                    if symbol == "┌" || symbol == "╭" {
+                        if top_y.is_none() {
+                            top_y = Some(y);
+                        }
+                    }
+                    if symbol == "└" || symbol == "╰" {
+                        bottom_y = Some(y);
+                    }
+                }
+            }
+
+            if let (Some(top), Some(bottom)) = (top_y, bottom_y) {
+                actual_height1 = bottom - top + 1;
+            }
+        })
+        .unwrap();
+
+    // Expected: min(3 + 4, 30 - 4) = min(7, 26) = 7
+    assert_eq!(
+        actual_height1, 7,
+        "Modal height should be session_count + 4 = 3 + 4 = 7 when terminal is large"
+    );
+
+    // Test case 2: Many sessions on small terminal, should be terminal_height - 4
+    let mut state2 = create_test_state_with_sessions(20);
+    state2.session_modal.open(0);
+
+    let backend2 = TestBackend::new(80, 15);
+    let mut terminal2 = Terminal::new(backend2).unwrap();
+
+    let mut actual_height2 = 0;
+    terminal2
+        .draw(|frame| {
+            render_session_modal(frame, &state2);
+            let buffer = frame.buffer_mut();
+            let mut top_y = None;
+            let mut bottom_y = None;
+
+            for y in 0..buffer.area.height {
+                for x in 0..buffer.area.width {
+                    let cell = buffer.get(x, y);
+                    let symbol = cell.symbol();
+                    if symbol == "┌" || symbol == "╭" {
+                        if top_y.is_none() {
+                            top_y = Some(y);
+                        }
+                    }
+                    if symbol == "└" || symbol == "╰" {
+                        bottom_y = Some(y);
+                    }
+                }
+            }
+
+            if let (Some(top), Some(bottom)) = (top_y, bottom_y) {
+                actual_height2 = bottom - top + 1;
+            }
+        })
+        .unwrap();
+
+    // Expected: min(20 + 4, 15 - 4) = min(24, 11) = 11
+    assert_eq!(
+        actual_height2, 11,
+        "Modal height should be terminal_height - 4 = 15 - 4 = 11 when sessions exceed viewport"
+    );
+}
+
+#[test]
+fn render_session_modal_shows_scroll_indicators_when_list_exceeds_viewport() {
+    // Create many sessions to exceed a small viewport
+    let mut state = create_test_state_with_sessions(20);
+    state.session_modal.open(10); // Select middle session
+
+    let backend = TestBackend::new(80, 15); // Small terminal
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal
+        .draw(|frame| {
+            render_session_modal(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer();
+    let rendered = buffer
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect::<String>();
+
+    // Per contract lines 116-133: Show ▲ in title area when scrolled
+    assert!(
+        rendered.contains("▲"),
+        "Should show ▲ indicator when content extends above viewport"
+    );
+
+    // Per contract lines 116-133: Show ▼ in footer area when more content below
+    assert!(
+        rendered.contains("▼"),
+        "Should show ▼ indicator when content extends below viewport"
+    );
+}
+
+#[test]
+fn render_session_modal_no_scroll_indicators_when_all_sessions_visible() {
+    // Create few sessions that all fit in viewport
+    let mut state = create_test_state_with_sessions(3);
+    state.session_modal.open(0);
+
+    let backend = TestBackend::new(80, 30); // Large terminal
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal
+        .draw(|frame| {
+            render_session_modal(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer();
+    let rendered = buffer
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect::<String>();
+
+    // When all sessions fit, should not show scroll indicators
+    assert!(
+        !rendered.contains("▲") && !rendered.contains("▼"),
+        "Should NOT show scroll indicators when all sessions fit in viewport"
+    );
+}
