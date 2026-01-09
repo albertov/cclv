@@ -29,7 +29,7 @@ use ratatui::{
 ///
 /// The widget computes three `StatsFilter` scopes internally:
 /// 1. `focused_filter` - passed in, reflects current tab selection
-/// 2. `StatsFilter::Global` - always shows session-wide totals
+/// 2. `StatsFilter::AllSessionsCombined` - always shows session-wide totals
 /// 3. Future: multi-session global (currently same as session)
 ///
 /// # Layout
@@ -133,7 +133,7 @@ impl<'a> Widget for MultiScopeStatsPanel<'a> {
                 columns[1],
                 buf,
                 self.stats,
-                &StatsFilter::Global,
+                &StatsFilter::AllSessionsCombined,
                 self.pricing,
                 self.model_id,
                 "Session",
@@ -143,7 +143,7 @@ impl<'a> Widget for MultiScopeStatsPanel<'a> {
                 columns[2],
                 buf,
                 self.stats,
-                &StatsFilter::Global,
+                &StatsFilter::AllSessionsCombined,
                 self.pricing,
                 self.model_id,
                 "Global",
@@ -171,7 +171,7 @@ impl<'a> Widget for MultiScopeStatsPanel<'a> {
                 rows[1],
                 buf,
                 self.stats,
-                &StatsFilter::Global,
+                &StatsFilter::AllSessionsCombined,
                 self.pricing,
                 self.model_id,
                 "Session",
@@ -181,7 +181,7 @@ impl<'a> Widget for MultiScopeStatsPanel<'a> {
                 rows[2],
                 buf,
                 self.stats,
-                &StatsFilter::Global,
+                &StatsFilter::AllSessionsCombined,
                 self.pricing,
                 self.model_id,
                 "Global",
@@ -265,13 +265,15 @@ fn render_stat_scope(
 /// Format a scope title based on the filter.
 ///
 /// # Examples
-/// - `StatsFilter::Global` → "Session"
-/// - `StatsFilter::MainAgent` → "Main Agent"
+/// - `StatsFilter::AllSessionsCombined` → "All Sessions"
+/// - `StatsFilter::Session(_)` → "Session"
+/// - `StatsFilter::MainAgent(_)` → "Main Agent"
 /// - `StatsFilter::Subagent(_)` → "Subagent"
 fn scope_title(filter: &StatsFilter) -> &'static str {
     match filter {
-        StatsFilter::Global => "Session",
-        StatsFilter::MainAgent => "Main Agent",
+        StatsFilter::AllSessionsCombined => "All Sessions",
+        StatsFilter::Session(_) => "Session",
+        StatsFilter::MainAgent(_) => "Main Agent",
         StatsFilter::Subagent(_) => "Subagent",
     }
 }

@@ -88,7 +88,7 @@ fn create_sample_stats() -> SessionStats {
 #[test]
 fn snapshot_stats_panel_empty() {
     let stats = SessionStats::default();
-    let filter = StatsFilter::Global;
+    let filter = StatsFilter::AllSessionsCombined;
     let pricing = PricingConfig::default();
 
     let mut terminal = create_terminal(50, 20);
@@ -106,7 +106,7 @@ fn snapshot_stats_panel_empty() {
 #[test]
 fn snapshot_stats_panel_with_data() {
     let stats = create_sample_stats();
-    let filter = StatsFilter::Global;
+    let filter = StatsFilter::AllSessionsCombined;
     let pricing = PricingConfig::default();
 
     let mut terminal = create_terminal(50, 25);
@@ -124,7 +124,7 @@ fn snapshot_stats_panel_with_data() {
 #[test]
 fn snapshot_stats_panel_focused() {
     let stats = create_sample_stats();
-    let filter = StatsFilter::Global;
+    let filter = StatsFilter::AllSessionsCombined;
     let pricing = PricingConfig::default();
 
     let mut terminal = create_terminal(50, 25);
@@ -142,7 +142,8 @@ fn snapshot_stats_panel_focused() {
 #[test]
 fn snapshot_stats_panel_main_agent_filter() {
     let stats = create_sample_stats();
-    let filter = StatsFilter::MainAgent;
+    let session_id = SessionId::new("test-session").unwrap();
+    let filter = StatsFilter::MainAgent(session_id);
     let pricing = PricingConfig::default();
 
     let mut terminal = create_terminal(55, 25);
@@ -177,7 +178,7 @@ fn snapshot_stats_panel_with_cache_tokens() {
         entry_count: 5,
         ..Default::default()
     };
-    let filter = StatsFilter::Global;
+    let filter = StatsFilter::AllSessionsCombined;
     let pricing = PricingConfig::default();
 
     let mut terminal = create_terminal(50, 25);

@@ -57,8 +57,9 @@ impl<'a> Widget for StatsPanel<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Create the block with title and borders
         let title = match self.filter {
-            StatsFilter::Global => " Statistics ",
-            StatsFilter::MainAgent => " Statistics (Main Agent) ",
+            StatsFilter::AllSessionsCombined => " Statistics: All Sessions ",
+            StatsFilter::Session(_) => " Statistics: Session ",
+            StatsFilter::MainAgent(_) => " Statistics (Main Agent) ",
             StatsFilter::Subagent(_) => " Statistics (Subagent) ",
         };
 
@@ -259,6 +260,7 @@ fn format_cost(cost: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::SessionId;
 
     // ===== format_tokens tests =====
 
@@ -322,7 +324,7 @@ mod tests {
         use ratatui::layout::Rect;
 
         let stats = SessionStats::default();
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
 
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
@@ -363,7 +365,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
 
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("sonnet"), false);
@@ -400,7 +402,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -449,7 +451,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -495,7 +497,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -547,7 +549,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("sonnet"), false);
 
@@ -591,7 +593,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("haiku"), false);
 
@@ -635,7 +637,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -679,7 +681,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(
             &stats,
@@ -730,7 +732,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -957,7 +959,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1030,7 +1032,8 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::MainAgent;
+        let session_id = SessionId::new("test-session").unwrap();
+        let filter = StatsFilter::MainAgent(session_id);
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1139,7 +1142,7 @@ mod tests {
         use ratatui::layout::Rect;
 
         let stats = SessionStats::default();
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1168,7 +1171,8 @@ mod tests {
         use ratatui::layout::Rect;
 
         let stats = SessionStats::default();
-        let filter = StatsFilter::MainAgent;
+        let session_id = SessionId::new("test-session").unwrap();
+        let filter = StatsFilter::MainAgent(session_id);
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1260,7 +1264,8 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::MainAgent;
+        let session_id = SessionId::new("test-session").unwrap();
+        let filter = StatsFilter::MainAgent(session_id);
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1382,7 +1387,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1423,7 +1428,7 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1485,7 +1490,8 @@ mod tests {
             ..Default::default()
         };
 
-        let filter = StatsFilter::MainAgent;
+        let session_id = SessionId::new("test-session").unwrap();
+        let filter = StatsFilter::MainAgent(session_id);
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1617,7 +1623,7 @@ mod tests {
             actual_cost_usd: Some(1.5), // Actual cost from result entry
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
@@ -1666,7 +1672,7 @@ mod tests {
             actual_cost_usd: None, // No result entry yet
         };
 
-        let filter = StatsFilter::Global;
+        let filter = StatsFilter::AllSessionsCombined;
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
 
