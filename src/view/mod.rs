@@ -12,6 +12,8 @@ pub mod session_modal;
 mod session_modal_event_loop_integration_test;
 #[cfg(test)]
 mod session_separator_tests;
+#[cfg(test)]
+mod stats_filter_key_wiring_test;
 mod stats;
 mod stats_multi_scope;
 mod styles;
