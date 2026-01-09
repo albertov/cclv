@@ -66,3 +66,99 @@ fn viewed_session_default_is_latest() {
     // Verify we default to viewing the latest session
     assert_eq!(state.viewed_session, ViewedSession::Latest);
 }
+
+#[test]
+fn is_tailing_enabled_returns_false_when_auto_scroll_is_false() {
+    let mut state = AppState::new();
+    state.auto_scroll = false;
+
+    // Even if viewing last session, auto_scroll=false means no tailing
+    let result = state.is_tailing_enabled();
+
+    assert!(!result);
+}
+
+#[test]
+fn is_tailing_enabled_returns_false_when_viewing_historical_session() {
+    // Create a state with multiple sessions and viewing a historical one
+    use crate::model::ConversationEntry;
+    use crate::parser;
+
+    let mut state = AppState::new();
+    state.auto_scroll = true;
+
+    // Add entries from two different sessions to create multiple sessions
+    let session1 = "550e8400-e29b-41d4-a716-446655440000";
+    let session2 = "550e8400-e29b-41d4-a716-446655440001";
+
+    // Add entries from session 1
+    for i in 0..3 {
+        let json = format!(
+            r#"{{"timestamp":"2024-01-01T00:00:0{}Z","type":"user_message","role":"user","content":[{{"type":"text","text":"Session 1 message {}"}}],"session_id":"{}","agent_id":"main","uuid":"uuid-1-{}"}}"#,
+            i, i, session1, i
+        );
+        let entry = ConversationEntry::from(parser::parse_entry_graceful(&json, i + 1));
+        state.add_entries(vec![entry]);
+    }
+
+    // Add entries from session 2
+    for i in 0..3 {
+        let json = format!(
+            r#"{{"timestamp":"2024-01-01T00:01:0{}Z","type":"user_message","role":"user","content":[{{"type":"text","text":"Session 2 message {}"}}],"session_id":"{}","agent_id":"main","uuid":"uuid-2-{}"}}"#,
+            i, i, session2, i
+        );
+        let entry = ConversationEntry::from(parser::parse_entry_graceful(&json, 10 + i));
+        state.add_entries(vec![entry]);
+    }
+
+    // Pin to first session (historical)
+    let session_count = state.log_view().session_count();
+    state.viewed_session = ViewedSession::pinned(0, session_count).unwrap();
+
+    // Even though auto_scroll=true, we're viewing historical session
+    let result = state.is_tailing_enabled();
+
+    assert!(!result);
+}
+
+#[test]
+fn is_tailing_enabled_returns_true_when_auto_scroll_and_viewing_last_session() {
+    // Create a state with multiple sessions and viewing the last one
+    use crate::model::ConversationEntry;
+    use crate::parser;
+
+    let mut state = AppState::new();
+    state.auto_scroll = true;
+
+    // Add entries from two different sessions to create multiple sessions
+    let session1 = "550e8400-e29b-41d4-a716-446655440000";
+    let session2 = "550e8400-e29b-41d4-a716-446655440001";
+
+    // Add entries from session 1
+    for i in 0..3 {
+        let json = format!(
+            r#"{{"timestamp":"2024-01-01T00:00:0{}Z","type":"user_message","role":"user","content":[{{"type":"text","text":"Session 1 message {}"}}],"session_id":"{}","agent_id":"main","uuid":"uuid-1-{}"}}"#,
+            i, i, session1, i
+        );
+        let entry = ConversationEntry::from(parser::parse_entry_graceful(&json, i + 1));
+        state.add_entries(vec![entry]);
+    }
+
+    // Add entries from session 2
+    for i in 0..3 {
+        let json = format!(
+            r#"{{"timestamp":"2024-01-01T00:01:0{}Z","type":"user_message","role":"user","content":[{{"type":"text","text":"Session 2 message {}"}}],"session_id":"{}","agent_id":"main","uuid":"uuid-2-{}"}}"#,
+            i, i, session2, i
+        );
+        let entry = ConversationEntry::from(parser::parse_entry_graceful(&json, 10 + i));
+        state.add_entries(vec![entry]);
+    }
+
+    // Default state should be viewing latest (last) session
+    assert_eq!(state.viewed_session, ViewedSession::Latest);
+
+    // Both conditions met: auto_scroll=true AND viewing last session
+    let result = state.is_tailing_enabled();
+
+    assert!(result);
+}
