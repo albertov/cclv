@@ -35,7 +35,7 @@ pub fn render_session_modal(frame: &mut Frame, state: &AppState) {
     // Clear the background for overlay effect
     frame.render_widget(Clear, modal_area);
 
-    // Collect session summaries
+    // Collect session summaries using from_session factory
     let sessions: Vec<SessionSummary> = state
         .log_view()
         .sessions()
@@ -44,22 +44,7 @@ pub fn render_session_modal(frame: &mut Frame, state: &AppState) {
             let index = crate::view_state::types::SessionIndex::new(i, state.log_view().session_count())
                 .expect("Index should be valid");
 
-            // Get message count from main conversation
-            let message_count = session_view.main().len();
-
-            // Get subagent count
-            let subagent_count = session_view.subagents().len();
-
-            // Get start time from SessionViewState (cclv-463.6.3)
-            let start_time = session_view.start_time();
-
-            SessionSummary::new(
-                index,
-                session_view.session_id().clone(),
-                message_count,
-                start_time,
-                subagent_count,
-            )
+            SessionSummary::from_session(index, session_view)
         })
         .collect();
     let session_count = sessions.len();
