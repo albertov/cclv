@@ -271,8 +271,8 @@ fn us3_scenario4_filter_subagent() {
         "Should switch to first subagent tab (index 1)"
     );
 
-    // WHEN: User presses 'S' (Shift+s) to filter to current subagent
-    harness.send_key(KeyCode::Char('S')); // FilterSubagent action
+    // WHEN: User presses '#' to filter to current subagent
+    harness.send_key(KeyCode::Char('#')); // FilterSubagent action
 
     // VERIFY: Filter changed to specific Subagent
     let state_after_filter = harness.state();

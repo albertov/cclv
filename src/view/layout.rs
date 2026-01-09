@@ -201,6 +201,12 @@ pub fn render_layout(frame: &mut Frame, state: &AppState) {
     if state.help_visible {
         render_help_overlay(frame, state.help_scroll_offset);
     }
+
+    // Render session modal overlay on top of everything else if visible
+    // This should be rendered last to appear on top of all other UI elements
+    if state.session_modal.is_visible() {
+        crate::view::render_session_modal(frame, state);
+    }
 }
 
 /// Render unified conversation pane with tab bar and selected conversation.

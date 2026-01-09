@@ -382,6 +382,17 @@ where
                 self.app_state.stats_visible = !self.app_state.stats_visible;
             }
 
+            // Session modal visibility
+            KeyAction::ToggleSessionModal => {
+                let current_index = match self.app_state.viewed_session {
+                    crate::state::ViewedSession::Latest => {
+                        self.app_state.log_view().session_count().saturating_sub(1)
+                    }
+                    crate::state::ViewedSession::Pinned(idx) => idx.get(),
+                };
+                self.app_state.session_modal.toggle(current_index);
+            }
+
             // Stats filters (legacy keybindings not yet in KeyBindings)
             KeyAction::FilterGlobal => {
                 self.app_state.stats_filter = crate::model::StatsFilter::Global;
@@ -1510,15 +1521,15 @@ mod tests {
         // Set to Global initially
         app.app_state.stats_filter = crate::model::StatsFilter::Global;
 
-        // Press 'S' (Shift+s) to set Subagent filter for the selected tab
-        let key = KeyEvent::new(KeyCode::Char('S'), KeyModifiers::SHIFT);
+        // Press '#' to set Subagent filter for the selected tab
+        let key = KeyEvent::new(KeyCode::Char('#'), KeyModifiers::NONE);
         let should_quit = app.handle_key(key);
 
-        assert!(!should_quit, "'S' should not trigger quit");
+        assert!(!should_quit, "'#' should not trigger quit");
         assert_eq!(
             app.app_state.stats_filter,
             crate::model::StatsFilter::Subagent(agent_id),
-            "'S' should set stats filter to Subagent with selected tab's agent ID"
+            "'#' should set stats filter to Subagent with selected tab's agent ID"
         );
     }
 

@@ -219,8 +219,14 @@ impl Default for KeyBindings {
             KeyAction::FilterMainAgent,
         );
         bindings.insert(
-            KeyEvent::new(KeyCode::Char('S'), KeyModifiers::SHIFT),
+            KeyEvent::new(KeyCode::Char('#'), KeyModifiers::NONE),
             KeyAction::FilterSubagent,
+        );
+
+        // Session navigation
+        bindings.insert(
+            KeyEvent::new(KeyCode::Char('S'), KeyModifiers::SHIFT),
+            KeyAction::ToggleSessionModal,
         );
 
         // Live mode

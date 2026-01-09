@@ -385,6 +385,9 @@ fn test_all_actions_have_default_bindings() {
             KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE),
             KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE),
             KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Char('#'), KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Char('@'), KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Char('!'), KeyModifiers::NONE),
         ]);
 
         // Special keys
