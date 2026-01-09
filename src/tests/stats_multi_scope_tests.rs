@@ -139,7 +139,8 @@ fn multi_scope_panel_displays_focused_and_session_scopes() {
     let stats = build_session_stats(600, 300, 400, 200);
 
     // WHEN: Rendering panel focused on main agent
-    let session_id = make_session_id("test-session");
+    // NOTE: build_session_stats creates entries with session_id "s1"
+    let session_id = make_session_id("s1");
     let focused_filter = StatsFilter::MainAgent(session_id);
     let pricing = PricingConfig::default();
     let panel = MultiScopeStatsPanel::new(&stats, &focused_filter, &pricing, Some("opus"), false);
@@ -353,7 +354,8 @@ fn multi_scope_panel_cost_calculation_differs_by_scope() {
     let pricing = PricingConfig::default();
 
     // WHEN: Rendering panel focused on main agent
-    let session_id = make_session_id("test-session");
+    // NOTE: build_session_stats creates entries with session_id "s1"
+    let session_id = make_session_id("s1");
     let focused_filter = StatsFilter::MainAgent(session_id);
     let panel = MultiScopeStatsPanel::new(&stats, &focused_filter, &pricing, Some("opus"), false);
 
@@ -399,7 +401,8 @@ fn multi_scope_panel_tool_counts_differ_by_scope() {
     let pricing = PricingConfig::default();
 
     // WHEN: Rendering panel focused on main agent
-    let session_id = make_session_id("test-session");
+    // NOTE: build_session_stats creates entries with session_id "s1"
+    let session_id = make_session_id("s1");
     let focused_filter = StatsFilter::MainAgent(session_id);
     let panel = MultiScopeStatsPanel::new(&stats, &focused_filter, &pricing, Some("opus"), false);
 
