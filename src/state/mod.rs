@@ -9,6 +9,7 @@ pub mod mouse_handler;
 pub mod scroll_handler;
 pub mod search;
 pub mod search_input_handler;
+pub mod session_modal;
 pub mod tab_handler;
 pub mod viewed_session;
 pub mod wrap_handler;
@@ -27,6 +28,7 @@ pub use search_input_handler::{
     activate_search_input, cancel_search, handle_backspace, handle_char_input, handle_cursor_left,
     handle_cursor_right, submit_search,
 };
+pub use session_modal::SessionModalState;
 pub use tab_handler::handle_tab_action;
 pub use viewed_session::ViewedSession;
 pub use wrap_handler::handle_toggle_wrap;
