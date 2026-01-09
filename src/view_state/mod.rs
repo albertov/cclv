@@ -19,6 +19,7 @@
 //! - `height_index`: HeightIndex - O(log n) prefix sums via Fenwick tree
 //! - `renderer`: Entry rendering with consistent collapse logic
 //! - `token_divider`: Token statistics divider rendering
+//! - `session_summary`: SessionSummary - session metadata for modal display
 
 pub mod conversation;
 pub mod entry_view;
@@ -30,6 +31,7 @@ pub mod log;
 pub mod renderer;
 pub mod scroll;
 pub mod session;
+pub mod session_summary;
 pub mod token_divider;
 pub mod types;
 pub mod visible_range;
