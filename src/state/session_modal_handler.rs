@@ -2,7 +2,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::state::{AppState, ViewedSession};
+use crate::state::{AppState, ConversationSelection, ViewedSession};
 
 /// Handle keyboard input when session modal is visible.
 ///
@@ -82,6 +82,17 @@ pub fn handle_session_modal_key(state: &mut AppState, key: KeyEvent) -> bool {
                     state.viewed_session = ViewedSession::Latest;
                 } else {
                     state.viewed_session = ViewedSession::Pinned(idx);
+                }
+
+                // Validate selected_conversation: if current subagent doesn't exist in new session, reset to Main
+                if let ConversationSelection::Subagent(agent_id) = &state.selected_conversation {
+                    if let Some(session) = state.log_view().get_session(idx.get()) {
+                        let subagent_ids: Vec<_> = session.subagents().keys().collect();
+                        if !subagent_ids.iter().any(|id| *id == agent_id) {
+                            // Subagent doesn't exist in new session, reset to Main
+                            state.selected_conversation = ConversationSelection::Main;
+                        }
+                    }
                 }
 
                 // Update stats filter to reflect new session (cclv-463.5.5, AC-STATS-007)
