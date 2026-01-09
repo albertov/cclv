@@ -224,13 +224,20 @@ impl AppState {
     /// - Main -> 0
     /// - Subagent(agent_id) -> position in sorted subagent list + 1
     ///
-    /// Returns None if the selected subagent doesn't exist in current session.
+    /// Returns None if the selected subagent doesn't exist in viewed session.
+    ///
+    /// # Viewed Session (cclv-463.3.6)
+    ///
+    /// Uses `viewed_session` to determine which session to display.
+    /// This ensures correct tab index computation when viewing historical sessions.
     pub fn selected_tab_index(&self) -> Option<usize> {
         match &self.selected_conversation {
             ConversationSelection::Main => Some(0),
             ConversationSelection::Subagent(agent_id) => {
-                // Use current session (single-session assumption for now)
-                let session = self.log_view.current_session()?;
+                // Use viewed_session to determine which session to display
+                let session_count = self.log_view.session_count();
+                let session_idx = self.viewed_session.effective_index(session_count)?;
+                let session = self.log_view.get_session(session_idx.get())?;
 
                 // Find position in sorted subagent list
                 let mut sorted_ids: Vec<_> = session.subagents().keys().collect();
@@ -359,10 +366,20 @@ impl AppState {
     ///
     /// This encapsulates the conversation routing logic used throughout the application.
     /// The routing matches the rendering logic to ensure input handlers and display stay synchronized.
+    ///
+    /// # Viewed Session (cclv-463.3.6)
+    ///
+    /// Uses `viewed_session` to determine which session to display.
+    /// This ensures that when user selects a historical session from the session modal,
+    /// the rendering shows that session, not always the latest session.
     pub fn selected_conversation_view(
         &self,
     ) -> Option<&crate::view_state::conversation::ConversationViewState> {
-        let session = self.log_view.current_session()?;
+        // Use viewed_session to determine which session to display
+        let session_count = self.log_view.session_count();
+        let session_idx = self.viewed_session.effective_index(session_count)?;
+        let session = self.log_view.get_session(session_idx.get())?;
+
         match &self.selected_conversation {
             ConversationSelection::Main => Some(session.main()),
             ConversationSelection::Subagent(agent_id) => {
@@ -391,10 +408,20 @@ impl AppState {
     /// and mutable accessors have identical semantics: they return None when a
     /// selected subagent doesn't exist. This prevents creating ghost subagents
     /// that have no actual conversation data.
+    ///
+    /// # Viewed Session (cclv-463.3.6)
+    ///
+    /// Uses `viewed_session` to determine which session to display.
+    /// This ensures that when user selects a historical session from the session modal,
+    /// the rendering shows that session, not always the latest session.
     pub fn selected_conversation_view_mut(
         &mut self,
     ) -> Option<&mut crate::view_state::conversation::ConversationViewState> {
-        let session = self.log_view.current_session_mut()?;
+        // Use viewed_session to determine which session to display
+        let session_count = self.log_view.session_count();
+        let session_idx = self.viewed_session.effective_index(session_count)?;
+        let session = self.log_view.get_session_mut(session_idx.get())?;
+
         match &self.selected_conversation {
             ConversationSelection::Main => Some(session.main_mut()),
             ConversationSelection::Subagent(agent_id) => {

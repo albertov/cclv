@@ -74,6 +74,157 @@ fn selected_tab_index_second_subagent_returns_two() {
     assert_eq!(state.selected_tab_index(), Some(2));
 }
 
+// ===== Tests: selected_conversation_view() respects viewed_session (cclv-463.3.6) =====
+
+#[test]
+fn selected_conversation_view_respects_viewed_session_latest() {
+    use crate::model::SessionId;
+
+    let state = create_test_state_with_sessions(3);
+    // Default viewed_session is Latest
+
+    let view = state.selected_conversation_view()
+        .expect("Should have conversation view");
+
+    // Should show latest session (session 2 with 0-indexed)
+    let entries = view.entries();
+    assert!(!entries.is_empty());
+
+    // Verify the session ID matches the last session
+    let expected_session_id = SessionId::new("550e8400-e29b-41d4-a716-446655440002").unwrap();
+    let first_entry = entries.first().expect("Should have entry");
+    let actual_session_id = first_entry.entry().session_id().expect("Should have session_id");
+    assert_eq!(actual_session_id, &expected_session_id, "Expected latest session (index 2)");
+}
+
+#[test]
+fn selected_conversation_view_respects_viewed_session_pinned_to_first() {
+    use crate::model::SessionId;
+    use crate::state::ViewedSession;
+
+    let mut state = create_test_state_with_sessions(3);
+
+    // Pin to first session (index 0)
+    state.viewed_session = ViewedSession::pinned(0, 3).expect("valid pin");
+
+    let view = state.selected_conversation_view()
+        .expect("Should have conversation view");
+
+    // Should show first session, NOT latest
+    let entries = view.entries();
+    assert!(!entries.is_empty());
+
+    // Verify the session ID matches the FIRST session, not the last
+    let expected_session_id = SessionId::new("550e8400-e29b-41d4-a716-446655440000").unwrap();
+    let first_entry = entries.first().expect("Should have entry");
+    let actual_session_id = first_entry.entry().session_id().expect("Should have session_id");
+    assert_eq!(actual_session_id, &expected_session_id, "Expected first session (index 0), not latest");
+}
+
+#[test]
+fn selected_conversation_view_respects_viewed_session_pinned_to_middle() {
+    use crate::model::SessionId;
+    use crate::state::ViewedSession;
+
+    let mut state = create_test_state_with_sessions(3);
+
+    // Pin to middle session (index 1)
+    state.viewed_session = ViewedSession::pinned(1, 3).expect("valid pin");
+
+    let view = state.selected_conversation_view()
+        .expect("Should have conversation view");
+
+    // Should show middle session
+    let entries = view.entries();
+    assert!(!entries.is_empty());
+
+    // Verify the session ID matches the MIDDLE session
+    let expected_session_id = SessionId::new("550e8400-e29b-41d4-a716-446655440001").unwrap();
+    let first_entry = entries.first().expect("Should have entry");
+    let actual_session_id = first_entry.entry().session_id().expect("Should have session_id");
+    assert_eq!(actual_session_id, &expected_session_id, "Expected middle session (index 1)");
+}
+
+#[test]
+fn selected_conversation_view_mut_respects_viewed_session_pinned() {
+    use crate::model::SessionId;
+    use crate::state::ViewedSession;
+
+    let mut state = create_test_state_with_sessions(3);
+
+    // Pin to first session
+    state.viewed_session = ViewedSession::pinned(0, 3).expect("valid pin");
+
+    let view = state.selected_conversation_view_mut()
+        .expect("Should have conversation view");
+
+    // Should show first session, NOT latest
+    let entries = view.entries();
+    assert!(!entries.is_empty());
+
+    // Verify the session ID matches the FIRST session, not the last
+    let expected_session_id = SessionId::new("550e8400-e29b-41d4-a716-446655440000").unwrap();
+    let first_entry = entries.first().expect("Should have entry");
+    let actual_session_id = first_entry.entry().session_id().expect("Should have session_id");
+    assert_eq!(actual_session_id, &expected_session_id, "Expected first session (index 0), not latest");
+}
+
+#[test]
+fn selected_tab_index_respects_viewed_session_pinned() {
+    use crate::state::ViewedSession;
+
+    let mut state = create_test_state_with_sessions(3);
+
+    // Pin to first session
+    state.viewed_session = ViewedSession::pinned(0, 3).expect("valid pin");
+
+    // selected_tab_index should use the pinned session's subagents,
+    // not the latest session's subagents
+    let tab_index = state.selected_tab_index();
+
+    // Should return Some(0) for Main, even when pinned to historical session
+    assert_eq!(tab_index, Some(0));
+}
+
+// ===== Helper function (borrowed from session_modal_tests.rs) =====
+
+/// Helper to create a test AppState with multiple sessions.
+fn create_test_state_with_sessions(session_count: usize) -> AppState {
+    use crate::model::{
+        ConversationEntry, EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent,
+        Role, SessionId,
+    };
+    use chrono::Utc;
+
+    let mut state = AppState::new();
+
+    for i in 0..session_count {
+        let session_id = SessionId::new(&format!(
+            "550e8400-e29b-41d4-a716-44665544000{}",
+            i
+        ))
+        .unwrap();
+
+        // Add a message to create the session
+        let entry = LogEntry::new(
+            EntryUuid::new(format!("uuid-session-{}", i)).unwrap(),
+            None, // parent_uuid
+            session_id,
+            None, // main agent
+            Utc::now(),
+            EntryType::User,
+            Message::new(
+                Role::User,
+                MessageContent::Text(format!("Message in session {}", i + 1)),
+            ),
+            EntryMetadata::default(),
+        );
+        state.add_entries(vec![ConversationEntry::Valid(Box::new(entry))]);
+    }
+
+    state
+}
+
 #[test]
 fn selected_tab_index_nonexistent_subagent_returns_none() {
     let mut state = state_with_subagents();
