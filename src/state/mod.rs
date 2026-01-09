@@ -10,6 +10,7 @@ pub mod scroll_handler;
 pub mod search;
 pub mod search_input_handler;
 pub mod tab_handler;
+pub mod viewed_session;
 pub mod wrap_handler;
 
 // Re-export for convenience
@@ -27,4 +28,5 @@ pub use search_input_handler::{
     handle_cursor_right, submit_search,
 };
 pub use tab_handler::handle_tab_action;
+pub use viewed_session::ViewedSession;
 pub use wrap_handler::handle_toggle_wrap;
