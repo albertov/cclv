@@ -1129,6 +1129,148 @@ fn extract_status_bar(buffer: &ratatui::buffer::Buffer) -> String {
 // ===== FMT-011: Session Metadata Display Tests =====
 // Note: Header line removed per cclv-5ur.61. Session metadata tests removed as obsolete.
 
+// ===== FR-012: Session Indicator in Status Bar =====
+
+/// Helper to create entries for multiple sessions.
+fn create_entries_multiple_sessions() -> Vec<ConversationEntry> {
+    use crate::model::{
+        EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role,
+    };
+    use chrono::Utc;
+
+    let mut entries = Vec::new();
+
+    // Session 1 entries
+    let entry1 = LogEntry::new(
+        EntryUuid::new("entry-1").unwrap(),
+        None,
+        SessionId::new("session-1").unwrap(),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Session 1 message".to_string())),
+        EntryMetadata::default(),
+    );
+    entries.push(ConversationEntry::Valid(Box::new(entry1)));
+
+    // Session 2 entries
+    let entry2 = LogEntry::new(
+        EntryUuid::new("entry-2").unwrap(),
+        None,
+        SessionId::new("session-2").unwrap(),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Session 2 message".to_string())),
+        EntryMetadata::default(),
+    );
+    entries.push(ConversationEntry::Valid(Box::new(entry2)));
+
+    // Session 3 entries
+    let entry3 = LogEntry::new(
+        EntryUuid::new("entry-3").unwrap(),
+        None,
+        SessionId::new("session-3").unwrap(),
+        None,
+        Utc::now(),
+        EntryType::User,
+        Message::new(Role::User, MessageContent::Text("Session 3 message".to_string())),
+        EntryMetadata::default(),
+    );
+    entries.push(ConversationEntry::Valid(Box::new(entry3)));
+
+    entries
+}
+
+#[test]
+fn status_bar_displays_session_indicator_when_multiple_sessions() {
+    let mut terminal = create_test_terminal();
+    let entries = create_entries_multiple_sessions();
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let status_bar = extract_status_bar(&buffer);
+
+    // Should show "Session N/M" format
+    assert!(
+        status_bar.contains("Session"),
+        "Status bar should contain 'Session' indicator when multiple sessions exist. Got: '{}'",
+        status_bar
+    );
+
+    // Should show session count (e.g., "Session 1/3", "Session 2/3", or "Session 3/3")
+    let has_session_indicator = status_bar.contains("Session 1/3")
+        || status_bar.contains("Session 2/3")
+        || status_bar.contains("Session 3/3");
+    assert!(
+        has_session_indicator,
+        "Status bar should show 'Session N/3' indicator. Got: '{}'",
+        status_bar
+    );
+}
+
+#[test]
+fn status_bar_hides_session_indicator_when_single_session() {
+    let mut terminal = create_test_terminal();
+    let entries = create_entries_no_subagents(); // Single session
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let status_bar = extract_status_bar(&buffer);
+
+    // Should NOT show session indicator for single session
+    // (We check for the N/M format specifically, not just the word "Session")
+    let has_session_count = status_bar.contains("Session 1/1");
+    assert!(
+        !has_session_count,
+        "Status bar should NOT show session indicator for single-session files. Got: '{}'",
+        status_bar
+    );
+}
+
+#[test]
+fn status_bar_shows_correct_session_number_when_viewing_historical_session() {
+    use crate::state::ViewedSession;
+
+    let mut terminal = create_test_terminal();
+    let entries = create_entries_multiple_sessions();
+    let mut state = AppState::new();
+    state.add_entries(entries);
+
+    // Pin to session 2 (0-indexed = 1)
+    state.viewed_session = ViewedSession::pinned(1, 3).unwrap();
+
+    terminal
+        .draw(|frame| {
+            render_layout(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let status_bar = extract_status_bar(&buffer);
+
+    // Should show "Session 2/3" when viewing second session
+    assert!(
+        status_bar.contains("Session 2/3"),
+        "Status bar should show 'Session 2/3' when viewing second session. Got: '{}'",
+        status_bar
+    );
+}
+
 // ===== Unified Tab Model Layout Tests (FR-083-088) =====
 
 /// FR-083: Test that layout does NOT have horizontal split.
