@@ -993,12 +993,27 @@ mod tests {
         use ratatui::layout::Rect;
         use std::collections::HashMap;
 
+        let session_id = SessionId::new("test-session").unwrap();
+
         let mut subagent_usage = HashMap::new();
         subagent_usage.insert(
             AgentId::new("agent-1").unwrap(),
             TokenUsage {
                 input_tokens: 400,
                 output_tokens: 200,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            },
+        );
+
+        let mut main_agent_usage_by_session = HashMap::new();
+        main_agent_usage_by_session.insert(
+            session_id.clone(),
+            TokenUsage {
+                input_tokens: 600,
+                output_tokens: 300,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
                 ephemeral_5m_input_tokens: 0,
@@ -1024,6 +1039,7 @@ mod tests {
                 ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
+            main_agent_usage_by_session,
             tool_counts: HashMap::new(),
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -1032,7 +1048,6 @@ mod tests {
             ..Default::default()
         };
 
-        let session_id = SessionId::new("test-session").unwrap();
         let filter = StatsFilter::MainAgent(session_id);
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);
@@ -1238,6 +1253,21 @@ mod tests {
             },
         );
 
+        let session_id = SessionId::new("test-session").unwrap();
+
+        let mut main_agent_usage_by_session = HashMap::new();
+        main_agent_usage_by_session.insert(
+            session_id.clone(),
+            TokenUsage {
+                input_tokens: 1_000_000,
+                output_tokens: 1_000_000,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            },
+        );
+
         let stats = SessionStats {
             total_usage: TokenUsage {
                 input_tokens: 2_000_000, // Main + subagent
@@ -1256,6 +1286,7 @@ mod tests {
                 ephemeral_1h_input_tokens: 0,
             },
             subagent_usage,
+            main_agent_usage_by_session,
             tool_counts: HashMap::new(),
             main_agent_tool_counts: HashMap::new(),
             subagent_tool_counts: HashMap::new(),
@@ -1264,7 +1295,6 @@ mod tests {
             ..Default::default()
         };
 
-        let session_id = SessionId::new("test-session").unwrap();
         let filter = StatsFilter::MainAgent(session_id);
         let pricing = PricingConfig::default();
         let panel = StatsPanel::new(&stats, &filter, &pricing, Some("opus"), false);

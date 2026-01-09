@@ -118,7 +118,9 @@ impl SessionStats {
     /// This method:
     /// - Increments entry_count
     /// - Accumulates token usage to total_usage
+    /// - Accumulates token usage to session_usage (per-session totals)
     /// - Routes usage to main_agent_usage or subagent_usage based on agent_id
+    /// - Routes main agent usage to main_agent_usage_by_session (per-session main agent)
     /// - Counts tool calls from the message
     /// - Updates subagent_count from unique subagents
     pub fn record_entry(&mut self, entry: &LogEntry) {
@@ -133,6 +135,16 @@ impl SessionStats {
             self.total_usage.cache_creation_input_tokens += usage.cache_creation_input_tokens;
             self.total_usage.cache_read_input_tokens += usage.cache_read_input_tokens;
 
+            // Accumulate to session usage (all agents for this session)
+            let session_usage = self
+                .session_usage
+                .entry(entry.session_id().clone())
+                .or_default();
+            session_usage.input_tokens += usage.input_tokens;
+            session_usage.output_tokens += usage.output_tokens;
+            session_usage.cache_creation_input_tokens += usage.cache_creation_input_tokens;
+            session_usage.cache_read_input_tokens += usage.cache_read_input_tokens;
+
             // Route to main agent or subagent
             if let Some(agent_id) = entry.agent_id() {
                 // Subagent usage
@@ -140,9 +152,17 @@ impl SessionStats {
                 agent_usage.input_tokens += usage.input_tokens;
                 agent_usage.output_tokens += usage.output_tokens;
             } else {
-                // Main agent usage
+                // Main agent usage (global)
                 self.main_agent_usage.input_tokens += usage.input_tokens;
                 self.main_agent_usage.output_tokens += usage.output_tokens;
+
+                // Main agent usage by session
+                let main_session_usage = self
+                    .main_agent_usage_by_session
+                    .entry(entry.session_id().clone())
+                    .or_default();
+                main_session_usage.input_tokens += usage.input_tokens;
+                main_session_usage.output_tokens += usage.output_tokens;
             }
         }
 
@@ -210,9 +230,9 @@ impl SessionStats {
     /// Get filtered token usage based on the current stats filter.
     ///
     /// Returns:
-    /// - `StatsFilter::AllSessionsCombined`: total_usage (all agents)
-    /// - `StatsFilter::Session(_)`: TODO - session-scoped usage
-    /// - `StatsFilter::MainAgent(_)`: main_agent_usage only
+    /// - `StatsFilter::AllSessionsCombined`: total_usage (all sessions, all agents)
+    /// - `StatsFilter::Session(session_id)`: session_usage for specific session
+    /// - `StatsFilter::MainAgent(session_id)`: main_agent_usage_by_session for specific session
     /// - `StatsFilter::Subagent(id)`: usage for specific subagent, or default if not found
     pub fn filtered_usage(&self, filter: &StatsFilter) -> TokenUsage {
         match filter {
@@ -1149,6 +1169,20 @@ mod tests {
 
     #[test]
     fn filtered_usage_main_agent_returns_main_agent_usage() {
+        let session_id = make_session_id("test-session");
+        let mut main_agent_usage_by_session = HashMap::new();
+        main_agent_usage_by_session.insert(
+            session_id.clone(),
+            TokenUsage {
+                input_tokens: 600,
+                output_tokens: 300,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+                ephemeral_1h_input_tokens: 0,
+            },
+        );
+
         let stats = SessionStats {
             total_usage: TokenUsage {
                 input_tokens: 1000,
@@ -1166,11 +1200,11 @@ mod tests {
                 ephemeral_5m_input_tokens: 0,
                 ephemeral_1h_input_tokens: 0,
             },
+            main_agent_usage_by_session,
             entry_count: 10,
             ..Default::default()
         };
 
-        let session_id = make_session_id("test-session");
         let filter = StatsFilter::MainAgent(session_id);
         let usage = stats.filtered_usage(&filter);
 
