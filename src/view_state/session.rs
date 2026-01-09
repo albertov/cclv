@@ -103,18 +103,7 @@ impl SessionViewState {
     /// by calling relayout() with stored viewport_width and global_wrap.
     pub fn subagent_mut(&mut self, id: &AgentId) -> &mut ConversationViewState {
         if !self.subagents.contains_key(id) {
-            use std::io::Write;
-            let _ = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/tmp/cclv_debug.log")
-                .and_then(|mut f| {
-                    writeln!(
-                        f,
-                        "DEBUG subagent_mut creating: agent_id={:?}, self.viewport_width={}",
-                        id, self.viewport_width
-                    )
-                });
+            tracing::trace!(agent_id = ?id, viewport_width = self.viewport_width, "Creating new subagent");
             // Create empty view-state
             let view_state = ConversationViewState::new(
                 Some(id.clone()),
