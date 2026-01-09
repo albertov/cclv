@@ -9,6 +9,8 @@ mod message;
 mod search_input;
 pub mod session_modal;
 #[cfg(test)]
+mod session_modal_event_loop_integration_test;
+#[cfg(test)]
 mod session_separator_tests;
 mod stats;
 mod stats_multi_scope;

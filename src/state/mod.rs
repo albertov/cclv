@@ -15,6 +15,9 @@ pub mod tab_handler;
 pub mod viewed_session;
 pub mod wrap_handler;
 
+#[cfg(test)]
+mod session_modal_integration_test;
+
 // Re-export for convenience
 pub use app_state::{AppState, ConversationSelection, FocusPane, InputMode, WrapContext, WrapMode};
 pub use expand_handler::handle_expand_action;
