@@ -130,6 +130,37 @@ fn render_session_modal_displays_all_sessions() {
 }
 
 #[test]
+fn render_session_modal_displays_message_and_subagent_counts() {
+    let mut state = create_test_state_with_sessions(2);
+    state.session_modal.open(0);
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal
+        .draw(|frame| {
+            render_session_modal(frame, &state);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer();
+    let rendered = buffer.content().iter()
+        .map(|cell| cell.symbol())
+        .collect::<String>();
+
+    // Verify format includes message and subagent counts
+    // Contract: "Session N: X messages, Y subagents (HH:MM)"
+    assert!(
+        rendered.contains("messages"),
+        "Should display message count with 'messages' label"
+    );
+    assert!(
+        rendered.contains("subagents"),
+        "Should display subagent count with 'subagents' label"
+    );
+}
+
+#[test]
 fn render_session_modal_marks_current_session() {
     let mut state = create_test_state_with_sessions(3);
 
