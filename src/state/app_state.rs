@@ -614,6 +614,40 @@ impl AppState {
             WrapMode::NoWrap => WrapMode::Wrap,
         };
     }
+
+    /// Check if live tailing should be active (cclv-463.4.1).
+    ///
+    /// Live tailing is enabled when BOTH conditions are met:
+    /// - `auto_scroll` is true (user has not scrolled away from bottom)
+    /// - Currently viewing the last (most recent) session
+    ///
+    /// # Functional Requirements
+    ///
+    /// - **FR-006**: System MUST disable live tailing when viewing any session
+    ///   other than the last (most recent) session
+    /// - **FR-007**: System MUST re-enable live tailing when user navigates
+    ///   back to last session
+    ///
+    /// # Returns
+    ///
+    /// `true` if live tailing should be active, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use cclv::state::AppState;
+    /// let mut state = AppState::new();
+    ///
+    /// // Default: auto_scroll=true, viewing latest session
+    /// assert!(state.is_tailing_enabled());
+    ///
+    /// // Disable auto_scroll
+    /// state.auto_scroll = false;
+    /// assert!(!state.is_tailing_enabled());
+    /// ```
+    pub fn is_tailing_enabled(&self) -> bool {
+        self.auto_scroll && self.viewed_session.is_last(self.log_view.session_count())
+    }
 }
 
 // ===== FocusPane =====
