@@ -98,6 +98,24 @@ impl SessionSummary {
             time_str
         )
     }
+
+    /// Create a new session summary from SessionViewState.
+    ///
+    /// Extracts:
+    /// - `session_id` from session.session_id()
+    /// - `message_count` from session.main().len()
+    /// - `start_time` from session.start_time()
+    /// - `subagent_count` from session.subagents().len()
+    ///
+    /// # Arguments
+    /// - `index`: Validated session index
+    /// - `session`: Reference to SessionViewState to extract data from
+    pub fn from_session(
+        _index: SessionIndex,
+        _session: &crate::view_state::session::SessionViewState,
+    ) -> Self {
+        todo!("SessionSummary::from_session")
+    }
 }
 
 #[cfg(test)]
@@ -240,5 +258,148 @@ mod tests {
 
         let result = summary.display_line();
         assert_eq!(result, "Session 100: 999 messages, 42 subagents (14:30)");
+    }
+
+    // ===== from_session Factory Tests (cclv-463.6.1) =====
+
+    #[test]
+    fn from_session_extracts_session_id() {
+        use crate::view_state::session::SessionViewState;
+
+        let session_id = make_test_session_id();
+        let session = SessionViewState::new(session_id.clone());
+        let index = make_test_index();
+
+        let summary = SessionSummary::from_session(index, &session);
+
+        assert_eq!(summary.session_id(), &session_id);
+    }
+
+    #[test]
+    fn from_session_extracts_message_count() {
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role};
+        use crate::view_state::session::SessionViewState;
+
+        let session_id = make_test_session_id();
+        let mut session = SessionViewState::new(session_id.clone());
+        let index = make_test_index();
+
+        // Add 3 messages to main conversation
+        for i in 0..3 {
+            let entry = crate::model::ConversationEntry::Valid(Box::new(LogEntry::new(
+                EntryUuid::new(&format!("uuid-{}", i)).unwrap(),
+                None,
+                session_id.clone(),
+                None,
+                make_test_time(),
+                EntryType::User,
+                Message::new(Role::User, MessageContent::Text(format!("Message {}", i))),
+                EntryMetadata::default(),
+            )));
+            session.add_main_entry(entry);
+        }
+
+        let summary = SessionSummary::from_session(index, &session);
+
+        assert_eq!(summary.message_count(), 3);
+    }
+
+    #[test]
+    fn from_session_extracts_start_time() {
+        use crate::view_state::session::SessionViewState;
+
+        let session_id = make_test_session_id();
+        let mut session = SessionViewState::new(session_id.clone());
+        let index = make_test_index();
+
+        // Add entry with timestamp to trigger start_time capture
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role};
+        let timestamp = make_test_time();
+        let entry = crate::model::ConversationEntry::Valid(Box::new(LogEntry::new(
+            EntryUuid::new("uuid-1").unwrap(),
+            None,
+            session_id.clone(),
+            None,
+            timestamp,
+            EntryType::User,
+            Message::new(Role::User, MessageContent::Text("First message".to_string())),
+            EntryMetadata::default(),
+        )));
+        session.add_main_entry(entry);
+
+        let summary = SessionSummary::from_session(index, &session);
+
+        assert_eq!(summary.start_time(), Some(timestamp));
+    }
+
+    #[test]
+    fn from_session_extracts_subagent_count() {
+        use crate::model::AgentId;
+        use crate::view_state::session::SessionViewState;
+
+        let session_id = make_test_session_id();
+        let mut session = SessionViewState::new(session_id.clone());
+        let index = make_test_index();
+
+        // Add 2 subagents
+        use crate::model::{EntryMetadata, EntryType, EntryUuid, LogEntry, Message, MessageContent, Role};
+        let agent1 = AgentId::new("agent-1").unwrap();
+        let agent2 = AgentId::new("agent-2").unwrap();
+
+        let entry1 = crate::model::ConversationEntry::Valid(Box::new(LogEntry::new(
+            EntryUuid::new("uuid-1").unwrap(),
+            None,
+            session_id.clone(),
+            None,
+            make_test_time(),
+            EntryType::User,
+            Message::new(Role::User, MessageContent::Text("Subagent 1 message".to_string())),
+            EntryMetadata::default(),
+        )));
+        session.add_subagent_entry(agent1, entry1);
+
+        let entry2 = crate::model::ConversationEntry::Valid(Box::new(LogEntry::new(
+            EntryUuid::new("uuid-2").unwrap(),
+            None,
+            session_id.clone(),
+            None,
+            make_test_time(),
+            EntryType::User,
+            Message::new(Role::User, MessageContent::Text("Subagent 2 message".to_string())),
+            EntryMetadata::default(),
+        )));
+        session.add_subagent_entry(agent2, entry2);
+
+        let summary = SessionSummary::from_session(index, &session);
+
+        assert_eq!(summary.subagent_count(), 2);
+    }
+
+    #[test]
+    fn from_session_with_empty_session() {
+        use crate::view_state::session::SessionViewState;
+
+        let session_id = make_test_session_id();
+        let session = SessionViewState::new(session_id.clone());
+        let index = make_test_index();
+
+        let summary = SessionSummary::from_session(index, &session);
+
+        assert_eq!(summary.message_count(), 0);
+        assert_eq!(summary.start_time(), None);
+        assert_eq!(summary.subagent_count(), 0);
+    }
+
+    #[test]
+    fn from_session_preserves_index() {
+        use crate::view_state::session::SessionViewState;
+
+        let session_id = make_test_session_id();
+        let session = SessionViewState::new(session_id);
+        let index = SessionIndex::new(5, 10).unwrap();
+
+        let summary = SessionSummary::from_session(index, &session);
+
+        assert_eq!(summary.index(), index);
     }
 }
