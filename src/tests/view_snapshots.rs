@@ -3801,7 +3801,6 @@ fn bug_session_tab_navigation_blank_after_change() {
 /// 7. Observe: Screen is blank (BUG!) - tabs show "Main | subagent-a" but no content
 /// 8. Press Tab - content appears (workaround)
 #[test]
-#[ignore = "cclv-t5m: screen blank when switching sessions from subagent tab"]
 fn bug_session_switch_from_subagent_tab_shows_blank() {
     use crate::test_harness::AcceptanceTestHarness;
     use crossterm::event::KeyCode;
