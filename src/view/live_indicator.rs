@@ -4,6 +4,8 @@
 //! - Gray when Static or Eof
 //! - Blinking green when Streaming
 
+#![allow(unused_imports, dead_code)] // Temporary during stub phase
+
 use super::styles::MUTED_TEXT;
 use crate::state::InputMode;
 use ratatui::{
@@ -37,60 +39,56 @@ const LIVE_INDICATOR_PREFIX: &str = "[LIVE] ";
 /// use cclv::state::InputMode;
 ///
 /// // Static mode - always gray
-/// let indicator = LiveIndicator::new(InputMode::Static, false);
+/// let indicator = LiveIndicator::new(InputMode::Static, false, true);
 ///
-/// // Streaming mode - blinking green
-/// let indicator_visible = LiveIndicator::new(InputMode::Streaming, true);
-/// let indicator_hidden = LiveIndicator::new(InputMode::Streaming, false);
+/// // Streaming mode - blinking green (when tailing enabled)
+/// let indicator_visible = LiveIndicator::new(InputMode::Streaming, true, true);
+/// let indicator_hidden = LiveIndicator::new(InputMode::Streaming, false, true);
 ///
 /// // EOF - always gray
-/// let indicator_eof = LiveIndicator::new(InputMode::Eof, true);
+/// let indicator_eof = LiveIndicator::new(InputMode::Eof, true, true);
+///
+/// // Streaming but tailing disabled (viewing historical session) - hidden
+/// let indicator_historical = LiveIndicator::new(InputMode::Streaming, true, false);
 /// ```
 #[derive(Debug, Clone)]
 pub struct LiveIndicator {
     mode: InputMode,
     blink_on: bool,
+    tailing_enabled: bool,
 }
 
 impl LiveIndicator {
-    /// Create a new LiveIndicator with the given mode and blink state.
+    /// Create a new LiveIndicator with the given mode, blink state, and tailing state.
     ///
     /// # Arguments
     ///
     /// * `mode` - The current input mode (Static, Streaming, or Eof)
     /// * `blink_on` - Whether the blink animation is currently ON (only relevant for Streaming mode)
-    pub fn new(mode: InputMode, blink_on: bool) -> Self {
-        Self { mode, blink_on }
+    /// * `tailing_enabled` - Whether live tailing is enabled (viewing last session with auto_scroll)
+    pub fn new(mode: InputMode, blink_on: bool, tailing_enabled: bool) -> Self {
+        Self {
+            mode,
+            blink_on,
+            tailing_enabled,
+        }
     }
 
     /// Render the indicator as a ratatui Span.
     ///
     /// # Behavior
     ///
-    /// - `InputMode::Static` → Gray "[LIVE]" text
-    /// - `InputMode::Eof` → Gray "[LIVE]" text
-    /// - `InputMode::Streaming` with `blink_on=true` → Green "[LIVE]" text
-    /// - `InputMode::Streaming` with `blink_on=false` → Empty string (hidden)
+    /// - `InputMode::Static` → Gray "[LIVE]" text (regardless of tailing_enabled)
+    /// - `InputMode::Eof` → Gray "[LIVE]" text (regardless of tailing_enabled)
+    /// - `InputMode::Streaming` with `tailing_enabled=false` → Hidden (viewing historical session)
+    /// - `InputMode::Streaming` with `tailing_enabled=true` and `blink_on=true` → Green "[LIVE]" text
+    /// - `InputMode::Streaming` with `tailing_enabled=true` and `blink_on=false` → Empty string (hidden)
     ///
     /// # Returns
     ///
     /// A `Span` containing the styled indicator text.
     pub fn render(&self) -> Span<'static> {
-        match self.mode {
-            InputMode::Static | InputMode::Eof => {
-                // Always gray when static or EOF
-                Span::styled(LIVE_INDICATOR_PREFIX, MUTED_TEXT)
-            }
-            InputMode::Streaming => {
-                if self.blink_on {
-                    // Green when blinking ON
-                    Span::styled(LIVE_INDICATOR_PREFIX, Style::default().fg(Color::Green))
-                } else {
-                    // Hidden when blinking OFF
-                    Span::raw("")
-                }
-            }
-        }
+        todo!("LiveIndicator::render with tailing_enabled support")
     }
 }
 
