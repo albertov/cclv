@@ -111,9 +111,8 @@ fn bug_stats_should_update_when_switching_tabs() {
 /// 6. Observe: Stats pane shows Input: 0, Output: 0, Total: 0, Cost: $0.00
 ///
 /// Expected: Stats should show Alpha session tokens (2,500 input for Main)
-/// Actual: Stats show zeros
+/// Actual (FIXED): Stats correctly show Alpha session tokens
 #[test]
-#[ignore = "cclv-cym: stats pane shows zeros after session modal switch"]
 fn bug_stats_show_zeros_after_session_modal_switch() {
     // GIVEN: Log file with two sessions (Alpha first, Beta second)
     // By default, Beta session is displayed (most recent)

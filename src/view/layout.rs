@@ -299,16 +299,39 @@ fn render_conversation_pane(
 ///
 /// The panel displays token usage, estimated cost, tool usage, and subagent count.
 /// Border is highlighted when FocusPane::Stats is active.
+///
+/// # Bug Fix (cclv-cym)
+///
+/// Stats panel must use the viewed session (determined by `viewed_session`),
+/// not always the last session. This ensures stats match the currently displayed
+/// conversation when user switches sessions via the session modal.
 fn render_stats_panel(frame: &mut Frame, area: Rect, state: &AppState) {
+    // Get the viewed session (not always the last session)
+    let session_count = state.log_view().session_count();
+    let session_idx = match state.viewed_session.effective_index(session_count) {
+        Some(idx) => idx,
+        None => {
+            // No valid session to display stats for (shouldn't happen normally)
+            return;
+        }
+    };
+
+    let session_view = match state.log_view().get_session(session_idx.get()) {
+        Some(session) => session,
+        None => {
+            // Session doesn't exist (shouldn't happen if effective_index succeeded)
+            return;
+        }
+    };
+
     // Build session statistics by iterating through entries
     // Uses SessionViewState which contains all entries including pending subagents
     // TODO: This should be cached in SessionViewState once stats are integrated
-    let session_view = state.session_view();
     let stats = build_session_stats(session_view);
 
     // Get model ID for pricing calculation
     // TODO: Model ID should be in SessionViewState metadata
-    let model_id = state.session_view().main().model_id();
+    let model_id = session_view.main().model_id();
 
     // Use default pricing configuration
     let pricing = PricingConfig::default();
