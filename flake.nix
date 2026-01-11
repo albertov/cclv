@@ -1,6 +1,15 @@
 {
   description = "Claude Code Log Viewer - TUI for viewing Claude Code JSONL logs";
 
+  nixConfig = {
+    extra-substituters = [
+      "https://cclv.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "cclv.cachix.org-1:z0+KPEhSR3m6rg2BQf8sKco9JFK1UPiCvjsaXlUSpwg="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/release-25.11";
 
