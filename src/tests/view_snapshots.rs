@@ -1314,7 +1314,6 @@ fn us1_end_key_shows_last_entries_with_content() {
 /// 5-10x slower due to lack of optimizations. The 60fps target is for release builds only.
 #[cfg(not(debug_assertions))]
 #[test]
-#[ignore = "Performance target (16ms/60fps) not yet achieved - requires O(log n) optimization in cclv-5ur.6"]
 fn us1_rapid_scroll_updates_within_60fps() {
     use crate::source::FileSource;
     use crate::state::AppState;
