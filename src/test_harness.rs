@@ -248,6 +248,71 @@ impl AcceptanceTestHarness {
         insta::assert_snapshot!(snapshot_name, output);
     }
 
+    /// Check if any occurrence of `text` in the rendered buffer has REVERSED modifier.
+    ///
+    /// Search highlighting typically uses REVERSED to make matches visually distinct.
+    /// This renders the current frame, then scans each row for the text and checks
+    /// if all cells in that span have the REVERSED modifier applied.
+    ///
+    /// # Arguments
+    /// * `text` - The text to search for in the rendered output
+    ///
+    /// # Returns
+    /// - `true` if at least one occurrence of `text` has REVERSED styling
+    /// - `false` if no occurrences have REVERSED styling
+    #[allow(dead_code)]
+    pub fn contains_reversed_text(&mut self, text: &str) -> bool {
+        use ratatui::style::Modifier;
+
+        // Render the current frame
+        self.app
+            .render_test()
+            .expect("Rendering should succeed in test harness");
+
+        let buffer = self.app.terminal().backend().buffer();
+        let area = buffer.area();
+        let text_lower = text.to_lowercase();
+
+        for y in area.top()..area.bottom() {
+            // Build row string and collect cells
+            let mut row_text = String::new();
+            let mut row_cells: Vec<_> = Vec::new();
+
+            for x in area.left()..area.right() {
+                let cell = &buffer[(x, y)];
+                row_text.push_str(cell.symbol());
+                row_cells.push(cell);
+            }
+
+            // Find occurrences of text in this row (case-insensitive)
+            let row_lower = row_text.to_lowercase();
+            let mut start = 0;
+
+            while let Some(pos) = row_lower[start..].find(&text_lower) {
+                let abs_pos = start + pos;
+
+                // Check if all cells for this occurrence have REVERSED modifier
+                let text_char_count = text.chars().count();
+                let has_reversed = (0..text_char_count).all(|i| {
+                    let cell_idx = abs_pos + i;
+                    if cell_idx < row_cells.len() {
+                        row_cells[cell_idx].modifier.contains(Modifier::REVERSED)
+                    } else {
+                        false
+                    }
+                });
+
+                if has_reversed {
+                    return true;
+                }
+
+                start = abs_pos + 1;
+            }
+        }
+
+        false
+    }
+
     /// Send a mouse click event at the specified coordinates
     ///
     /// # Arguments

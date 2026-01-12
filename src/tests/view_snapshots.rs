@@ -49,6 +49,62 @@ fn create_terminal(width: u16, height: u16) -> Terminal<TestBackend> {
     Terminal::new(backend).unwrap()
 }
 
+/// Check if any occurrence of `text` in the buffer has the REVERSED modifier.
+///
+/// Search highlighting typically uses REVERSED to make matches visually distinct.
+/// This scans each row for the text and checks if all cells in that span have
+/// the REVERSED modifier applied.
+///
+/// # Returns
+/// - `true` if at least one occurrence of `text` has REVERSED styling
+/// - `false` if no occurrences have REVERSED styling
+#[allow(dead_code)]
+fn buffer_contains_reversed_text(buffer: &ratatui::buffer::Buffer, text: &str) -> bool {
+    use ratatui::style::Modifier;
+
+    let area = buffer.area();
+    let text_lower = text.to_lowercase();
+
+    for y in area.top()..area.bottom() {
+        // Build row string and collect cells
+        let mut row_text = String::new();
+        let mut row_cells: Vec<_> = Vec::new();
+
+        for x in area.left()..area.right() {
+            let cell = &buffer[(x, y)];
+            row_text.push_str(cell.symbol());
+            row_cells.push(cell);
+        }
+
+        // Find occurrences of text in this row (case-insensitive)
+        let row_lower = row_text.to_lowercase();
+        let mut start = 0;
+
+        while let Some(pos) = row_lower[start..].find(&text_lower) {
+            let abs_pos = start + pos;
+
+            // Check if all cells for this occurrence have REVERSED modifier
+            let text_char_count = text.chars().count();
+            let has_reversed = (0..text_char_count).all(|i| {
+                let cell_idx = abs_pos + i;
+                if cell_idx < row_cells.len() {
+                    row_cells[cell_idx].modifier.contains(Modifier::REVERSED)
+                } else {
+                    false
+                }
+            });
+
+            if has_reversed {
+                return true;
+            }
+
+            start = abs_pos + 1;
+        }
+    }
+
+    false
+}
+
 /// Create sample SessionStats for testing.
 fn create_sample_stats() -> SessionStats {
     let mut tool_counts = HashMap::new();
@@ -4212,27 +4268,30 @@ fn bug_search_match_text_not_highlighted() {
     // Snapshot captures current (buggy) state
     insta::assert_snapshot!("bug_search_match_text_not_highlighted", output);
 
-    // BUG ASSERTION: Search matches should be highlighted in the output.
-    //
-    // In terminal output, highlighting appears as ANSI escape sequences that
-    // ratatui's TestBackend captures. Without highlighting, the word "skill"
-    // appears as plain text identical to surrounding content.
-    //
-    // When search highlighting is implemented, the word "skill" should appear
-    // with different styling (e.g., reverse video, bold, or different color)
-    // which would be visible in the buffer output.
-    //
-    // For now, we check that the content contains "skill" but acknowledge
-    // we can't detect highlighting in plain buffer_to_string output.
-    // The visual bug was confirmed via tmux observation.
+    // Verify text is present
     assert!(
         output.contains("skill"),
         "Output should contain the search term 'skill'"
     );
 
-    // TODO: When search highlighting is implemented, add assertion that
-    // verifies the match is actually highlighted. This could be done by:
-    // 1. Checking buffer cell styles directly (not just symbols)
-    // 2. Using a buffer_to_styled_string helper that captures style info
-    // 3. Checking for ANSI escape sequences if TestBackend preserves them
+    // BUG ASSERTION: Search matches should have REVERSED modifier applied.
+    //
+    // The contains_reversed_text() method inspects actual buffer cell styles,
+    // not just the text content. Search highlighting uses Modifier::REVERSED
+    // to make matches visually distinct.
+    //
+    // This assertion FAILS because SubmitSearch doesn't trigger a relayout
+    // with the new search state - the rendered lines are never updated
+    // with highlighting styles.
+    let has_highlighted_match = harness.contains_reversed_text("skill");
+
+    assert!(
+        has_highlighted_match,
+        "BUG cclv-5ur.78: Search match 'skill' should have REVERSED modifier.\n\
+         Expected: At least one occurrence of 'skill' has Modifier::REVERSED\n\
+         Actual: No occurrence of 'skill' has REVERSED modifier\n\n\
+         Root cause: SubmitSearch handler updates SearchState but doesn't\n\
+         trigger relayout of conversation views with the new search state.\n\
+         Compare to ToggleGlobalWrap which correctly calls relayout()."
+    );
 }
