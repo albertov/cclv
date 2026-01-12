@@ -191,6 +191,18 @@ impl AcceptanceTestHarness {
         self.app.app_state()
     }
 
+    /// Access app state mutably for test setup
+    ///
+    /// Provides mutable access to AppState for test setup operations
+    /// like pinning viewed_session to specific sessions.
+    ///
+    /// # Returns
+    /// Mutable reference to the current AppState
+    #[allow(dead_code)]
+    pub fn state_mut(&mut self) -> &mut AppState {
+        self.app.app_state_mut()
+    }
+
     /// Check if app is still running (didn't crash/quit)
     ///
     /// # Returns

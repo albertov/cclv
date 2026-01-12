@@ -130,6 +130,19 @@ fn us2_scenario3_search_highlight() {
         .expect("Should load session for searching");
 
     // IF YES: Session loaded
+    // IMPORTANT: tool_calls.jsonl has multiple sessions.
+    // Search only operates on the viewed session (context-aware Enter key, cclv-464).
+    // The fixture has "skill" in a tool_result on line 5, which is part of session 2
+    // (session_id 1b63d20c appears on lines 1, then 3-5 after line 2 with different session_id).
+    let session_count = {
+        let state = harness.state();
+        state.log_view().session_count()
+    };
+
+    // Pin to session 2 which contains the "skill" text
+    harness.state_mut().viewed_session =
+        crate::state::ViewedSession::pinned(2, session_count).expect("Session 2 should exist");
+
     // VERIFY: Initial search state is inactive
     let initial_state = harness.state();
     assert!(
@@ -150,11 +163,12 @@ fn us2_scenario3_search_highlight() {
         "Search should enter typing mode after '/'"
     );
 
-    // WHEN: User types search query "Read"
-    harness.send_key(KeyCode::Char('R'));
-    harness.send_key(KeyCode::Char('e'));
-    harness.send_key(KeyCode::Char('a'));
-    harness.send_key(KeyCode::Char('d'));
+    // WHEN: User types search query "skill" (exists in tool_results in fixture)
+    harness.send_key(KeyCode::Char('s'));
+    harness.send_key(KeyCode::Char('k'));
+    harness.send_key(KeyCode::Char('i'));
+    harness.send_key(KeyCode::Char('l'));
+    harness.send_key(KeyCode::Char('l'));
 
     // WHEN: User presses Enter to execute search
     harness.send_key(KeyCode::Enter);
@@ -165,7 +179,7 @@ fn us2_scenario3_search_highlight() {
         crate::state::SearchState::Active { matches, .. } => {
             assert!(
                 !matches.is_empty(),
-                "Should find matches for 'Read' in tool_calls.jsonl"
+                "Should find matches for 'skill' in tool_calls.jsonl"
             );
         }
         _ => panic!(

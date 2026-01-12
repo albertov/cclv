@@ -991,6 +991,15 @@ where
         &self.app_state
     }
 
+    /// Get mutable reference to app state (test-only accessor)
+    ///
+    /// Used by test harness to modify app state for test setup.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    pub(crate) fn app_state_mut(&mut self) -> &mut AppState {
+        &mut self.app_state
+    }
+
     /// Handle a single keyboard event (test-only accessor)
     ///
     /// Returns true if app should quit.
