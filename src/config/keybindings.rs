@@ -1,6 +1,7 @@
 //! Keyboard bindings configuration.
 
 use crate::model::key_action::KeyAction;
+use crate::state::{FocusPane, SearchState};
 use crossterm::event::KeyEvent;
 use std::collections::HashMap;
 
@@ -16,6 +17,30 @@ impl KeyBindings {
     /// Look up the action for a key event.
     pub fn get(&self, key: KeyEvent) -> Option<KeyAction> {
         self.bindings.get(&key).copied()
+    }
+
+    /// Look up the action for a key event with context awareness.
+    ///
+    /// Context-aware keybinding resolution supports different actions for the same key
+    /// depending on UI state. For example, Enter submits search when in Search + Typing mode,
+    /// but toggles message expansion in other contexts.
+    ///
+    /// # Parameters
+    ///
+    /// - `key`: The key event to resolve
+    /// - `focus`: Which pane currently has focus
+    /// - `search_state`: Current search state (Inactive, Typing, or Active)
+    ///
+    /// # Returns
+    ///
+    /// The appropriate `KeyAction` for this key in the given context, or `None` if no binding.
+    pub fn get_contextual(
+        &self,
+        _key: KeyEvent,
+        _focus: FocusPane,
+        _search_state: &SearchState,
+    ) -> Option<KeyAction> {
+        todo!("get_contextual: context-aware keybinding resolution")
     }
 }
 
@@ -289,6 +314,104 @@ mod tests {
             bindings.get(key_event),
             Some(KeyAction::ToggleGlobalWrap),
             "Uppercase 'W' (shift+w) should map to ToggleGlobalWrap"
+        );
+    }
+
+    // ===== Context-Aware Keybinding Tests =====
+
+    #[test]
+    fn enter_in_search_typing_mode_returns_submit_search() {
+        let kb = KeyBindings::default();
+        let enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let typing = SearchState::Typing {
+            query: "test".into(),
+            cursor: 4,
+        };
+
+        assert_eq!(
+            kb.get_contextual(enter, FocusPane::Search, &typing),
+            Some(KeyAction::SubmitSearch),
+            "Enter in Search + Typing mode should submit search"
+        );
+    }
+
+    #[test]
+    fn enter_in_main_focus_returns_toggle_expand() {
+        let kb = KeyBindings::default();
+        let enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let inactive = SearchState::Inactive;
+
+        assert_eq!(
+            kb.get_contextual(enter, FocusPane::Main, &inactive),
+            Some(KeyAction::ToggleExpand),
+            "Enter in Main focus should toggle message expansion"
+        );
+    }
+
+    #[test]
+    fn enter_in_search_focus_but_inactive_returns_toggle_expand() {
+        let kb = KeyBindings::default();
+        let enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let inactive = SearchState::Inactive;
+
+        assert_eq!(
+            kb.get_contextual(enter, FocusPane::Search, &inactive),
+            Some(KeyAction::ToggleExpand),
+            "Enter in Search focus but Inactive state should toggle expand"
+        );
+    }
+
+    #[test]
+    fn enter_in_subagent_focus_returns_toggle_expand() {
+        let kb = KeyBindings::default();
+        let enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let inactive = SearchState::Inactive;
+
+        assert_eq!(
+            kb.get_contextual(enter, FocusPane::Subagent, &inactive),
+            Some(KeyAction::ToggleExpand),
+            "Enter in Subagent focus should toggle expand"
+        );
+    }
+
+    #[test]
+    fn enter_with_modifiers_in_typing_mode_uses_default_binding() {
+        let kb = KeyBindings::default();
+        let enter_ctrl = KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL);
+        let typing = SearchState::Typing {
+            query: "test".into(),
+            cursor: 4,
+        };
+
+        // Ctrl+Enter has no default binding, so should return None
+        assert_eq!(
+            kb.get_contextual(enter_ctrl, FocusPane::Search, &typing),
+            None,
+            "Enter with modifiers should not trigger context override"
+        );
+    }
+
+    #[test]
+    fn other_keys_in_typing_mode_use_default_bindings() {
+        let kb = KeyBindings::default();
+        let typing = SearchState::Typing {
+            query: "test".into(),
+            cursor: 4,
+        };
+
+        // Test that other keys still work normally in typing mode
+        let esc = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+        assert_eq!(
+            kb.get_contextual(esc, FocusPane::Search, &typing),
+            Some(KeyAction::CancelSearch),
+            "Esc should cancel search even in typing mode"
+        );
+
+        let ctrl_s = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL);
+        assert_eq!(
+            kb.get_contextual(ctrl_s, FocusPane::Search, &typing),
+            Some(KeyAction::SubmitSearch),
+            "Ctrl+S should also submit search"
         );
     }
 }
