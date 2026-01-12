@@ -641,6 +641,27 @@ where
                         matches,
                         current_match: 0,
                     };
+
+                    // Trigger relayout to apply search highlighting (cclv-5ur.78)
+                    let width = match self.terminal.size() {
+                        Ok(size) if size.width > 0 => size.width,
+                        _ => 80, // Fallback for errors OR zero width
+                    };
+                    let wrap = self.app_state.global_wrap;
+                    let search_state = self.app_state.search.clone();
+
+                    // Relayout main conversation
+                    if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+                        main_view.relayout(width, wrap, &search_state);
+                    }
+
+                    // Relayout all subagent conversations
+                    let subagent_count = self.app_state.session_view().subagent_ids().count();
+                    for idx in 0..subagent_count {
+                        if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                            sub_view.relayout(width, wrap, &search_state);
+                        }
+                    }
                 }
                 // Keep focus on Search pane after submit (stays active)
             }
@@ -649,14 +670,77 @@ where
                     search_input_handler::cancel_search(self.app_state.search.clone());
                 // Return focus to Main pane after cancel
                 self.app_state.focus = FocusPane::Main;
+
+                // Trigger relayout to remove search highlighting (cclv-5ur.78)
+                let width = match self.terminal.size() {
+                    Ok(size) if size.width > 0 => size.width,
+                    _ => 80, // Fallback for errors OR zero width
+                };
+                let wrap = self.app_state.global_wrap;
+                let search_state = self.app_state.search.clone();
+
+                // Relayout main conversation
+                if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+                    main_view.relayout(width, wrap, &search_state);
+                }
+
+                // Relayout all subagent conversations
+                let subagent_count = self.app_state.session_view().subagent_ids().count();
+                for idx in 0..subagent_count {
+                    if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                        sub_view.relayout(width, wrap, &search_state);
+                    }
+                }
             }
 
             // Match navigation - delegate to pure match navigation handler
             KeyAction::NextMatch => {
                 next_match(&mut self.app_state);
+
+                // Trigger relayout to update current match highlighting (cclv-5ur.78)
+                let width = match self.terminal.size() {
+                    Ok(size) if size.width > 0 => size.width,
+                    _ => 80, // Fallback for errors OR zero width
+                };
+                let wrap = self.app_state.global_wrap;
+                let search_state = self.app_state.search.clone();
+
+                // Relayout main conversation
+                if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+                    main_view.relayout(width, wrap, &search_state);
+                }
+
+                // Relayout all subagent conversations
+                let subagent_count = self.app_state.session_view().subagent_ids().count();
+                for idx in 0..subagent_count {
+                    if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                        sub_view.relayout(width, wrap, &search_state);
+                    }
+                }
             }
             KeyAction::PrevMatch => {
                 prev_match(&mut self.app_state);
+
+                // Trigger relayout to update current match highlighting (cclv-5ur.78)
+                let width = match self.terminal.size() {
+                    Ok(size) if size.width > 0 => size.width,
+                    _ => 80, // Fallback for errors OR zero width
+                };
+                let wrap = self.app_state.global_wrap;
+                let search_state = self.app_state.search.clone();
+
+                // Relayout main conversation
+                if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+                    main_view.relayout(width, wrap, &search_state);
+                }
+
+                // Relayout all subagent conversations
+                let subagent_count = self.app_state.session_view().subagent_ids().count();
+                for idx in 0..subagent_count {
+                    if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                        sub_view.relayout(width, wrap, &search_state);
+                    }
+                }
             }
 
             // Line wrapping - per-item toggle (w key)

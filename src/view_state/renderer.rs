@@ -166,9 +166,8 @@ pub fn compute_entry_lines(
             let wrapped_lines =
                 wrap_lines(&text_lines, wrap_ctx.mode, width, entry_index.is_some());
 
-            // If we have search matches AND are expanded, apply highlighting
-            // (Don't highlight collapsed view for simplicity)
-            if !entry_matches.is_empty() && expanded {
+            // If we have search matches, apply highlighting (cclv-5ur.78)
+            if !entry_matches.is_empty() {
                 // Apply highlighting to wrapped text (skip markdown for now)
                 // Track cumulative offset for multi-line text
                 let mut cumulative_offset: usize = 0;

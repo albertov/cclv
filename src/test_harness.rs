@@ -275,12 +275,21 @@ impl AcceptanceTestHarness {
 
         for y in area.top()..area.bottom() {
             // Build row string and collect cells
+            // Also build a map from string position to cell index (to handle multi-byte symbols)
             let mut row_text = String::new();
             let mut row_cells: Vec<_> = Vec::new();
+            let mut str_pos_to_cell_idx: Vec<usize> = Vec::new();
 
             for x in area.left()..area.right() {
                 let cell = &buffer[(x, y)];
-                row_text.push_str(cell.symbol());
+                let symbol = cell.symbol();
+
+                // Map each character position in the symbol to this cell index
+                for _ in 0..symbol.len() {
+                    str_pos_to_cell_idx.push(x as usize);
+                }
+
+                row_text.push_str(symbol);
                 row_cells.push(cell);
             }
 
@@ -291,10 +300,13 @@ impl AcceptanceTestHarness {
             while let Some(pos) = row_lower[start..].find(&text_lower) {
                 let abs_pos = start + pos;
 
+                // Map string position to cell index
+                let start_cell_idx = str_pos_to_cell_idx.get(abs_pos).copied().unwrap_or(0);
+
                 // Check if all cells for this occurrence have REVERSED modifier
                 let text_char_count = text.chars().count();
                 let has_reversed = (0..text_char_count).all(|i| {
-                    let cell_idx = abs_pos + i;
+                    let cell_idx = start_cell_idx + i;
                     if cell_idx < row_cells.len() {
                         row_cells[cell_idx].modifier.contains(Modifier::REVERSED)
                     } else {
