@@ -4150,3 +4150,89 @@ fn bug_mouse_entry_expand_non_last_session() {
          After click:\n{after_click_session1}"
     );
 }
+
+/// Bug reproduction: Search match text not highlighted in rendered output.
+///
+/// EXPECTED: When user searches for "skill" and matches are found, the matching
+/// text should be visually highlighted (e.g., bold, colored, or inverted) in
+/// the rendered conversation view.
+///
+/// ACTUAL: Matching text appears identical to surrounding text - no visual
+/// differentiation. The only search indicators are:
+/// - Tab dots (•) showing matches in subagent tabs
+/// - Status bar showing "n: Next | N: Prev" navigation hints
+///
+/// Steps to reproduce manually:
+/// 1. cargo run -- tests/fixtures/search_highlight_repro.jsonl
+/// 2. Press '/' to activate search
+/// 3. Type 'skill' and press Enter
+/// 4. Observe: The word "skill" appears in the content but is NOT highlighted
+///
+/// Fixture: tests/fixtures/search_highlight_repro.jsonl
+#[test]
+#[ignore = "cclv-5ur.78: search highlighting not yet implemented"]
+fn bug_search_match_text_not_highlighted() {
+    use crate::test_harness::AcceptanceTestHarness;
+    use crossterm::event::KeyCode;
+
+    // Load minimal fixture with searchable text
+    let mut harness = AcceptanceTestHarness::from_fixture_with_size(
+        "tests/fixtures/search_highlight_repro.jsonl",
+        80,
+        24,
+    )
+    .expect("Should load fixture");
+
+    // Render initial state
+    let _initial = harness.render_to_string();
+
+    // Activate search with '/'
+    harness.send_key(KeyCode::Char('/'));
+
+    // Type search term "skill"
+    harness.send_key(KeyCode::Char('s'));
+    harness.send_key(KeyCode::Char('k'));
+    harness.send_key(KeyCode::Char('i'));
+    harness.send_key(KeyCode::Char('l'));
+    harness.send_key(KeyCode::Char('l'));
+
+    // Submit search with Enter
+    harness.send_key(KeyCode::Enter);
+
+    // Verify search is active
+    let state = harness.state();
+    assert!(
+        matches!(state.search, crate::state::SearchState::Active { .. }),
+        "Search should be active after Enter"
+    );
+
+    // Render with active search
+    let output = harness.render_to_string();
+
+    // Snapshot captures current (buggy) state
+    insta::assert_snapshot!("bug_search_match_text_not_highlighted", output);
+
+    // BUG ASSERTION: Search matches should be highlighted in the output.
+    //
+    // In terminal output, highlighting appears as ANSI escape sequences that
+    // ratatui's TestBackend captures. Without highlighting, the word "skill"
+    // appears as plain text identical to surrounding content.
+    //
+    // When search highlighting is implemented, the word "skill" should appear
+    // with different styling (e.g., reverse video, bold, or different color)
+    // which would be visible in the buffer output.
+    //
+    // For now, we check that the content contains "skill" but acknowledge
+    // we can't detect highlighting in plain buffer_to_string output.
+    // The visual bug was confirmed via tmux observation.
+    assert!(
+        output.contains("skill"),
+        "Output should contain the search term 'skill'"
+    );
+
+    // TODO: When search highlighting is implemented, add assertion that
+    // verifies the match is actually highlighted. This could be done by:
+    // 1. Checking buffer cell styles directly (not just symbols)
+    // 2. Using a buffer_to_styled_string helper that captures style info
+    // 3. Checking for ANSI escape sequences if TestBackend preserves them
+}
