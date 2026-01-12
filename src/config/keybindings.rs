@@ -36,11 +36,23 @@ impl KeyBindings {
     /// The appropriate `KeyAction` for this key in the given context, or `None` if no binding.
     pub fn get_contextual(
         &self,
-        _key: KeyEvent,
-        _focus: FocusPane,
-        _search_state: &SearchState,
+        key: KeyEvent,
+        focus: FocusPane,
+        search_state: &SearchState,
     ) -> Option<KeyAction> {
-        todo!("get_contextual: context-aware keybinding resolution")
+        use crossterm::event::KeyCode;
+
+        // Context override: Enter in Search + Typing → SubmitSearch
+        if key.code == KeyCode::Enter
+            && key.modifiers.is_empty()
+            && focus == FocusPane::Search
+            && matches!(search_state, SearchState::Typing { .. })
+        {
+            return Some(KeyAction::SubmitSearch);
+        }
+
+        // Default lookup
+        self.bindings.get(&key).copied()
     }
 }
 
