@@ -238,18 +238,33 @@ pub fn handle_entry_click(
     match entry_click {
         EntryClickResult::MainPaneEntry(index) => {
             // Toggle expand via ConversationViewState
-            if let Some(session_view) = state.log_view_mut().current_session_mut() {
-                let conv_view = session_view.main_mut();
-                conv_view.toggle_entry_expanded(index, &search_state);
+            let session_count = state.log_view().session_count();
+            let session_idx = state.viewed_session.effective_index(session_count);
+            tracing::trace!("MainPaneEntry click: session_count={}, session_idx={:?}, entry_index={}",
+                session_count, session_idx.map(|i| i.get()), index);
+            if let Some(idx) = session_idx {
+                if let Some(session_view) = state.log_view_mut().get_session_mut(idx.get()) {
+                    let conv_view = session_view.main_mut();
+                    tracing::trace!("Toggling entry {} in session {}", index, idx.get());
+                    conv_view.toggle_entry_expanded(index, &search_state);
+                } else {
+                    tracing::warn!("Failed to get session_view_mut for session {}", idx.get());
+                }
+            } else {
+                tracing::warn!("Failed to get effective_index for session_count={}", session_count);
             }
         }
         EntryClickResult::SubagentPaneEntry(index) => {
             // Toggle expand via selected subagent's ConversationViewState
             // Use central routing to get agent ID and conversation view
             if let Some(agent_id) = state.selected_agent_id() {
-                if let Some(session_view) = state.log_view_mut().current_session_mut() {
-                    let conv_view = session_view.subagent_mut(&agent_id);
-                    conv_view.toggle_entry_expanded(index, &search_state);
+                let session_count = state.log_view().session_count();
+                let session_idx = state.viewed_session.effective_index(session_count);
+                if let Some(idx) = session_idx {
+                    if let Some(session_view) = state.log_view_mut().get_session_mut(idx.get()) {
+                        let conv_view = session_view.subagent_mut(&agent_id);
+                        conv_view.toggle_entry_expanded(index, &search_state);
+                    }
                 }
             }
         }
