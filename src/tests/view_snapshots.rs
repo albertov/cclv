@@ -4051,10 +4051,15 @@ fn bug_mouse_clicks_broken_on_non_last_session() {
 ///
 /// Bead: cclv-haf
 #[test]
-#[ignore = "cclv-haf: mouse clicks don't expand entries on non-last sessions"]
 fn bug_mouse_entry_expand_non_last_session() {
     use crate::test_harness::AcceptanceTestHarness;
     use crossterm::event::KeyCode;
+
+    // Initialize tracing for debugging
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .with_test_writer()
+        .try_init();
 
     // Load fixture with multiple sessions
     let mut harness = AcceptanceTestHarness::from_fixture_with_size(
@@ -4108,8 +4113,9 @@ fn bug_mouse_entry_expand_non_last_session() {
     // Snapshot session 1 before click
     insta::assert_snapshot!("bug_entry_expand_session1_before_click", after_switch.clone());
 
-    // TEST PART 3: Click at same row on session 1 (non-last)
-    harness.click_at(60, 10);
+    // TEST PART 3: Click on entry 8 which has truncated content (+164 more lines)
+    // Entry 8 starts at row ~28, where "(+164 more lines)" is visible
+    harness.click_at(60, 28);
     let after_click_session1 = harness.render_to_string();
 
     // Snapshot after click on session 1

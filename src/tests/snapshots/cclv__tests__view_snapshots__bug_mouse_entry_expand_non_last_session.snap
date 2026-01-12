@@ -36,9 +36,9 @@ expression: after_click_session1.clone()
 ││  8 Base directory for this skill: /home/claude/.claude/skills/efficient-subagent-orchestration                      │
 ││                                                                                                                     │
 ││    # Efficient Subagent Orchestration for Main Agent                                                                │
-││    (+164 more lines)                                                                                                │
-│                                                                                                                      │
-││  9 Launching skill: beads-project-tracking                                                                          │
-│                                                                                                                      │
+││                                                                                                                     │
+││    A skill for the main agent to efficiently delegate context-heavy operations to expert subagents via the Task     │
+││    tool. This prevents main context pollution, reduces token costs, and enables parallel processing while the main a│
+││    gent maintains coordination control.                                                                             │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 [LIVE] │ Session 1/24 │ Wrap: On | q: Quit | ?: Help | /: Search | s: Stats | Tab: Cycle panes
