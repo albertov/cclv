@@ -250,7 +250,6 @@ fn us4_scenario4_search_activation() {
 // ===== US4 Scenario 5: Navigate Search Results =====
 
 #[test]
-#[ignore = "Search execution not wired up - Enter doesn't execute search from Typing mode"]
 fn us4_scenario5_navigate_search_results() {
     // GIVEN: Search results exist
     // WHEN: User presses n/N
@@ -262,12 +261,24 @@ fn us4_scenario5_navigate_search_results() {
         .expect("Should load session for search navigation test");
 
     // IF YES: Session loaded
-    // WHEN: User activates search and types query
+    // IMPORTANT: tool_calls.jsonl has multiple sessions.
+    // Search only operates on the viewed session (context-aware Enter key, cclv-464).
+    // The fixture has "skill" in a tool_result on line 5, which is part of session 2.
+    let session_count = {
+        let state = harness.state();
+        state.log_view().session_count()
+    };
+    // Pin to session 2 which contains the "skill" text
+    harness.state_mut().viewed_session =
+        crate::state::ViewedSession::pinned(2, session_count).expect("Session 2 should exist");
+
+    // WHEN: User activates search and types query "skill" (exists in tool_results in fixture)
     harness.send_key(KeyCode::Char('/'));
-    harness.send_key(KeyCode::Char('R'));
-    harness.send_key(KeyCode::Char('e'));
-    harness.send_key(KeyCode::Char('a'));
-    harness.send_key(KeyCode::Char('d'));
+    harness.send_key(KeyCode::Char('s'));
+    harness.send_key(KeyCode::Char('k'));
+    harness.send_key(KeyCode::Char('i'));
+    harness.send_key(KeyCode::Char('l'));
+    harness.send_key(KeyCode::Char('l'));
 
     // WHEN: User presses Enter to execute search
     harness.send_key(KeyCode::Enter);
@@ -282,25 +293,34 @@ fn us4_scenario5_navigate_search_results() {
         } => {
             assert!(
                 !matches.is_empty(),
-                "Search for 'Read' should find matches in tool_calls.jsonl"
+                "Search for 'skill' should find matches in tool_calls.jsonl"
             );
 
             let initial_match = *current_match;
+            let match_count = matches.len();
 
             // WHEN: User presses 'n' for next match
             harness.send_key(KeyCode::Char('n'));
 
-            // VERIFY: Current match advanced
+            // VERIFY: Current match advanced (or wrapped if only 1 match)
             let state_after_n = harness.state();
             match &state_after_n.search {
                 crate::state::SearchState::Active {
                     current_match: new_match,
                     ..
                 } => {
-                    assert_ne!(
-                        *new_match, initial_match,
-                        "Pressing 'n' should move to next match"
-                    );
+                    if match_count > 1 {
+                        assert_ne!(
+                            *new_match, initial_match,
+                            "Pressing 'n' with multiple matches should move to next match"
+                        );
+                    } else {
+                        // With 1 match, 'n' wraps to the same match (index 0)
+                        assert_eq!(
+                            *new_match, initial_match,
+                            "Pressing 'n' with single match should stay at match 0"
+                        );
+                    }
                 }
                 _ => panic!("Search should remain active after 'n'"),
             }
@@ -308,13 +328,14 @@ fn us4_scenario5_navigate_search_results() {
             // WHEN: User presses 'N' for previous match
             harness.send_key(KeyCode::Char('N'));
 
-            // VERIFY: Current match went back
+            // VERIFY: Current match went back (or stayed if only 1 match)
             let state_after_shift_n = harness.state();
             match &state_after_shift_n.search {
                 crate::state::SearchState::Active {
                     current_match: final_match,
                     ..
                 } => {
+                    // Should return to initial match (same behavior for 1 or many matches)
                     assert_eq!(
                         *final_match, initial_match,
                         "Pressing 'N' should move to previous match (back to initial)"

@@ -191,6 +191,18 @@ impl AcceptanceTestHarness {
         self.app.app_state()
     }
 
+    /// Access app state mutably for test setup
+    ///
+    /// Provides mutable access to AppState for test setup operations
+    /// like pinning viewed_session to specific sessions.
+    ///
+    /// # Returns
+    /// Mutable reference to the current AppState
+    #[allow(dead_code)]
+    pub fn state_mut(&mut self) -> &mut AppState {
+        self.app.app_state_mut()
+    }
+
     /// Check if app is still running (didn't crash/quit)
     ///
     /// # Returns
@@ -234,6 +246,83 @@ impl AcceptanceTestHarness {
     pub fn assert_snapshot(&mut self, snapshot_name: &str) {
         let output = self.render_to_string();
         insta::assert_snapshot!(snapshot_name, output);
+    }
+
+    /// Check if any occurrence of `text` in the rendered buffer has REVERSED modifier.
+    ///
+    /// Search highlighting typically uses REVERSED to make matches visually distinct.
+    /// This renders the current frame, then scans each row for the text and checks
+    /// if all cells in that span have the REVERSED modifier applied.
+    ///
+    /// # Arguments
+    /// * `text` - The text to search for in the rendered output
+    ///
+    /// # Returns
+    /// - `true` if at least one occurrence of `text` has REVERSED styling
+    /// - `false` if no occurrences have REVERSED styling
+    #[allow(dead_code)]
+    pub fn contains_reversed_text(&mut self, text: &str) -> bool {
+        use ratatui::style::Modifier;
+
+        // Render the current frame
+        self.app
+            .render_test()
+            .expect("Rendering should succeed in test harness");
+
+        let buffer = self.app.terminal().backend().buffer();
+        let area = buffer.area();
+        let text_lower = text.to_lowercase();
+
+        for y in area.top()..area.bottom() {
+            // Build row string and collect cells
+            // Also build a map from string position to cell index (to handle multi-byte symbols)
+            let mut row_text = String::new();
+            let mut row_cells: Vec<_> = Vec::new();
+            let mut str_pos_to_cell_idx: Vec<usize> = Vec::new();
+
+            for x in area.left()..area.right() {
+                let cell = &buffer[(x, y)];
+                let symbol = cell.symbol();
+
+                // Map each character position in the symbol to this cell index
+                for _ in 0..symbol.len() {
+                    str_pos_to_cell_idx.push(x as usize);
+                }
+
+                row_text.push_str(symbol);
+                row_cells.push(cell);
+            }
+
+            // Find occurrences of text in this row (case-insensitive)
+            let row_lower = row_text.to_lowercase();
+            let mut start = 0;
+
+            while let Some(pos) = row_lower[start..].find(&text_lower) {
+                let abs_pos = start + pos;
+
+                // Map string position to cell index
+                let start_cell_idx = str_pos_to_cell_idx.get(abs_pos).copied().unwrap_or(0);
+
+                // Check if all cells for this occurrence have REVERSED modifier
+                let text_char_count = text.chars().count();
+                let has_reversed = (0..text_char_count).all(|i| {
+                    let cell_idx = start_cell_idx + i;
+                    if cell_idx < row_cells.len() {
+                        row_cells[cell_idx].modifier.contains(Modifier::REVERSED)
+                    } else {
+                        false
+                    }
+                });
+
+                if has_reversed {
+                    return true;
+                }
+
+                start = abs_pos + 1;
+            }
+        }
+
+        false
     }
 
     /// Send a mouse click event at the specified coordinates

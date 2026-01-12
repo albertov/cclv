@@ -300,20 +300,17 @@ where
                         );
                         return false;
                     }
-                    KeyCode::Enter => {
-                        // Submit search on Enter when typing
-                        self.app_state.search =
-                            search_input_handler::submit_search(self.app_state.search.clone());
-                        // Keep focus on Search pane after submit (stays active)
-                        return false;
-                    }
                     _ => {} // Fall through to key binding dispatch
                 }
             }
         }
 
-        // Look up action in key bindings
-        let action = match self.key_bindings.get(key) {
+        // Look up action in key bindings (context-aware)
+        let action = match self.key_bindings.get_contextual(
+            key,
+            self.app_state.focus,
+            &self.app_state.search,
+        ) {
             Some(action) => action,
             None => return false, // Unknown key, ignore
         };
@@ -627,17 +624,44 @@ where
                 // Execute search to populate matches
                 use crate::state::{SearchState, execute_search};
                 if let SearchState::Active { query, .. } = &self.app_state.search {
+                    let session_count = self.app_state.log_view().session_count();
+                    let session_idx = self
+                        .app_state
+                        .viewed_session
+                        .effective_index(session_count)
+                        .expect("Viewed session must exist");
                     let session_view = self
                         .app_state
                         .log_view()
-                        .get_session(0)
-                        .expect("Session 0 must exist");
+                        .get_session(session_idx.get())
+                        .expect("Session must exist");
                     let matches = execute_search(session_view, query);
                     self.app_state.search = SearchState::Active {
                         query: query.clone(),
                         matches,
                         current_match: 0,
                     };
+
+                    // Trigger relayout to apply search highlighting (cclv-5ur.78)
+                    let width = match self.terminal.size() {
+                        Ok(size) if size.width > 0 => size.width,
+                        _ => 80, // Fallback for errors OR zero width
+                    };
+                    let wrap = self.app_state.global_wrap;
+                    let search_state = self.app_state.search.clone();
+
+                    // Relayout main conversation
+                    if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+                        main_view.relayout(width, wrap, &search_state);
+                    }
+
+                    // Relayout all subagent conversations
+                    let subagent_count = self.app_state.session_view().subagent_ids().count();
+                    for idx in 0..subagent_count {
+                        if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                            sub_view.relayout(width, wrap, &search_state);
+                        }
+                    }
                 }
                 // Keep focus on Search pane after submit (stays active)
             }
@@ -646,14 +670,77 @@ where
                     search_input_handler::cancel_search(self.app_state.search.clone());
                 // Return focus to Main pane after cancel
                 self.app_state.focus = FocusPane::Main;
+
+                // Trigger relayout to remove search highlighting (cclv-5ur.78)
+                let width = match self.terminal.size() {
+                    Ok(size) if size.width > 0 => size.width,
+                    _ => 80, // Fallback for errors OR zero width
+                };
+                let wrap = self.app_state.global_wrap;
+                let search_state = self.app_state.search.clone();
+
+                // Relayout main conversation
+                if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+                    main_view.relayout(width, wrap, &search_state);
+                }
+
+                // Relayout all subagent conversations
+                let subagent_count = self.app_state.session_view().subagent_ids().count();
+                for idx in 0..subagent_count {
+                    if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                        sub_view.relayout(width, wrap, &search_state);
+                    }
+                }
             }
 
             // Match navigation - delegate to pure match navigation handler
             KeyAction::NextMatch => {
                 next_match(&mut self.app_state);
+
+                // Trigger relayout to update current match highlighting (cclv-5ur.78)
+                let width = match self.terminal.size() {
+                    Ok(size) if size.width > 0 => size.width,
+                    _ => 80, // Fallback for errors OR zero width
+                };
+                let wrap = self.app_state.global_wrap;
+                let search_state = self.app_state.search.clone();
+
+                // Relayout main conversation
+                if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+                    main_view.relayout(width, wrap, &search_state);
+                }
+
+                // Relayout all subagent conversations
+                let subagent_count = self.app_state.session_view().subagent_ids().count();
+                for idx in 0..subagent_count {
+                    if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                        sub_view.relayout(width, wrap, &search_state);
+                    }
+                }
             }
             KeyAction::PrevMatch => {
                 prev_match(&mut self.app_state);
+
+                // Trigger relayout to update current match highlighting (cclv-5ur.78)
+                let width = match self.terminal.size() {
+                    Ok(size) if size.width > 0 => size.width,
+                    _ => 80, // Fallback for errors OR zero width
+                };
+                let wrap = self.app_state.global_wrap;
+                let search_state = self.app_state.search.clone();
+
+                // Relayout main conversation
+                if let Some(main_view) = self.app_state.main_conversation_view_mut() {
+                    main_view.relayout(width, wrap, &search_state);
+                }
+
+                // Relayout all subagent conversations
+                let subagent_count = self.app_state.session_view().subagent_ids().count();
+                for idx in 0..subagent_count {
+                    if let Some(sub_view) = self.app_state.subagent_conversation_view_mut(idx) {
+                        sub_view.relayout(width, wrap, &search_state);
+                    }
+                }
             }
 
             // Line wrapping - per-item toggle (w key)
@@ -986,6 +1073,15 @@ where
     /// **WARNING**: This is for testing only. Do not use in production code.
     pub(crate) fn app_state(&self) -> &AppState {
         &self.app_state
+    }
+
+    /// Get mutable reference to app state (test-only accessor)
+    ///
+    /// Used by test harness to modify app state for test setup.
+    ///
+    /// **WARNING**: This is for testing only. Do not use in production code.
+    pub(crate) fn app_state_mut(&mut self) -> &mut AppState {
+        &mut self.app_state
     }
 
     /// Handle a single keyboard event (test-only accessor)
