@@ -250,7 +250,6 @@ fn us4_scenario4_search_activation() {
 // ===== US4 Scenario 5: Navigate Search Results =====
 
 #[test]
-#[ignore = "Search execution not wired up - Enter doesn't execute search from Typing mode"]
 fn us4_scenario5_navigate_search_results() {
     // GIVEN: Search results exist
     // WHEN: User presses n/N

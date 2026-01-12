@@ -300,20 +300,17 @@ where
                         );
                         return false;
                     }
-                    KeyCode::Enter => {
-                        // Submit search on Enter when typing
-                        self.app_state.search =
-                            search_input_handler::submit_search(self.app_state.search.clone());
-                        // Keep focus on Search pane after submit (stays active)
-                        return false;
-                    }
                     _ => {} // Fall through to key binding dispatch
                 }
             }
         }
 
-        // Look up action in key bindings
-        let action = match self.key_bindings.get(key) {
+        // Look up action in key bindings (context-aware)
+        let action = match self.key_bindings.get_contextual(
+            key,
+            self.app_state.focus,
+            &self.app_state.search,
+        ) {
             Some(action) => action,
             None => return false, // Unknown key, ignore
         };
@@ -627,11 +624,17 @@ where
                 // Execute search to populate matches
                 use crate::state::{SearchState, execute_search};
                 if let SearchState::Active { query, .. } = &self.app_state.search {
+                    let session_count = self.app_state.log_view().session_count();
+                    let session_idx = self
+                        .app_state
+                        .viewed_session
+                        .effective_index(session_count)
+                        .expect("Viewed session must exist");
                     let session_view = self
                         .app_state
                         .log_view()
-                        .get_session(0)
-                        .expect("Session 0 must exist");
+                        .get_session(session_idx.get())
+                        .expect("Session must exist");
                     let matches = execute_search(session_view, query);
                     self.app_state.search = SearchState::Active {
                         query: query.clone(),

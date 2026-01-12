@@ -119,7 +119,6 @@ fn us2_scenario2_switch_subagent_tabs() {
 // ===== US2 Scenario 3: Search Highlight =====
 
 #[test]
-#[ignore = "Search execution not wired up - Enter in Typing mode doesn't execute search"]
 fn us2_scenario3_search_highlight() {
     // GIVEN: A loaded session
     // WHEN: User searches for "error"
