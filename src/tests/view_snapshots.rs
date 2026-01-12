@@ -4226,7 +4226,6 @@ fn bug_mouse_entry_expand_non_last_session() {
 ///
 /// Fixture: tests/fixtures/search_highlight_repro.jsonl
 #[test]
-#[ignore = "cclv-5ur.78: search highlighting not implemented - remove when fixed"]
 fn bug_search_match_text_not_highlighted() {
     use crate::test_harness::AcceptanceTestHarness;
     use crossterm::event::KeyCode;
